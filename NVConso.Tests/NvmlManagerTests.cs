@@ -1,4 +1,4 @@
-﻿namespace NVConso.Tests
+namespace NVConso.Tests
 {
     public class NvmlManagerTests
     {
@@ -32,6 +32,27 @@
             var mock = new MockNvmlManager(50000, 120000);
             var perf = mock.GetPowerLimit(GpuPowerMode.Performance);
             Assert.Equal(120000u, perf);
+        }
+
+        [Fact]
+        public void PerformanceLimit_ShouldStayStable_AfterSettingCurrentLimit()
+        {
+            var mock = new MockNvmlManager(50000, 120000);
+            mock.SetPowerLimit(60000);
+            var perf = mock.GetPowerLimit(GpuPowerMode.Performance);
+            Assert.Equal(120000u, perf);
+        }
+
+        [Fact]
+        public void TryGetCurrentPowerUsage_ShouldReturn_CurrentLimit_InMock()
+        {
+            var mock = new MockNvmlManager(50000, 120000);
+            mock.SetPowerLimit(75000);
+
+            bool success = mock.TryGetCurrentPowerUsage(out uint usage);
+
+            Assert.True(success);
+            Assert.Equal(75000u, usage);
         }
     }
 }

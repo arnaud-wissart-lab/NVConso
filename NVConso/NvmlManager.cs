@@ -1,15 +1,16 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 
 namespace NVConso
 {
     public class NvmlManager(ILogger<NvmlManager> logger) : INvmlManager
     {
-        private const int EcoPercentage = 10;
+        private const int NvmlSuccess = 0;
 
-        private static IntPtr _device;
-        private static uint _minLimit;
-        private static uint _maxLimit;
+        private IntPtr _device;
+        private uint _minLimit;
+        private uint _maxLimit;
+        private bool _isInitialized;
 
         [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int nvmlInit_v2();
@@ -24,16 +25,13 @@ namespace NVConso
         private static extern int nvmlDeviceGetPowerManagementLimitConstraints(IntPtr device, out uint minLimit, out uint maxLimit);
 
         [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int nvmlDeviceGetCount(out int deviceCount);
-
-        [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int nvmlDeviceGetPowerManagementMode(IntPtr device, out uint mode);
-
-        [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int nvmlDeviceSetPowerManagementLimit(IntPtr device, uint limit);
 
         [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int nvmlDeviceGetPowerManagementLimit(IntPtr device, out uint currentLimit);
+
+        [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int nvmlDeviceGetPowerUsage(IntPtr device, out uint powerUsage);
 
         [DllImport("nvml.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr nvmlErrorString(int result);
@@ -46,67 +44,149 @@ namespace NVConso
 
         public bool Initialize()
         {
-            if (nvmlInit_v2() != 0) return false;
-            if (nvmlDeviceGetHandleByIndex(0, out _device) != 0) return false;
-            if (nvmlDeviceGetPowerManagementLimitConstraints(_device, out _minLimit, out _maxLimit) != 0) return false;
-            return true;
+            _isInitialized = false;
+
+            try
+            {
+                if (nvmlInit_v2() != NvmlSuccess)
+                    return false;
+
+                if (nvmlDeviceGetHandleByIndex(0, out _device) != NvmlSuccess)
+                {
+                    _ = nvmlShutdown();
+                    return false;
+                }
+
+                if (nvmlDeviceGetPowerManagementLimitConstraints(_device, out _minLimit, out _maxLimit) != NvmlSuccess)
+                {
+                    _ = nvmlShutdown();
+                    return false;
+                }
+
+                _isInitialized = true;
+                return true;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogError(ex, "[NVML] nvml.dll introuvable.");
+                return false;
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                logger.LogError(ex, "[NVML] Points d'entrée NVML introuvables.");
+                return false;
+            }
         }
 
-        public void Shutdown() => _ = nvmlShutdown();
+        public void Shutdown()
+        {
+            if (!_isInitialized)
+                return;
+
+            try
+            {
+                _ = nvmlShutdown();
+            }
+            finally
+            {
+                _isInitialized = false;
+                _device = IntPtr.Zero;
+            }
+        }
 
         public uint GetCurrentPowerLimit()
         {
-            _ = nvmlDeviceGetPowerManagementLimit(_device, out uint currentLimit);
+            if (!_isInitialized)
+                return 0;
+
+            int result = nvmlDeviceGetPowerManagementLimit(_device, out uint currentLimit);
+            if (result != NvmlSuccess)
+            {
+                logger.LogWarning("[NVML] Lecture de la limite impossible : {Error} (code {Code})", GetNvmlError(result), result);
+                return 0;
+            }
+
             return currentLimit;
+        }
+
+        public bool TryGetCurrentPowerUsage(out uint currentPowerUsageMilliwatt)
+        {
+            currentPowerUsageMilliwatt = 0;
+
+            if (!_isInitialized)
+                return false;
+
+            int result = nvmlDeviceGetPowerUsage(_device, out uint currentPowerUsage);
+            if (result != NvmlSuccess)
+            {
+                logger.LogWarning("[NVML] Lecture de la consommation impossible : {Error} (code {Code})", GetNvmlError(result), result);
+                return false;
+            }
+
+            currentPowerUsageMilliwatt = currentPowerUsage;
+            return true;
         }
 
         public bool CheckCompatibility(out string message)
         {
             message = string.Empty;
 
-            int result = nvmlInit_v2();
-            if (result != 0)
+            try
             {
-                message = $"Initialisation NVML impossible : {GetNvmlError(result)}";
+                int result = nvmlInit_v2();
+                if (result != NvmlSuccess)
+                {
+                    message = $"Initialisation NVML impossible : {GetNvmlError(result)}";
+                    return false;
+                }
+
+                result = nvmlDeviceGetHandleByIndex(0, out var device);
+                if (result != NvmlSuccess)
+                {
+                    message = "Aucun GPU NVIDIA compatible n'a été trouvé.";
+                    return false;
+                }
+
+                result = nvmlDeviceGetPowerManagementLimitConstraints(device, out _, out _);
+                if (result != NvmlSuccess)
+                {
+                    message = "La carte ne prend pas en charge la modification du Power Limit.";
+                    return false;
+                }
+
+                result = nvmlDeviceGetPowerManagementLimit(device, out uint current);
+                if (result == NvmlSuccess)
+                    result = nvmlDeviceSetPowerManagementLimit(device, current);
+
+                if (result != NvmlSuccess)
+                {
+                    message = "Permission insuffisante pour modifier la limite de puissance (exécutez en mode administrateur).";
+                    return false;
+                }
+
+                return true;
+            }
+            catch (DllNotFoundException)
+            {
+                message = "nvml.dll introuvable. Vérifiez l'installation du pilote NVIDIA.";
                 return false;
             }
-
-            result = nvmlDeviceGetHandleByIndex(0, out var device);
-            if (result != 0)
+            catch (EntryPointNotFoundException)
             {
-                message = "Aucun GPU NVIDIA compatible n'a été trouvé.";
+                message = "Version NVML incompatible avec l'application.";
+                return false;
+            }
+            finally
+            {
                 _ = nvmlShutdown();
-                return false;
             }
-
-            result = nvmlDeviceGetPowerManagementLimitConstraints(device, out uint min, out uint max);
-            if (result != 0)
-            {
-                message = "La carte ne prend pas en charge la modification du Power Limit.";
-                _ = nvmlShutdown();
-                return false;
-            }
-
-            result = nvmlDeviceGetPowerManagementLimit(device, out uint current);
-            if (result == 0)
-                result = nvmlDeviceSetPowerManagementLimit(device, current);
-
-            _ = nvmlShutdown();
-
-            if (result != 0)
-            {
-                message = "Permission insuffisante pour modifier la limite de puissance (exécutez en mode administrateur).";
-                return false;
-            }
-
-            return true;
         }
 
         public uint GetPowerLimit(GpuPowerMode mode)
         {
             return mode switch
             {
-                GpuPowerMode.Eco => (uint)(_minLimit + (_maxLimit - _minLimit) * EcoPercentage / 100),
+                GpuPowerMode.Eco => (uint)(_minLimit + (_maxLimit - _minLimit) * Constants.EcoPercentage / 100),
                 GpuPowerMode.Performance => _maxLimit,
                 _ => _maxLimit
             };
@@ -114,16 +194,19 @@ namespace NVConso
 
         public bool SetPowerLimit(uint targetMilliwatt)
         {
+            if (!_isInitialized)
+                return false;
+
             targetMilliwatt = Math.Clamp(targetMilliwatt, _minLimit, _maxLimit);
             int result = nvmlDeviceSetPowerManagementLimit(_device, targetMilliwatt);
 
-            if (result != 0)
+            if (result != NvmlSuccess)
             {
-                logger.LogInformation($"[NVML] Erreur : {GetNvmlError(result)} (code {result})");
+                logger.LogWarning("[NVML] Erreur : {Error} (code {Code})", GetNvmlError(result), result);
                 return false;
             }
 
-            logger.LogInformation($"[NVML] Limite fixée à {targetMilliwatt} mW");
+            logger.LogInformation("[NVML] Limite fixée à {TargetMilliwatt} mW", targetMilliwatt);
             return true;
         }
     }
