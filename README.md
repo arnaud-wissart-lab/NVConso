@@ -19,6 +19,9 @@ L'application propose des profils simples (Éco / Performance) et applique les c
 - Application directe du Power Limit via NVML
 - Suivi de la consommation instantanée dans le menu tray (ligne non cliquable)
 - Affichage de la limite active en temps réel dans le menu tray
+- Affichage de la plage min/max autorisée par le GPU actif
+- Sélection du GPU actif depuis le menu (multi-GPU)
+- Persistance du GPU/profil sélectionné et auto-application au démarrage
 - Vérification de compatibilité au démarrage
 - Relance automatique en mode administrateur si nécessaire
 - Tests unitaires via xUnit avec mock NVML
@@ -51,6 +54,12 @@ dotnet run --project NVConso/NVConso.csproj
 ```powershell
 dotnet test Tools.sln
 ```
+
+## Configuration persistée
+
+Les préférences utilisateur (GPU sélectionné et dernier profil choisi) sont sauvegardées dans :
+
+`%LOCALAPPDATA%\\NVConso\\settings.json`
 
 ## Mise à jour des dépendances
 

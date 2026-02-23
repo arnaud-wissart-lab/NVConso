@@ -7,9 +7,6 @@ namespace NVConso
 {
     internal static class Program
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
@@ -48,16 +45,9 @@ namespace NVConso
                 .BuildServiceProvider();
 
             var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("NVConso");
-            logger.LogInformation("Application démarrée");
+            logger.LogInformation("Application started");
 
             var nvml = services.GetRequiredService<INvmlManager>();
-
-            if (!nvml.CheckCompatibility(out var reason))
-            {
-                MessageBox.Show(reason, "NVConso", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
             Application.Run(new TrayAppContext(nvml));
         }
 

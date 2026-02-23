@@ -54,5 +54,38 @@ namespace NVConso.Tests
             Assert.True(success);
             Assert.Equal(75000u, usage);
         }
+
+        [Fact]
+        public void TryGetAvailableGpus_ShouldExpose_MockGpu()
+        {
+            var mock = new MockNvmlManager(50000, 120000);
+
+            bool success = mock.TryGetAvailableGpus(out IReadOnlyList<GpuDeviceInfo> gpus, out string message);
+
+            Assert.True(success);
+            Assert.Equal(string.Empty, message);
+            Assert.Single(gpus);
+            Assert.Equal(0, gpus[0].Index);
+        }
+
+        [Fact]
+        public void SelectGpu_ShouldFail_ForUnknownIndex_InMock()
+        {
+            var mock = new MockNvmlManager(50000, 120000);
+
+            bool success = mock.SelectGpu(1, out string message);
+
+            Assert.False(success);
+            Assert.NotEqual(string.Empty, message);
+        }
+
+        [Fact]
+        public void PowerLimitBoundaries_ShouldExpose_MinAndMax()
+        {
+            var mock = new MockNvmlManager(50000, 120000);
+
+            Assert.Equal(50000u, mock.MinimumPowerLimit);
+            Assert.Equal(120000u, mock.MaximumPowerLimit);
+        }
     }
 }

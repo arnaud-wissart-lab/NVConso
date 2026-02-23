@@ -4,6 +4,8 @@ namespace NVConso
     {
         private readonly uint _minLimit;
         private readonly uint _maxLimit;
+        private readonly IReadOnlyList<GpuDeviceInfo> _gpus = [new GpuDeviceInfo(0, "Mock GPU")];
+
         private uint _currentLimit;
 
         public MockNvmlManager(uint minLimit, uint maxLimit)
@@ -11,7 +13,17 @@ namespace NVConso
             _minLimit = minLimit;
             _maxLimit = maxLimit;
             _currentLimit = maxLimit;
+            SelectedGpuIndex = 0;
+            SelectedGpuName = _gpus[0].Name;
         }
+
+        public int SelectedGpuIndex { get; private set; }
+
+        public string SelectedGpuName { get; private set; }
+
+        public uint MinimumPowerLimit => _minLimit;
+
+        public uint MaximumPowerLimit => _maxLimit;
 
         public bool CheckCompatibility(out string message)
         {
@@ -20,6 +32,27 @@ namespace NVConso
         }
 
         public bool Initialize() => true;
+
+        public bool TryGetAvailableGpus(out IReadOnlyList<GpuDeviceInfo> gpus, out string message)
+        {
+            gpus = _gpus;
+            message = string.Empty;
+            return true;
+        }
+
+        public bool SelectGpu(int gpuIndex, out string message)
+        {
+            if (gpuIndex != 0)
+            {
+                message = "GPU mock introuvable.";
+                return false;
+            }
+
+            SelectedGpuIndex = 0;
+            SelectedGpuName = _gpus[0].Name;
+            message = string.Empty;
+            return true;
+        }
 
         public uint GetCurrentPowerLimit() => _currentLimit;
 
