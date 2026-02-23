@@ -2,76 +2,85 @@
 
 [![CI](https://github.com/arnaud-wissart/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart/NVConso/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/arnaud-wissart/NVConso)](./LICENSE)
-![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)
-![WinForms](https://img.shields.io/badge/Tech-WinForms-008080)
-![Platform](https://img.shields.io/badge/Platform-Windows-blue)
-![NVIDIA](https://img.shields.io/badge/GPU-NVIDIA-green)
-![PowerLimit](https://img.shields.io/badge/Feature-Power%20Limit-orange)
+[![.NET](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/)
+[![WinForms](https://img.shields.io/badge/WinForms-Windows-008080)](https://learn.microsoft.com/dotnet/desktop/winforms/)
+[![NVIDIA](https://img.shields.io/badge/GPU-NVIDIA-green)](https://www.nvidia.com/)
 
-🎛️ **NVConso** est un utilitaire Windows léger pour ajuster dynamiquement la **limite de consommation électrique (Power Limit)** de ta carte graphique **NVIDIA**, directement depuis la zone de notification Windows.
+## Présentation
 
-## 🚀 Fonctionnalités
+**NVConso** est un utilitaire Windows léger qui permet d'ajuster rapidement la limite de consommation (Power Limit) d'un GPU NVIDIA depuis la zone de notification.
 
-- Icône discrète dans le **tray Windows**
-- Deux modes d’alimentation :
-  - 🧘 **Éco** : limite à ~10% du TDP max
-  - 🔥 **Performance** : limite maximale autorisée
-- Contrôle direct via **NVML** (API officielle NVIDIA)
-- Démarrage rapide et silencieux (pas de fenêtre visible)
-- Idéal pour :
-  - Travailler (dev, bureautique) sans gaspillage énergétique
-  - Passer en mode jeu d’un clic
+L'application propose des profils simples (Éco / Performance) et applique les changements via NVML.
 
-## 🖼️ Captures
+## Fonctionnalités principales
 
-![Capture du tray NVConso](docs/screenshots/tray.png)
+- Icône tray Windows, sans fenêtre principale visible
+- Deux profils d'alimentation : Éco et Performance
+- Application directe du Power Limit via NVML
+- Vérification de compatibilité au démarrage
+- Relance automatique en mode administrateur si nécessaire
+- Tests unitaires via xUnit avec mock NVML
 
-## ✅ Tests
+## Stack technique
 
-Ce projet inclut un projet de **tests unitaires** `NVConso.Tests`, basé sur **xUnit**, avec un **Mock de la couche NVML** permettant de tester sans carte NVIDIA réelle.
+- Application : .NET 8, WinForms
+- API GPU : NVML (P/Invoke)
+- Injection de dépendances et logs : `Microsoft.Extensions.*`
+- Tests : xUnit
+- CI : GitHub Actions
 
-### 💻 Lancer les tests
+## Prérequis
 
-```bash
-dotnet test NVConso.Tests/NVConso.Tests.csproj
+- Windows (x64)
+- SDK .NET 8 (pour build/test)
+- GPU NVIDIA compatible NVML
+- `nvml.dll` accessible (driver NVIDIA installé)
+- Droits administrateur pour modifier le Power Limit
+
+## Lancement local
+
+```powershell
+dotnet restore Tools.sln
+dotnet run --project NVConso/NVConso.csproj
 ```
 
-## 🛠️ Prérequis
+## Exécution des tests
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
-- Carte graphique NVIDIA **compatible NVML**
-- Fichier `nvml.dll` disponible dans le PATH ou à côté de l’exécutable
-- Application **lancée en mode administrateur**
+```powershell
+dotnet test Tools.sln
+```
 
-## 📥 Téléchargement
+## Mise à jour des dépendances
 
-- **Releases** : placeholder — les binaires seront publiés via l’onglet [Releases](https://github.com/arnaud-wissart/NVConso/releases).
-- Selon la configuration Windows et les permissions GPU, `NVConso.exe` peut nécessiter des droits administrateur.
+Vérifier les packages obsolètes (mise à jour conservatrice, sans saut de version majeure) :
 
-## ⚠️ Disclaimer
+```powershell
+dotnet list Tools.sln package --outdated --highest-minor
+```
 
-NVConso applique des changements matériels via NVML : utilise-le à tes risques, en connaissance de cause.
-Vérifie toujours tes valeurs (GPU-Z, télémétrie NVIDIA, etc.) et commence avec des réglages prudents.
-L’auteur ne peut pas garantir la compatibilité avec toutes les cartes, drivers ou contextes d’exécution.
+Vérifier les vulnérabilités NuGet :
 
-## ⚠️ Remarques importantes
+```powershell
+dotnet list Tools.sln package --vulnerable
+```
 
-- Les modifications de Power Limit peuvent **ne pas s’afficher dans l'application NVIDIA officielle**.
-- Pour une lecture fiable des valeurs, utilise un outil comme **GPU-Z**.
-- Certaines limitations peuvent s’appliquer selon ta carte (notamment sur les portables).
+Guide détaillé : [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
 
-## 🧭 Roadmap envisagée
+## Limitations connues
 
-- Valeurs personnalisées de limite (par pas de 5%)
-- Profils "Turbo", "Silent", "Work", etc.
-- Mode automatique basé sur l'activité ou l'utilisation CPU/GPU
+- Le GPU ciblé est actuellement l'index `0`
+- La visibilité des changements dans certains outils NVIDIA peut varier
+- Certaines cartes (notamment mobiles) limitent la modification du Power Limit
+
+## Roadmap
+
+- Profils supplémentaires (Silent, Turbo, Work)
+- Valeurs personnalisées par pas
 - Démarrage automatique avec Windows
 - Prise en charge multi-GPU
 
-## 📄 Licence
+## Licence
 
-Ce projet est sous licence **MIT** — libre d'utilisation, modification et redistribution.
-
----
+Projet sous licence MIT. Voir [LICENSE](LICENSE).
 
 © 2025 Arnaud Wissart

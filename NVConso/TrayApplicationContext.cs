@@ -61,7 +61,7 @@ namespace NVConso
             trayMenu.Items.Add(item);
             powerItems.Add(item);
         }
-        private void OnPowerLimitSelected(object? sender, EventArgs e)
+        private void OnPowerLimitSelected(object sender, EventArgs e)
         {
             if (sender is not ToolStripMenuItem clickedItem) return;
 
