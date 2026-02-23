@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET from global.json
+        if: ${{ hashFiles('global.json') != '' }}
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Setup .NET 8 (fallback)
+        if: ${{ hashFiles('global.json') == '' }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Restore
+        run: dotnet restore Tools.sln
+
+      - name: Build
+        run: dotnet build Tools.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test NVConso.Tests/NVConso.Tests.csproj --configuration Release --no-build

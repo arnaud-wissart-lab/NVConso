@@ -1,8 +1,9 @@
 # NVConso
 
+[![CI](https://github.com/arnaud-wissart/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart/NVConso/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/arnaud-wissart/NVConso)](./LICENSE)
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)
 ![WinForms](https://img.shields.io/badge/Tech-WinForms-008080)
-![License](https://img.shields.io/github/license/arnaud-wissart/NVConso)
 ![Platform](https://img.shields.io/badge/Platform-Windows-blue)
 ![NVIDIA](https://img.shields.io/badge/GPU-NVIDIA-green)
 ![PowerLimit](https://img.shields.io/badge/Feature-Power%20Limit-orange)
@@ -11,7 +12,7 @@
 
 ## 🚀 Fonctionnalités
 
-- Icône discrète dans le **tray Windows** 
+- Icône discrète dans le **tray Windows**
 - Deux modes d’alimentation :
   - 🧘 **Éco** : limite à ~10% du TDP max
   - 🔥 **Performance** : limite maximale autorisée
@@ -21,6 +22,10 @@
   - Travailler (dev, bureautique) sans gaspillage énergétique
   - Passer en mode jeu d’un clic
 
+## 🖼️ Captures
+
+![Capture du tray NVConso](docs/screenshots/tray.png)
+
 ## ✅ Tests
 
 Ce projet inclut un projet de **tests unitaires** `NVConso.Tests`, basé sur **xUnit**, avec un **Mock de la couche NVML** permettant de tester sans carte NVIDIA réelle.
@@ -28,7 +33,7 @@ Ce projet inclut un projet de **tests unitaires** `NVConso.Tests`, basé sur **x
 ### 💻 Lancer les tests
 
 ```bash
-dotnet test
+dotnet test NVConso.Tests/NVConso.Tests.csproj
 ```
 
 ## 🛠️ Prérequis
@@ -38,11 +43,16 @@ dotnet test
 - Fichier `nvml.dll` disponible dans le PATH ou à côté de l’exécutable
 - Application **lancée en mode administrateur**
 
-## 📦 Installation
+## 📥 Téléchargement
 
-1. Télécharge la dernière version depuis l’onglet [Releases](https://github.com/arnaud-wissart/NVConso/releases)
-2. Lance `NVConso.exe` en **tant qu'administrateur**
-3. Clique sur l’icône dans la zone de notification pour choisir un mode
+- **Releases** : placeholder — les binaires seront publiés via l’onglet [Releases](https://github.com/arnaud-wissart/NVConso/releases).
+- Selon la configuration Windows et les permissions GPU, `NVConso.exe` peut nécessiter des droits administrateur.
+
+## ⚠️ Disclaimer
+
+NVConso applique des changements matériels via NVML : utilise-le à tes risques, en connaissance de cause.
+Vérifie toujours tes valeurs (GPU-Z, télémétrie NVIDIA, etc.) et commence avec des réglages prudents.
+L’auteur ne peut pas garantir la compatibilité avec toutes les cartes, drivers ou contextes d’exécution.
 
 ## ⚠️ Remarques importantes
 
