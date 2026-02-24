@@ -12,6 +12,10 @@
 
 L'application propose des profils simples (Éco / Performance) et applique les changements via NVML.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/arnaud-wissart/NVConso/main/docs/screenshots/NVConso.png" width="433" />
+</p>
+
 ## Fonctionnalités principales
 
 - Icône tray Windows, sans fenêtre principale visible
