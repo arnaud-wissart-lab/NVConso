@@ -304,7 +304,7 @@ jobs:
           if ! compgen -G "dist/*win-arm64.zip" > /dev/null; then
             {
               echo
-              echo "Note: l'artefact win-arm64 n'a pas ete genere sur cette release (dependances natives / incompatibilite)."
+              echo "Note: l'artefact win-arm64 n'a pas été généré sur cette release (dépendances natives / incompatibilité)."
             } >> release-notes.md
           fi
 

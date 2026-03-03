@@ -35,9 +35,9 @@ namespace NVConso
 
             _trayMenu = new ContextMenuStrip();
 
-            _powerUsageItem = CreateInfoItem("⚡ Conso instantanee : --.- W");
+            _powerUsageItem = CreateInfoItem("⚡ Conso instantanée : --.- W");
             _currentLimitItem = CreateInfoItem("🎯 Limite active : --.- W");
-            _powerRangeItem = CreateInfoItem("📏 Plage autorisee : --.- W - --.- W");
+            _powerRangeItem = CreateInfoItem("📏 Plage autorisée : --.- W - --.- W");
             _activeGpuItem = CreateInfoItem("🖥️ GPU actif : --");
             _statusItem = CreateInfoItem("ℹ️ Statut : initialisation...");
 
@@ -201,8 +201,8 @@ namespace NVConso
             UpdateProfileLabels();
 
             _activeGpuItem.Text = $"🖥️ GPU actif : {_nvml.SelectedGpuName} (#{_nvml.SelectedGpuIndex})";
-            _powerRangeItem.Text = $"📏 Plage autorisee : {_nvml.MinimumPowerLimit / 1000.0:F1} - {_nvml.MaximumPowerLimit / 1000.0:F1} W";
-            SetStatus($"✅ GPU selectionne : {_nvml.SelectedGpuName}");
+            _powerRangeItem.Text = $"📏 Plage autorisée : {_nvml.MinimumPowerLimit / 1000.0:F1} - {_nvml.MaximumPowerLimit / 1000.0:F1} W";
+            SetStatus($"✅ GPU sélectionné : {_nvml.SelectedGpuName}");
             return true;
         }
 
@@ -234,7 +234,7 @@ namespace NVConso
 
             if (!success)
             {
-                const string warning = "Le GPU/pilote a refuse la modification de limite.";
+                const string warning = "Le GPU/pilote a refusé la modification de limite.";
                 SetStatus($"⚠️ {warning}");
                 if (showBalloon)
                     _icon.ShowBalloonTip(1500, "Avertissement", warning, ToolTipIcon.Warning);
@@ -250,10 +250,10 @@ namespace NVConso
             }
 
             string modeLabel = mode == GpuPowerMode.Eco ? "Eco" : "Performance";
-            SetStatus($"✅ Profil {modeLabel} applique ({target / 1000.0:F1} W)");
+            SetStatus($"✅ Profil {modeLabel} appliqué ({target / 1000.0:F1} W)");
 
             if (showBalloon)
-                _icon.ShowBalloonTip(1000, "GPU", $"Profil {modeLabel} applique", ToolTipIcon.Info);
+                _icon.ShowBalloonTip(1000, "GPU", $"Profil {modeLabel} appliqué", ToolTipIcon.Info);
 
             RefreshTelemetry();
         }
@@ -288,9 +288,9 @@ namespace NVConso
             }
 
             if (_nvml.TryGetCurrentPowerUsage(out uint currentPowerUsage))
-                _powerUsageItem.Text = $"⚡ Conso instantanee : {currentPowerUsage / 1000.0:F1} W";
+                _powerUsageItem.Text = $"⚡ Conso instantanée : {currentPowerUsage / 1000.0:F1} W";
             else
-                _powerUsageItem.Text = "⚡ Conso instantanee : indisponible";
+                _powerUsageItem.Text = "⚡ Conso instantanée : indisponible";
         }
 
         private void UpdatePowerSelection(uint currentLimit)

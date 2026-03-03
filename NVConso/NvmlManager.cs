@@ -102,7 +102,7 @@ namespace NVConso
             }
             catch (EntryPointNotFoundException ex)
             {
-                logger.LogError(ex, "[NVML] Points d'entree NVML introuvables.");
+                logger.LogError(ex, "[NVML] Points d'entrée NVML introuvables.");
                 Shutdown();
                 return false;
             }
@@ -136,7 +136,7 @@ namespace NVConso
 
             if (!_isInitialized)
             {
-                message = "NVML non initialise.";
+                message = "NVML non initialisé.";
                 return false;
             }
 
@@ -153,7 +153,7 @@ namespace NVConso
 
             if (!_isInitialized)
             {
-                message = "NVML non initialise.";
+                message = "NVML non initialisé.";
                 return false;
             }
 
@@ -228,7 +228,7 @@ namespace NVConso
                 result = nvmlDeviceGetCount(out int deviceCount);
                 if (result != NvmlSuccess || deviceCount <= 0)
                 {
-                    message = "Aucun GPU NVIDIA detecte.";
+                    message = "Aucun GPU NVIDIA détecté.";
                     return false;
                 }
 
@@ -254,14 +254,14 @@ namespace NVConso
                 }
 
                 message = foundPowerLimitCompatibleGpu
-                    ? "Permission insuffisante pour modifier la limite de puissance (executer en administrateur)."
+                    ? "Permission insuffisante pour modifier la limite de puissance (exécuter en administrateur)."
                     : "Aucun GPU ne prend en charge la modification du Power Limit.";
 
                 return false;
             }
             catch (DllNotFoundException)
             {
-                message = "nvml.dll introuvable. Verifiez l'installation du pilote NVIDIA.";
+                message = "nvml.dll introuvable. Vérifiez l'installation du pilote NVIDIA.";
                 return false;
             }
             catch (EntryPointNotFoundException)
@@ -295,7 +295,7 @@ namespace NVConso
 
             if (result != NvmlSuccess)
             {
-                logger.LogWarning("[NVML] Echec ecriture limite: {Error} (code {Code})", GetNvmlError(result), result);
+                logger.LogWarning("[NVML] Échec écriture limite: {Error} (code {Code})", GetNvmlError(result), result);
                 return false;
             }
 
@@ -317,7 +317,7 @@ namespace NVConso
 
             if (deviceCount <= 0)
             {
-                message = "Aucun GPU NVIDIA detecte.";
+                message = "Aucun GPU NVIDIA détecté.";
                 return false;
             }
 

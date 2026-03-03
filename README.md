@@ -6,23 +6,23 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 [![.NET](https://img.shields.io/badge/.NET-net8.0--windows-512BD4)](./NVConso/NVConso.csproj)
 [![WinForms](https://img.shields.io/badge/UI-WinForms-0078D4)](./NVConso/NVConso.csproj)
 
-## Telechargement
-- Derniere version: [\`/releases/latest\`](https://github.com/arnaud-wissart/NVConso/releases/latest)
+## Téléchargement
+- Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart/NVConso/releases/latest)
 - Archives ZIP self-contained (pas besoin d'installer .NET).
 - Artefacts disponibles: `win-x64` (obligatoire) et `win-arm64` si compatible.
 - Fichier `SHA256SUMS.txt` fourni avec chaque release.
 
-## Demo live
-- Demo live: Application desktop Windows, aucune instance publique referencee dans ce depot.
+## Démo live
+- Démo live: Application desktop Windows, aucune instance publique référencée dans ce dépôt.
 - Release: [GitHub Releases](https://github.com/arnaud-wissart/NVConso/releases).
 
-## Ce que ca demontre
-- Conception d'une application WinForms sans fenetre principale, pilotee par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-- Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour enumerer les GPU, lire la consommation et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Gestion multi-GPU avec selection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-- Gestion explicite des privileges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
-- Persistance locale resiliente des preferences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par defaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
-- Testabilite via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
+## Ce que ça démontre
+- Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
+- Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la consommation et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+- Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
+- Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
+- Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
+- Testabilité via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
 - Pipeline CI Windows sur GitHub Actions (restore/build/test) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
 ## Captures
@@ -43,27 +43,27 @@ flowchart LR
   J --> C
 ```
 
-### Comment ca marche
-1. Au lancement, l'application initialise WinForms puis demande l'elevation admin si necessaire ([`NVConso/Program.cs`](./NVConso/Program.cs)).
-2. `TrayAppContext` initialise NVML, charge la liste GPU, puis selectionne le GPU sauvegarde (ou le premier disponible) ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
+### Comment ça marche
+1. Au lancement, l'application initialise WinForms puis demande l'élévation admin si nécessaire ([`NVConso/Program.cs`](./NVConso/Program.cs)).
+2. `TrayAppContext` initialise NVML, charge la liste GPU, puis sélectionne le GPU sauvegardé (ou le premier disponible) ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 3. Les profils `Eco` et `Performance` calculent/appliquent une limite de puissance en milliwatts via NVML (Eco = min + 10% de l'intervalle, Performance = max) ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-4. Un timer (1 s) met a jour la telemetrie (consommation instantanee et limite active), et les choix utilisateur sont persistes en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
+4. Un timer (1 s) met à jour la télémétrie (consommation instantanée et limite active), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 
 ## Stack technique
 - Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Plateforme cible: `x64` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Interop GPU: NVML (`nvml.dll`) via `DllImport` ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Injection de dependances et logging: `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Logging`, `Microsoft.Extensions.Logging.Console` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- Package present dans le projet: `NvAPIWrapper.Net` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- WMI: non detecte dans le code actuel.
+- Injection de dépendances et logging: `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Logging`, `Microsoft.Extensions.Logging.Console` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
+- Package présent dans le projet: `NvAPIWrapper.Net` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
+- WMI: non détecté dans le code actuel.
 - Tests: xUnit + `Microsoft.NET.Test.Sdk` + `coverlet.collector` ([`NVConso.Tests/NVConso.Tests.csproj`](./NVConso.Tests/NVConso.Tests.csproj)).
 - CI: GitHub Actions sur `windows-latest` ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
-## Demarrage rapide (dev local)
-Prerequis:
+## Démarrage rapide (dev local)
+Prérequis:
 - Windows.
 - SDK .NET 8.x (la CI utilise `8.x` en fallback).
-- Pilote NVIDIA installe (pour `nvml.dll`).
+- Pilote NVIDIA installé (pour `nvml.dll`).
 - Droits administrateur (requis pour modifier la limite de puissance).
 
 Restaurer, builder, lancer:
@@ -81,7 +81,7 @@ dotnet build Tools.sln --configuration Release --no-restore
 ```
 
 Packaging binaire/release:
-- TODO (aucun script `dotnet publish`, aucun workflow de release, aucun installateur detecte dans ce depot).
+- TODO (aucun script `dotnet publish`, aucun workflow de release, aucun installateur détecté dans ce dépôt).
 
 ## Tests
 Tests unitaires (projet de tests):
@@ -90,7 +90,7 @@ Tests unitaires (projet de tests):
 dotnet test NVConso.Tests/NVConso.Tests.csproj --configuration Release --no-build
 ```
 
-Validation locale complete (documentation maintenance):
+Validation locale complète (documentation maintenance):
 
 ```powershell
 dotnet restore Tools.sln
@@ -98,15 +98,15 @@ dotnet build Tools.sln -c Debug
 dotnet test Tools.sln -c Debug
 ```
 
-Type de tests detectes:
+Type de tests détectés:
 - Unitaires: oui ([`NVConso.Tests/`](./NVConso.Tests/)).
-- Integration: TODO (non detecte).
-- E2E: TODO (non detecte).
+- Intégration: TODO (non détecté).
+- E2E: TODO (non détecté).
 
-## Securite & configuration
-- Privileges: niveau `requireAdministrator` dans le manifest et relance `runas` au demarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
-- Pourquoi admin: l'ecriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut etre refusee sans elevation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Variables d'environnement: aucune variable `.env` / secret detectee dans le code actuel.
+## Sécurité & configuration
+- Privilèges: niveau `requireAdministrator` dans le manifest et relance `runas` au démarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
+- Pourquoi admin: l'écriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut être refusée sans élévation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+- Variables d'environnement: aucune variable `.env` / secret détectée dans le code actuel.
 - Configuration locale persistante: `%LOCALAPPDATA%\\NVConso\\settings.json`.
 
 Exemple de `settings.json` (placeholders):
@@ -121,7 +121,7 @@ Exemple de `settings.json` (placeholders):
 ```
 
 - Bonnes pratiques:
-- Ne pas commiter de secrets dans le depot.
+- Ne pas commiter de secrets dans le dépôt.
 - Garder les valeurs machine/utilisateur dans le fichier local `%LOCALAPPDATA%`.
 
 ## Licence
