@@ -13,7 +13,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 - Fichier `SHA256SUMS.txt` fourni avec chaque release.
 
 ## Demo live
-- Demo live: TODO (application desktop Windows, aucune instance publique referencee dans ce depot).
+- Demo live: Application desktop Windows, aucune instance publique referencee dans ce depot.
 - Release: [GitHub Releases](https://github.com/arnaud-wissart/NVConso/releases).
 
 ## Ce que ca demontre
@@ -26,15 +26,8 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 - Pipeline CI Windows sur GitHub Actions (restore/build/test) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
 ## Captures
-- Capture disponible:
 
 ![Capture NVConso](./docs/screenshots/NVConso.png)
-
-- TODO: ajouter 1 a 3 captures supplementaires dans [`docs/screenshots/`](./docs/screenshots/) pour atteindre 2 a 4 vues.
-- Convention recommandee:
-- `docs/screenshots/tray-menu.png`
-- `docs/screenshots/gpu-selection.png`
-- `docs/screenshots/power-limit-status.png`
 
 ## Architecture
 ```mermaid
