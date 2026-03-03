@@ -81,7 +81,7 @@ dotnet build Tools.sln --configuration Release --no-restore
 ```
 
 Packaging binaire/release:
-- TODO (aucun script `dotnet publish`, aucun workflow de release, aucun installateur détecté dans ce dépôt).
+https://github.com/arnaud-wissart-lab/NVConso/releases
 
 ## Tests
 Tests unitaires (projet de tests):
@@ -100,8 +100,6 @@ dotnet test Tools.sln -c Debug
 
 Type de tests détectés:
 - Unitaires: oui ([`NVConso.Tests/`](./NVConso.Tests/)).
-- Intégration: TODO (non détecté).
-- E2E: TODO (non détecté).
 
 ## Sécurité & configuration
 - Privilèges: niveau `requireAdministrator` dans le manifest et relance `runas` au démarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
@@ -119,10 +117,6 @@ Exemple de `settings.json` (placeholders):
   "LastSelectedMode": "<Eco_or_Performance>"
 }
 ```
-
-- Bonnes pratiques:
-- Ne pas commiter de secrets dans le dépôt.
-- Garder les valeurs machine/utilisateur dans le fichier local `%LOCALAPPDATA%`.
 
 ## Licence
 Licence MIT. Voir [LICENSE](./LICENSE).
