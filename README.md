@@ -7,14 +7,14 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 [![WinForms](https://img.shields.io/badge/UI-WinForms-0078D4)](./NVConso/NVConso.csproj)
 
 ## Téléchargement
-- Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart/NVConso/releases/latest)
+- Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
 - Archives ZIP self-contained (pas besoin d'installer .NET).
 - Artefacts disponibles: `win-x64` (obligatoire) et `win-arm64` si compatible.
 - Fichier `SHA256SUMS.txt` fourni avec chaque release.
 
 ## Démo live
 - Démo live: Application desktop Windows, aucune instance publique référencée dans ce dépôt.
-- Release: [GitHub Releases](https://github.com/arnaud-wissart/NVConso/releases).
+- Release: [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases).
 
 ## Ce que ça démontre
 - Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
