@@ -3,16 +3,23 @@ namespace NVConso
     public class MockNvmlManager : INvmlManager
     {
         private readonly uint _minLimit;
+        private readonly uint _defaultLimit;
         private readonly uint _maxLimit;
         private readonly IReadOnlyList<GpuDeviceInfo> _gpus = [new GpuDeviceInfo(0, "Mock GPU")];
 
         private uint _currentLimit;
 
         public MockNvmlManager(uint minLimit, uint maxLimit)
+            : this(minLimit, maxLimit, maxLimit)
+        {
+        }
+
+        public MockNvmlManager(uint minLimit, uint defaultLimit, uint maxLimit)
         {
             _minLimit = minLimit;
+            _defaultLimit = GpuPowerLimitCalculator.ResolveDefaultPowerLimit(minLimit, maxLimit, defaultLimit, null);
             _maxLimit = maxLimit;
-            _currentLimit = maxLimit;
+            _currentLimit = _defaultLimit;
             SelectedGpuIndex = 0;
             SelectedGpuName = _gpus[0].Name;
         }
@@ -23,7 +30,29 @@ namespace NVConso
 
         public uint MinimumPowerLimit => _minLimit;
 
+        public uint DefaultPowerLimit => _defaultLimit;
+
+        public bool IsDefaultPowerLimitAvailable { get; set; } = true;
+
         public uint MaximumPowerLimit => _maxLimit;
+
+        public uint? LastSetPowerLimit { get; private set; }
+
+        public int SetPowerLimitCallCount { get; private set; }
+
+        public bool SetPowerLimitResult { get; set; } = true;
+
+        public GpuTelemetry Telemetry { get; set; } = new()
+        {
+            TemperatureGpuCelsius = 55,
+            GpuUtilizationPercent = 12,
+            MemoryUtilizationPercent = 18,
+            DecoderUtilizationPercent = 4,
+            GraphicsClockMHz = 900,
+            MemoryClockMHz = 5000,
+            FanSpeedPercent = 35,
+            PerformanceState = 8
+        };
 
         public bool CheckCompatibility(out string message)
         {
@@ -62,25 +91,45 @@ namespace NVConso
             return true;
         }
 
+        public bool TryGetTelemetry(out GpuTelemetry telemetry)
+        {
+            telemetry = new GpuTelemetry
+            {
+                CurrentPowerUsageMilliwatt = Telemetry.CurrentPowerUsageMilliwatt ?? _currentLimit,
+                CurrentPowerLimitMilliwatt = Telemetry.CurrentPowerLimitMilliwatt ?? _currentLimit,
+                TemperatureGpuCelsius = Telemetry.TemperatureGpuCelsius,
+                GpuUtilizationPercent = Telemetry.GpuUtilizationPercent,
+                MemoryUtilizationPercent = Telemetry.MemoryUtilizationPercent,
+                DecoderUtilizationPercent = Telemetry.DecoderUtilizationPercent,
+                GraphicsClockMHz = Telemetry.GraphicsClockMHz,
+                MemoryClockMHz = Telemetry.MemoryClockMHz,
+                FanSpeedPercent = Telemetry.FanSpeedPercent,
+                PerformanceState = Telemetry.PerformanceState
+            };
+
+            return true;
+        }
+
         public uint GetPowerLimit(GpuPowerMode mode)
         {
-            return mode switch
-            {
-                GpuPowerMode.Eco => (uint)(_minLimit + (_maxLimit - _minLimit) * Constants.EcoPercentage / 100),
-                GpuPowerMode.Performance => _maxLimit,
-                _ => throw new ArgumentOutOfRangeException(nameof(mode), "Mode inconnu")
-            };
+            return GpuPowerLimitCalculator.GetPowerLimit(mode, _minLimit, _defaultLimit, _maxLimit);
         }
 
         public bool SetPowerLimit(uint targetMilliwatt)
         {
+            LastSetPowerLimit = targetMilliwatt;
+            SetPowerLimitCallCount++;
+
+            if (!SetPowerLimitResult)
+                return false;
+
             _currentLimit = Math.Clamp(targetMilliwatt, _minLimit, _maxLimit);
             return true;
         }
 
         public void Shutdown()
         {
-            // no-op
+            // Rien à libérer dans l'implémentation de test.
         }
     }
 }

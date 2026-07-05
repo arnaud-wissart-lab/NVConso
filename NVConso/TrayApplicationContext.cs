@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 
 namespace NVConso
@@ -7,6 +8,15 @@ namespace NVConso
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        private static readonly GpuPowerMode[] ProfileOrder =
+        [
+            GpuPowerMode.Canicule,
+            GpuPowerMode.VideoSurf,
+            GpuPowerMode.Indie2D,
+            GpuPowerMode.Stock,
+            GpuPowerMode.Max
+        ];
+
         private const int TelemetryRefreshIntervalMs = 1000;
         private const int CheckedThresholdMilliwatt = 200;
 
@@ -14,54 +24,98 @@ namespace NVConso
         private readonly ContextMenuStrip _trayMenu;
         private readonly ToolStripMenuItem _powerUsageItem;
         private readonly ToolStripMenuItem _currentLimitItem;
+        private readonly ToolStripMenuItem _temperatureItem;
+        private readonly ToolStripMenuItem _gpuUtilizationItem;
+        private readonly ToolStripMenuItem _memoryUtilizationItem;
+        private readonly ToolStripMenuItem _decoderUtilizationItem;
+        private readonly ToolStripMenuItem _clocksItem;
+        private readonly ToolStripMenuItem _fanSpeedItem;
+        private readonly ToolStripMenuItem _performanceStateItem;
         private readonly ToolStripMenuItem _powerRangeItem;
         private readonly ToolStripMenuItem _activeGpuItem;
         private readonly ToolStripMenuItem _statusItem;
-        private readonly ToolStripMenuItem _ecoItem;
-        private readonly ToolStripMenuItem _performanceItem;
+        private readonly ToolStripMenuItem _customPowerLimitItem;
+        private readonly ToolStripMenuItem _restoreStockItem;
+        private readonly ToolStripMenuItem _restoreStockOnExitItem;
         private readonly ToolStripMenuItem _gpuMenuItem;
+        private readonly Dictionary<GpuPowerMode, ToolStripMenuItem> _profileItems = [];
         private readonly System.Windows.Forms.Timer _telemetryTimer;
         private readonly INvmlManager _nvml;
         private readonly AppSettingsStore _settingsStore;
+        private readonly ILogger<TrayAppContext> _logger;
 
         private AppSettings _settings;
         private bool _nvmlReady;
 
-        public TrayAppContext(INvmlManager nvml)
+        public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
         {
             _nvml = nvml;
+            _logger = logger;
             _settingsStore = new AppSettingsStore();
             _settings = _settingsStore.Load();
 
             _trayMenu = new ContextMenuStrip();
 
-            _powerUsageItem = CreateInfoItem("⚡ Conso instantanée : --.- W");
-            _currentLimitItem = CreateInfoItem("🎯 Limite active : --.- W");
-            _powerRangeItem = CreateInfoItem("📏 Plage autorisée : --.- W - --.- W");
+            _powerUsageItem = CreateInfoItem("⚡ Conso instantanée : --");
+            _currentLimitItem = CreateInfoItem("🎯 Limite active : --");
+            _temperatureItem = CreateInfoItem("🌡️ Température GPU : --");
+            _gpuUtilizationItem = CreateInfoItem("📊 Utilisation GPU : --");
+            _memoryUtilizationItem = CreateInfoItem("🧠 Utilisation mémoire : --");
+            _decoderUtilizationItem = CreateInfoItem("🎥 Décodeur vidéo : --");
+            _clocksItem = CreateInfoItem("⏱️ Fréquences : GPU -- / mémoire --");
+            _fanSpeedItem = CreateInfoItem("🌀 Ventilateur : --");
+            _performanceStateItem = CreateInfoItem("🚦 État performance : --");
+            _powerRangeItem = CreateInfoItem("📏 Plage autorisée : -- - --");
             _activeGpuItem = CreateInfoItem("🖥️ GPU actif : --");
             _statusItem = CreateInfoItem("ℹ️ Statut : initialisation...");
 
             _trayMenu.Items.Add(_powerUsageItem);
             _trayMenu.Items.Add(_currentLimitItem);
+            _trayMenu.Items.Add(_temperatureItem);
+            _trayMenu.Items.Add(_gpuUtilizationItem);
+            _trayMenu.Items.Add(_memoryUtilizationItem);
+            _trayMenu.Items.Add(_decoderUtilizationItem);
+            _trayMenu.Items.Add(_clocksItem);
+            _trayMenu.Items.Add(_fanSpeedItem);
+            _trayMenu.Items.Add(_performanceStateItem);
             _trayMenu.Items.Add(_powerRangeItem);
             _trayMenu.Items.Add(_activeGpuItem);
             _trayMenu.Items.Add(_statusItem);
             _trayMenu.Items.Add(new ToolStripSeparator());
 
-            _ecoItem = new ToolStripMenuItem("🧘 Mode Eco")
+            foreach (GpuPowerMode mode in ProfileOrder)
+            {
+                var profileItem = new ToolStripMenuItem($"{GetProfileIcon(mode)} {GetProfileDisplayName(mode)}")
+                {
+                    Enabled = false
+                };
+
+                profileItem.Click += (_, _) => ApplyProfile(mode, persistSelection: true, showBalloon: true);
+                _profileItems.Add(mode, profileItem);
+                _trayMenu.Items.Add(profileItem);
+            }
+
+            _trayMenu.Items.Add(new ToolStripSeparator());
+
+            _customPowerLimitItem = new ToolStripMenuItem("Limite personnalisée...")
             {
                 Enabled = false
             };
-            _ecoItem.Click += (_, _) => ApplyProfile(GpuPowerMode.Eco, persistSelection: true, showBalloon: true);
+            _customPowerLimitItem.Click += (_, _) => ShowCustomPowerLimitDialog();
+            _trayMenu.Items.Add(_customPowerLimitItem);
 
-            _performanceItem = new ToolStripMenuItem("🔥 Mode Performance")
+            _restoreStockItem = new ToolStripMenuItem("🏭 Restaurer Stock")
             {
                 Enabled = false
             };
-            _performanceItem.Click += (_, _) => ApplyProfile(GpuPowerMode.Performance, persistSelection: true, showBalloon: true);
+            _restoreStockItem.Click += (_, _) => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true);
+            _trayMenu.Items.Add(_restoreStockItem);
 
-            _trayMenu.Items.Add(_ecoItem);
-            _trayMenu.Items.Add(_performanceItem);
+            _restoreStockOnExitItem = new ToolStripMenuItem();
+            _restoreStockOnExitItem.Click += (_, _) => ToggleRestoreStockOnExit();
+            UpdateRestoreStockOnExitLabel();
+            _trayMenu.Items.Add(_restoreStockOnExitItem);
+
             _trayMenu.Items.Add(new ToolStripSeparator());
 
             _gpuMenuItem = new ToolStripMenuItem("🖥️ Choix du GPU")
@@ -101,6 +155,57 @@ namespace NVConso
             };
         }
 
+        private static string GetProfileDisplayName(GpuPowerMode mode)
+        {
+            return mode switch
+            {
+                GpuPowerMode.Canicule => "Canicule",
+                GpuPowerMode.VideoSurf => "Vidéo / surf",
+                GpuPowerMode.Indie2D => "Indie 2D",
+                GpuPowerMode.Stock => "Stock",
+                GpuPowerMode.Max => "Max",
+                GpuPowerMode.Custom => "Personnalisé",
+                _ => "Stock"
+            };
+        }
+
+        private static string GetProfileIcon(GpuPowerMode mode)
+        {
+            return mode switch
+            {
+                GpuPowerMode.Canicule => "🌡️",
+                GpuPowerMode.VideoSurf => "🎬",
+                GpuPowerMode.Indie2D => "🎮",
+                GpuPowerMode.Stock => "🏭",
+                GpuPowerMode.Max => "⚠️",
+                GpuPowerMode.Custom => "✏️",
+                _ => "🏭"
+            };
+        }
+
+        private void SetProfileItemsEnabled(bool enabled)
+        {
+            foreach (ToolStripMenuItem item in _profileItems.Values)
+                item.Enabled = enabled;
+
+            _customPowerLimitItem.Enabled = enabled;
+            _restoreStockItem.Enabled = enabled;
+        }
+
+        private void ToggleRestoreStockOnExit()
+        {
+            _settings.RestoreStockOnExit = !_settings.RestoreStockOnExit;
+            _settingsStore.Save(_settings);
+            UpdateRestoreStockOnExitLabel();
+        }
+
+        private void UpdateRestoreStockOnExitLabel()
+        {
+            string status = _settings.RestoreStockOnExit ? "activé" : "désactivé";
+            _restoreStockOnExitItem.Text = $"Restaurer Stock à la fermeture : {status}";
+            _restoreStockOnExitItem.Checked = _settings.RestoreStockOnExit;
+        }
+
         private void InitializeRuntime()
         {
             if (!_nvml.Initialize())
@@ -110,8 +215,7 @@ namespace NVConso
             }
 
             _nvmlReady = true;
-            _ecoItem.Enabled = true;
-            _performanceItem.Enabled = true;
+            SetProfileItemsEnabled(true);
 
             PopulateGpuMenu();
 
@@ -119,7 +223,7 @@ namespace NVConso
                 return;
 
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
-                ApplyProfile(_settings.LastSelectedMode, persistSelection: false, showBalloon: false);
+                ApplySavedPowerLimit();
 
             RefreshTelemetry();
             _telemetryTimer.Start();
@@ -175,7 +279,7 @@ namespace NVConso
                 return;
 
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
-                ApplyProfile(_settings.LastSelectedMode, persistSelection: false, showBalloon: false);
+                ApplySavedPowerLimit();
 
             RefreshTelemetry();
         }
@@ -201,7 +305,7 @@ namespace NVConso
             UpdateProfileLabels();
 
             _activeGpuItem.Text = $"🖥️ GPU actif : {_nvml.SelectedGpuName} (#{_nvml.SelectedGpuIndex})";
-            _powerRangeItem.Text = $"📏 Plage autorisée : {_nvml.MinimumPowerLimit / 1000.0:F1} - {_nvml.MaximumPowerLimit / 1000.0:F1} W";
+            _powerRangeItem.Text = $"📏 Plage autorisée : {GpuTelemetryFormatter.FormatWatts(_nvml.MinimumPowerLimit)} - {GpuTelemetryFormatter.FormatWatts(_nvml.MaximumPowerLimit)} (stock {GpuTelemetryFormatter.FormatWatts(_nvml.DefaultPowerLimit)})";
             SetStatus($"✅ GPU sélectionné : {_nvml.SelectedGpuName}");
             return true;
         }
@@ -217,11 +321,11 @@ namespace NVConso
 
         private void UpdateProfileLabels()
         {
-            uint eco = _nvml.GetPowerLimit(GpuPowerMode.Eco);
-            uint performance = _nvml.GetPowerLimit(GpuPowerMode.Performance);
-
-            _ecoItem.Text = $"🧘 Mode Eco ({eco / 1000.0:F1} W)";
-            _performanceItem.Text = $"🔥 Mode Performance ({performance / 1000.0:F1} W)";
+            foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
+            {
+                uint powerLimit = _nvml.GetPowerLimit(mode);
+                item.Text = $"{GetProfileIcon(mode)} {GetProfileDisplayName(mode)} ({GpuTelemetryFormatter.FormatWatts(powerLimit)})";
+            }
         }
 
         private void ApplyProfile(GpuPowerMode mode, bool persistSelection, bool showBalloon)
@@ -249,13 +353,111 @@ namespace NVConso
                 _settingsStore.Save(_settings);
             }
 
-            string modeLabel = mode == GpuPowerMode.Eco ? "Eco" : "Performance";
-            SetStatus($"✅ Profil {modeLabel} appliqué ({target / 1000.0:F1} W)");
+            string modeLabel = GetProfileDisplayName(mode);
+            string formattedLimit = GpuTelemetryFormatter.FormatWatts(target);
+            SetStatus($"✅ Profil {modeLabel} appliqué ({formattedLimit})");
 
             if (showBalloon)
-                _icon.ShowBalloonTip(1000, "GPU", $"Profil {modeLabel} appliqué", ToolTipIcon.Info);
+                _icon.ShowBalloonTip(1000, "GPU", $"Profil {modeLabel} appliqué ({formattedLimit})", ToolTipIcon.Info);
 
             RefreshTelemetry();
+        }
+
+        private void ApplySavedPowerLimit()
+        {
+            if (_settings.LastSelectedMode == GpuPowerMode.Custom)
+            {
+                if (!_settings.CustomPowerLimitMilliwatt.HasValue)
+                {
+                    SetStatus("⚠️ Limite personnalisée sauvegardée indisponible.");
+                    return;
+                }
+
+                ApplyCustomPowerLimit(
+                    _settings.CustomPowerLimitMilliwatt.Value,
+                    persistSelection: false,
+                    showBalloon: false);
+                return;
+            }
+
+            ApplyProfile(_settings.LastSelectedMode, persistSelection: false, showBalloon: false);
+        }
+
+        private void ShowCustomPowerLimitDialog()
+        {
+            if (!_nvmlReady)
+                return;
+
+            using var dialog = new CustomPowerLimitDialog(
+                _nvml.MinimumPowerLimit,
+                _nvml.MaximumPowerLimit,
+                ResolveInitialCustomPowerLimit());
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+                return;
+
+            ApplyCustomPowerLimit(
+                dialog.TargetPowerLimitMilliwatt,
+                persistSelection: true,
+                showBalloon: true);
+        }
+
+        private uint ResolveInitialCustomPowerLimit()
+        {
+            if (_settings.CustomPowerLimitMilliwatt.HasValue)
+                return _settings.CustomPowerLimitMilliwatt.Value;
+
+            uint currentPowerLimit = _nvml.GetCurrentPowerLimit();
+            return currentPowerLimit > 0
+                ? currentPowerLimit
+                : _nvml.DefaultPowerLimit;
+        }
+
+        private bool ApplyCustomPowerLimit(uint targetMilliwatt, bool persistSelection, bool showBalloon)
+        {
+            if (!_nvmlReady)
+                return false;
+
+            if (!CustomPowerLimitValidator.TryValidateMilliwatts(
+                targetMilliwatt,
+                _nvml.MinimumPowerLimit,
+                _nvml.MaximumPowerLimit,
+                out string validationMessage))
+            {
+                SetStatus($"⚠️ {validationMessage}");
+                if (showBalloon)
+                    _icon.ShowBalloonTip(1500, "Limite personnalisée", validationMessage, ToolTipIcon.Warning);
+
+                return false;
+            }
+
+            bool success = _nvml.SetPowerLimit(targetMilliwatt);
+            if (!success)
+            {
+                const string warning = "Le GPU/pilote a refusé la limite personnalisée.";
+                SetStatus($"⚠️ {warning}");
+                if (showBalloon)
+                    _icon.ShowBalloonTip(1500, "Limite personnalisée", warning, ToolTipIcon.Warning);
+
+                return false;
+            }
+
+            if (persistSelection)
+            {
+                _settings.HasSavedMode = true;
+                _settings.LastSelectedMode = GpuPowerMode.Custom;
+                _settings.CustomPowerLimitMilliwatt = targetMilliwatt;
+                _settingsStore.Save(_settings);
+            }
+
+            string formattedLimit = GpuTelemetryFormatter.FormatWatts(targetMilliwatt);
+            SetStatus($"✅ Limite personnalisée appliquée : {formattedLimit}");
+
+            if (showBalloon)
+                _icon.ShowBalloonTip(1000, "GPU", $"Limite personnalisée appliquée : {formattedLimit}", ToolTipIcon.Info);
+
+            RefreshTelemetry();
+            return true;
         }
 
         private void OnIconMouseUp(object sender, MouseEventArgs e)
@@ -274,32 +476,55 @@ namespace NVConso
             if (!_nvmlReady)
                 return;
 
-            uint currentLimit = _nvml.GetCurrentPowerLimit();
-            if (currentLimit > 0)
+            if (!_nvml.TryGetTelemetry(out GpuTelemetry telemetry))
             {
-                _currentLimitItem.Text = $"🎯 Limite active : {currentLimit / 1000.0:F1} W";
-                UpdatePowerSelection(currentLimit);
-            }
-            else
-            {
-                _currentLimitItem.Text = "🎯 Limite active : indisponible";
-                _ecoItem.Checked = false;
-                _performanceItem.Checked = false;
+                UpdateTelemetryItems(new GpuTelemetry());
+                ClearProfileChecks();
+                return;
             }
 
-            if (_nvml.TryGetCurrentPowerUsage(out uint currentPowerUsage))
-                _powerUsageItem.Text = $"⚡ Conso instantanée : {currentPowerUsage / 1000.0:F1} W";
+            UpdateTelemetryItems(telemetry);
+
+            if (telemetry.CurrentPowerLimitMilliwatt.HasValue)
+                UpdatePowerSelection(telemetry.CurrentPowerLimitMilliwatt.Value);
             else
-                _powerUsageItem.Text = "⚡ Conso instantanée : indisponible";
+                ClearProfileChecks();
+        }
+
+        private void UpdateTelemetryItems(GpuTelemetry telemetry)
+        {
+            _powerUsageItem.Text = $"⚡ Conso instantanée : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerUsageMilliwatt)}";
+            _currentLimitItem.Text = $"🎯 Limite active : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerLimitMilliwatt)}";
+            _temperatureItem.Text = $"🌡️ Température GPU : {GpuTelemetryFormatter.FormatTemperature(telemetry.TemperatureGpuCelsius)}";
+            _gpuUtilizationItem.Text = $"📊 Utilisation GPU : {GpuTelemetryFormatter.FormatPercentage(telemetry.GpuUtilizationPercent)}";
+            _memoryUtilizationItem.Text = $"🧠 Utilisation mémoire : {GpuTelemetryFormatter.FormatPercentage(telemetry.MemoryUtilizationPercent)}";
+            _decoderUtilizationItem.Text = $"🎥 Décodeur vidéo : {GpuTelemetryFormatter.FormatPercentage(telemetry.DecoderUtilizationPercent)}";
+            _clocksItem.Text = $"⏱️ Fréquences : GPU {GpuTelemetryFormatter.FormatMegahertz(telemetry.GraphicsClockMHz)} / mémoire {GpuTelemetryFormatter.FormatMegahertz(telemetry.MemoryClockMHz)}";
+            _fanSpeedItem.Text = $"🌀 Ventilateur : {GpuTelemetryFormatter.FormatPercentage(telemetry.FanSpeedPercent)}";
+            _performanceStateItem.Text = $"🚦 État performance : {GpuTelemetryFormatter.FormatPerformanceState(telemetry.PerformanceState)}";
         }
 
         private void UpdatePowerSelection(uint currentLimit)
         {
-            uint eco = _nvml.GetPowerLimit(GpuPowerMode.Eco);
-            uint performance = _nvml.GetPowerLimit(GpuPowerMode.Performance);
+            bool matchedProfile = false;
+            foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
+            {
+                uint targetLimit = _nvml.GetPowerLimit(mode);
+                item.Checked = Math.Abs((int)targetLimit - (int)currentLimit) <= CheckedThresholdMilliwatt;
+                matchedProfile = matchedProfile || item.Checked;
+            }
 
-            _ecoItem.Checked = Math.Abs((int)eco - (int)currentLimit) <= CheckedThresholdMilliwatt;
-            _performanceItem.Checked = Math.Abs((int)performance - (int)currentLimit) <= CheckedThresholdMilliwatt;
+            _customPowerLimitItem.Checked = !matchedProfile
+                && _settings.CustomPowerLimitMilliwatt.HasValue
+                && Math.Abs((int)_settings.CustomPowerLimitMilliwatt.Value - (int)currentLimit) <= CheckedThresholdMilliwatt;
+        }
+
+        private void ClearProfileChecks()
+        {
+            foreach (ToolStripMenuItem item in _profileItems.Values)
+                item.Checked = false;
+
+            _customPowerLimitItem.Checked = false;
         }
 
         private void SetStatus(string message)
@@ -316,6 +541,7 @@ namespace NVConso
 
                 if (_nvmlReady)
                 {
+                    StockPowerLimitRestorer.TryRestoreStockOnExit(_nvml, _settings, _nvmlReady, _logger);
                     _nvml.Shutdown();
                     _nvmlReady = false;
                 }

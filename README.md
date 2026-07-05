@@ -18,7 +18,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 
 ## Ce que ça démontre
 - Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-- Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la consommation et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+- Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la télémétrie et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
 - Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
@@ -46,8 +46,9 @@ flowchart LR
 ### Comment ça marche
 1. Au lancement, l'application initialise WinForms puis demande l'élévation admin si nécessaire ([`NVConso/Program.cs`](./NVConso/Program.cs)).
 2. `TrayAppContext` initialise NVML, charge la liste GPU, puis sélectionne le GPU sauvegardé (ou le premier disponible) ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-3. Les profils `Eco` et `Performance` calculent/appliquent une limite de puissance en milliwatts via NVML (Eco = min + 10% de l'intervalle, Performance = max) ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-4. Un timer (1 s) met à jour la télémétrie (consommation instantanée et limite active), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
+3. Les profils `Canicule`, `VideoSurf`, `Indie2D`, `Stock` et `Max` calculent/appliquent une limite de puissance en milliwatts via NVML, à partir des limites minimum, stock/default et maximum exposées par le GPU ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+4. Une limite personnalisée peut être saisie en watts depuis le menu tray, puis validée strictement contre la plage NVML autorisée.
+5. Un timer (1 s) met à jour la télémétrie (consommation, limite active, température, utilisation, décodeur vidéo, fréquences, ventilateur en lecture seule et état performance si disponibles), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 
 ## Stack technique
 - Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
@@ -106,6 +107,7 @@ Type de tests détectés:
 - Pourquoi admin: l'écriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut être refusée sans élévation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Variables d'environnement: aucune variable `.env` / secret détectée dans le code actuel.
 - Configuration locale persistante: `%LOCALAPPDATA%\\NVConso\\settings.json`.
+- Sécurité de sortie: l'option `RestoreStockOnExit` restaure la limite Stock à la fermeture si la limite stock/default NVML est disponible.
 
 Exemple de `settings.json` (placeholders):
 
@@ -113,8 +115,10 @@ Exemple de `settings.json` (placeholders):
 {
   "SelectedGpuIndex": "<index_gpu>",
   "AutoApplySavedMode": "<true_or_false>",
+  "RestoreStockOnExit": "<true_or_false>",
   "HasSavedMode": "<true_or_false>",
-  "LastSelectedMode": "<Eco_or_Performance>"
+  "LastSelectedMode": "<Canicule|VideoSurf|Indie2D|Stock|Max|Custom>",
+  "CustomPowerLimitMilliwatt": "<limite_personnalisee_mw_ou_null>"
 }
 ```
 

@@ -48,7 +48,8 @@ namespace NVConso
             logger.LogInformation("Application started");
 
             var nvml = services.GetRequiredService<INvmlManager>();
-            Application.Run(new TrayAppContext(nvml));
+            var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
+            Application.Run(new TrayAppContext(nvml, trayLogger));
         }
 
         private static bool IsRunAsAdmin()

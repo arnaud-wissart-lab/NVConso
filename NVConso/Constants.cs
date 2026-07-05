@@ -2,6 +2,7 @@
 {
     public static class Constants
     {
-        public const int EcoPercentage = 10;
+        public const int VideoSurfPercentage = 10;
+        public const int Indie2DPercentage = 25;
     }
 }
