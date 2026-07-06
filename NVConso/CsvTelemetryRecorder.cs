@@ -646,6 +646,15 @@ namespace NVConso
                 return;
 
             _isDisposed = true;
+
+            try
+            {
+                FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            }
+            catch
+            {
+            }
+
             _shutdown.Cancel();
             _signal.Release();
 
