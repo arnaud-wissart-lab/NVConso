@@ -60,6 +60,8 @@ namespace NVConso.Tests
             Assert.Contains("--packTitle \"${{ env.PRODUCT_DISPLAY_NAME }}\"", workflow);
             Assert.Contains("Collect and validate release assets", workflow);
             Assert.Contains("Asset portable absent", workflow);
+            Assert.Contains("Paquets Velopack ignorés car incompatibles", workflow);
+            Assert.Contains("Asset public au nom hérité confus détecté", workflow);
             Assert.Contains("Aucun installeur Velopack", workflow);
             Assert.Contains("Aucun paquet Velopack .nupkg", workflow);
             Assert.Contains("Aucun feed Velopack releases.*", workflow);

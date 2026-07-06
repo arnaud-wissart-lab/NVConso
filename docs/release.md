@@ -69,6 +69,9 @@ Le workflow échoue si :
 - aucun paquet Velopack `.nupkg` n'est présent ;
 - aucun feed `releases.*` n'est présent ;
 - un ZIP portable `win-x64` inattendu est présent.
+- un asset public commence par `NVConso-`.
+
+Quand le workflow restaure un ancien feed Velopack, il ignore les paquets `.nupkg` dont le nom ne commence pas par le PackId courant `WattPilot-`. Cette règle évite de publier dans la release `v2.0.0` des paquets hérités `NVConso-*`, incompatibles avec la nouvelle identité Velopack.
 
 ## Identité produit
 

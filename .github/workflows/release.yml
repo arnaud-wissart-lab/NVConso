@@ -227,6 +227,27 @@ jobs:
             Write-Warning "Aucune release Velopack précédente récupérable. Un paquet complet sera généré sans delta. $($_.Exception.Message)"
           }
 
+          $incompatiblePackages = @(
+            Get-ChildItem -Path $velopackDir -File -Filter "*.nupkg" |
+              Where-Object { -not $_.Name.StartsWith("${{ env.VELOPACK_PACK_ID }}-", [System.StringComparison]::OrdinalIgnoreCase) }
+          )
+          if ($incompatiblePackages.Count -gt 0) {
+            $names = ($incompatiblePackages | ForEach-Object Name) -join ", "
+            Write-Warning "Paquets Velopack ignorés car incompatibles avec le PackId ${{ env.VELOPACK_PACK_ID }} : $names"
+            $incompatiblePackages | Remove-Item -Force
+          }
+
+          $compatiblePackages = @(
+            Get-ChildItem -Path $velopackDir -File -Filter "*.nupkg" |
+              Where-Object { $_.Name.StartsWith("${{ env.VELOPACK_PACK_ID }}-", [System.StringComparison]::OrdinalIgnoreCase) }
+          )
+          if ($compatiblePackages.Count -eq 0) {
+            Get-ChildItem -Path $velopackDir -File |
+              Where-Object { $_.Name -match "(?i)^(RELEASES|releases|assets)(\..*)?$" } |
+              Remove-Item -Force
+            Write-Host "Aucun paquet compatible ${{ env.VELOPACK_PACK_ID }} existant : génération d'un feed initial propre."
+          }
+
       - name: Package Velopack stable
         shell: pwsh
         run: |
@@ -268,6 +289,15 @@ jobs:
           if ($unexpectedPortableZips.Count -gt 0) {
             $names = ($unexpectedPortableZips | ForEach-Object Name) -join ", "
             throw "ZIP portable inattendu détecté : $names."
+          }
+
+          $confusingAssets = @(
+            Get-ChildItem -Path $releaseDir -File |
+              Where-Object { $_.Name -match "^NVConso-" }
+          )
+          if ($confusingAssets.Count -gt 0) {
+            $names = ($confusingAssets | ForEach-Object Name) -join ", "
+            throw "Asset public au nom hérité confus détecté : $names."
           }
 
           $setupAssets = @(
