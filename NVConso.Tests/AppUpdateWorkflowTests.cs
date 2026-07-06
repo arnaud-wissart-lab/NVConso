@@ -21,6 +21,7 @@ namespace NVConso.Tests
             Assert.True(result.Success);
             Assert.Equal(AppUpdateStatus.NoUpdate, result.Status);
             Assert.Equal("stable", updater.LastChannel);
+            Assert.False(updater.LastIncludePrerelease);
             Assert.NotNull(settings.LastUpdateCheckUtc);
             Assert.Null(settings.LastUpdateError);
         }
@@ -50,7 +51,25 @@ namespace NVConso.Tests
             Assert.True(result.HasUpdate);
             Assert.Equal("1.2.3", result.Update.Version);
             Assert.Equal("stable", updater.LastChannel);
+            Assert.False(updater.LastIncludePrerelease);
             Assert.Null(settings.LastUpdateError);
+        }
+
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldForwardPrereleasePreference()
+        {
+            var updater = new FakeAppUpdater();
+            var settings = new AppSettings
+            {
+                IncludePrereleaseUpdates = true
+            };
+            var workflow = new AppUpdateWorkflow(updater);
+
+            await workflow.CheckForUpdatesAsync(
+                settings,
+                TestContext.Current.CancellationToken);
+
+            Assert.True(updater.LastIncludePrerelease);
         }
 
         [Fact]
@@ -166,13 +185,16 @@ namespace NVConso.Tests
             public PendingUpdateStatus PendingStatus { get; set; } = PendingUpdateStatus.None();
 
             public string LastChannel { get; private set; }
+            public bool LastIncludePrerelease { get; private set; }
             public int ProgressValue { get; set; }
 
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(
                 string channel,
+                bool includePrerelease,
                 CancellationToken cancellationToken = default)
             {
                 LastChannel = channel;
+                LastIncludePrerelease = includePrerelease;
                 return Task.FromResult(CheckResult);
             }
 

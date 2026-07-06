@@ -14,7 +14,10 @@ namespace NVConso
             CancellationToken cancellationToken = default)
         {
             AppUpdateOperationResult result = await _appUpdater
-                .CheckForUpdatesAsync(ResolveChannel(settings), cancellationToken)
+                .CheckForUpdatesAsync(
+                    ResolveChannel(settings),
+                    settings.IncludePrereleaseUpdates,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;

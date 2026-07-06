@@ -11,7 +11,7 @@ namespace NVConso
         public const string StableChannel = "stable";
 
         private readonly ILogger<VelopackAppUpdater> _logger;
-        private readonly Func<string, UpdateManager> _updateManagerFactory;
+        private readonly Func<string, bool, UpdateManager> _updateManagerFactory;
         private UpdateInfo _lastUpdate;
         private string _lastChannel = StableChannel;
 
@@ -21,7 +21,7 @@ namespace NVConso
         }
 
         public VelopackAppUpdater(
-            Func<string, UpdateManager> updateManagerFactory,
+            Func<string, bool, UpdateManager> updateManagerFactory,
             ILogger<VelopackAppUpdater> logger = null)
         {
             _updateManagerFactory = updateManagerFactory;
@@ -30,12 +30,13 @@ namespace NVConso
 
         public async Task<AppUpdateOperationResult> CheckForUpdatesAsync(
             string channel,
+            bool includePrerelease,
             CancellationToken cancellationToken = default)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                UpdateManager manager = CreateManager(channel);
+                UpdateManager manager = CreateManager(channel, includePrerelease);
                 _lastChannel = NormalizeChannel(channel);
                 AppUpdateOperationResult installedCheck = EnsureInstalled(manager);
                 if (installedCheck is not null)
@@ -138,13 +139,13 @@ namespace NVConso
             }
         }
 
-        private static UpdateManager CreateUpdateManager(string channel)
+        private static UpdateManager CreateUpdateManager(string channel, bool includePrerelease)
         {
             string resolvedChannel = NormalizeChannel(channel);
             var source = new GithubSource(
                 RepositoryUrl,
                 accessToken: null,
-                prerelease: false);
+                prerelease: includePrerelease);
 
             return new UpdateManager(
                 source,
@@ -156,7 +157,12 @@ namespace NVConso
 
         private UpdateManager CreateManager(string channel)
         {
-            return _updateManagerFactory(NormalizeChannel(channel));
+            return _updateManagerFactory(NormalizeChannel(channel), false);
+        }
+
+        private UpdateManager CreateManager(string channel, bool includePrerelease)
+        {
+            return _updateManagerFactory(NormalizeChannel(channel), includePrerelease);
         }
 
         private static AppUpdateOperationResult EnsureInstalled(UpdateManager manager)

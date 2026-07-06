@@ -4,6 +4,7 @@ namespace NVConso
     {
         Task<AppUpdateOperationResult> CheckForUpdatesAsync(
             string channel,
+            bool includePrerelease,
             CancellationToken cancellationToken = default);
 
         Task<AppUpdateOperationResult> DownloadUpdateAsync(
