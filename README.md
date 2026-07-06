@@ -3,13 +3,13 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 
 [![CI](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/arnaud-wissart-lab/NVConso)](./LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-net8.0--windows-512BD4)](./NVConso/NVConso.csproj)
+[![.NET](https://img.shields.io/badge/.NET-net10.0--windows-512BD4)](./NVConso/NVConso.csproj)
 [![WinForms](https://img.shields.io/badge/UI-WinForms-0078D4)](./NVConso/NVConso.csproj)
 
 ## Téléchargement
 - Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
 - Version installée auto-updatable: installeur Velopack `NVConso-Setup.exe` et paquets associés, publiés sur le canal `stable` pour `win-x64`.
-- Version portable: archive ZIP self-contained `NVConso-win-x64.zip`. Elle ne nécessite pas d'installation .NET, mais ne bénéficie pas de l'auto-update complet.
+- Version portable: archive ZIP self-contained `NVConso-win-x64.zip`. Elle embarque le runtime .NET requis et ne nécessite pas d'installation de runtime, mais ne bénéficie pas de l'auto-update complet.
 - Fichier `SHA256SUMS.txt` fourni avec chaque release pour vérifier les artefacts publiés.
 
 ## Démo live
@@ -112,7 +112,7 @@ flowchart LR
 7. L'option `Rechercher une mise à jour` utilise Velopack avec les releases GitHub du dépôt. Si une version plus récente existe sur le canal `stable`, NVConso peut la télécharger, afficher `Mise à jour prête`, puis l'appliquer avec redémarrage seulement après validation utilisateur.
 
 ## Stack technique
-- Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
+- Runtime/UI: .NET `net10.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Plateforme cible: `x64` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Interop GPU: NVML (`nvml.dll`) via `DllImport` ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Visualisation: contrôles WinForms/GDI+ internes pour cartes, jauges et graphes afin d'éviter une dépendance UI lourde ([`NVConso/TelemetryChartControl.cs`](./NVConso/TelemetryChartControl.cs)).
@@ -126,7 +126,7 @@ flowchart LR
 ## Démarrage rapide (dev local)
 Prérequis:
 - Windows.
-- SDK .NET 8.x (la CI utilise `8.x` en fallback).
+- SDK .NET 10.x pour le développement local (la CI utilise `10.x` en fallback si `global.json` est absent).
 - Pilote NVIDIA installé (pour `nvml.dll`).
 - Droits administrateur (requis pour modifier la limite de puissance).
 
@@ -149,6 +149,7 @@ Packaging binaire/release:
 - le workflow `.github/workflows/release.yml` se déclenche sur un tag `vX.Y.Z` ;
 - le tag `v1.4.0` produit les versions assembly/package `1.4.0`, `1.4.0.0` et `1.4.0+<sha>` ;
 - la release publie `NVConso-win-x64.zip`, les artefacts Velopack `stable` et `SHA256SUMS.txt` ;
+- le ZIP portable est self-contained et ne nécessite pas d'installation du runtime .NET ;
 - l'auto-update complet n'est disponible que pour une application installée via Velopack, pas depuis `bin/Debug`, `bin/Release` ou une archive ZIP portable.
 
 ## Tests

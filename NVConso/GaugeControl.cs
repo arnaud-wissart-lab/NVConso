@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
 namespace NVConso
@@ -16,7 +17,12 @@ namespace NVConso
             Font = DashboardFonts.Body();
         }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Title { get; set; } = string.Empty;
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ValueText { get; set; } = "--";
 
         public void SetValue(double? value, string valueText, DashboardMetricState state)

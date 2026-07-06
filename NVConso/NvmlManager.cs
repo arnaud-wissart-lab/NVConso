@@ -513,7 +513,9 @@ namespace NVConso
                     return false;
                 }
 
-                logger.LogInformation("[NVML] Limite fixée à {TargetMilliwatt} mW sur GPU #{GpuIndex}", targetMilliwatt, SelectedGpuIndex);
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("[NVML] Limite fixée à {TargetMilliwatt} mW sur GPU #{GpuIndex}", targetMilliwatt, SelectedGpuIndex);
+
                 return true;
             }
             catch (DllNotFoundException ex)
@@ -583,6 +585,9 @@ namespace NVConso
 
         private void LogTelemetryFailureOnce(string metricName, int result)
         {
+            if (!logger.IsEnabled(LogLevel.Debug))
+                return;
+
             string key = $"{metricName}:{result}";
             if (!_loggedTelemetryFailures.Add(key))
                 return;
@@ -596,6 +601,9 @@ namespace NVConso
 
         private void LogTelemetryFailureOnce(string metricName, Exception exception)
         {
+            if (!logger.IsEnabled(LogLevel.Debug))
+                return;
+
             string key = $"{metricName}:{exception.GetType().FullName}";
             if (!_loggedTelemetryFailures.Add(key))
                 return;

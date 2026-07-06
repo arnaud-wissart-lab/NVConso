@@ -53,10 +53,10 @@ namespace NVConso
                 MaximumCaniculeCooldownSeconds,
                 "Le cooldown Canicule Guard");
 
-            if (!Enum.IsDefined(typeof(UiTheme), settings.DashboardTheme))
+            if (!Enum.IsDefined<UiTheme>(settings.DashboardTheme))
                 errors.Add("Le thème sélectionné est invalide.");
 
-            if (!Enum.IsDefined(typeof(GpuPowerMode), settings.LastSelectedMode))
+            if (!Enum.IsDefined<GpuPowerMode>(settings.LastSelectedMode))
                 errors.Add("Le profil GPU de démarrage est invalide.");
 
             if (settings.CustomPowerLimitMilliwatt.HasValue && settings.CustomPowerLimitMilliwatt.Value == 0)

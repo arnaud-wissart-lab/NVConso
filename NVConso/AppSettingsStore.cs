@@ -393,7 +393,7 @@ namespace NVConso
 
         private static GpuPowerMode NormalizePowerMode(GpuPowerMode mode)
         {
-            return Enum.IsDefined(typeof(GpuPowerMode), mode)
+            return Enum.IsDefined<GpuPowerMode>(mode)
                 ? mode
                 : GpuPowerMode.Stock;
         }
@@ -414,7 +414,7 @@ namespace NVConso
 
         private static UiTheme NormalizeUiTheme(UiTheme theme)
         {
-            return Enum.IsDefined(typeof(UiTheme), theme)
+            return Enum.IsDefined<UiTheme>(theme)
                 ? theme
                 : UiTheme.System;
         }
