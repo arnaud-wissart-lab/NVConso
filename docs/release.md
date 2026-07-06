@@ -70,8 +70,11 @@ Le workflow échoue si :
 - aucun feed `releases.*` n'est présent ;
 - un ZIP portable `win-x64` inattendu est présent.
 - un asset public commence par `NVConso-`.
+- un ZIP portable Velopack redondant `*-Portable.zip` reste dans les assets collectés.
 
 Quand le workflow restaure un ancien feed Velopack, il ignore les paquets `.nupkg` dont le nom ne commence pas par le PackId courant `WattPilot-`. Cette règle évite de publier dans la release `v2.0.0` des paquets hérités `NVConso-*`, incompatibles avec la nouvelle identité Velopack.
+
+Velopack peut générer son propre ZIP portable `*-Portable.zip`. Le workflow le retire volontairement des assets publics pour conserver un seul ZIP portable principal : `WattPilot-win-x64.zip`.
 
 ## Identité produit
 

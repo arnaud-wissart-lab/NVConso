@@ -278,6 +278,13 @@ jobs:
 
           Copy-Item -Path (Join-Path $velopackDir '*') -Destination $releaseDir -Force
 
+          $redundantVelopackPortableZips = @(Get-ChildItem -Path $releaseDir -File -Filter "*-Portable.zip")
+          if ($redundantVelopackPortableZips.Count -gt 0) {
+            $names = ($redundantVelopackPortableZips | ForEach-Object Name) -join ", "
+            Write-Host "Suppression des ZIP portables Velopack redondants : $names"
+            $redundantVelopackPortableZips | Remove-Item -Force
+          }
+
           if (-not (Test-Path $portableZipPath)) {
             throw "Asset portable absent : $expectedPortableZipName."
           }
@@ -298,6 +305,12 @@ jobs:
           if ($confusingAssets.Count -gt 0) {
             $names = ($confusingAssets | ForEach-Object Name) -join ", "
             throw "Asset public au nom hérité confus détecté : $names."
+          }
+
+          $remainingVelopackPortableZips = @(Get-ChildItem -Path $releaseDir -File -Filter "*-Portable.zip")
+          if ($remainingVelopackPortableZips.Count -gt 0) {
+            $names = ($remainingVelopackPortableZips | ForEach-Object Name) -join ", "
+            throw "ZIP portable Velopack redondant détecté : $names."
           }
 
           $setupAssets = @(

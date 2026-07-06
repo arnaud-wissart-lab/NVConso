@@ -62,6 +62,7 @@ namespace NVConso.Tests
             Assert.Contains("Asset portable absent", workflow);
             Assert.Contains("Paquets Velopack ignorés car incompatibles", workflow);
             Assert.Contains("Asset public au nom hérité confus détecté", workflow);
+            Assert.Contains("ZIP portable Velopack redondant détecté", workflow);
             Assert.Contains("Aucun installeur Velopack", workflow);
             Assert.Contains("Aucun paquet Velopack .nupkg", workflow);
             Assert.Contains("Aucun feed Velopack releases.*", workflow);
