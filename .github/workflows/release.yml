@@ -12,100 +12,22 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  DOTNET_NOLOGO: true
+  SOLUTION_PATH: Tools.sln
+  PROJECT_PATH: NVConso/NVConso.csproj
+  RUNTIME_IDENTIFIER: win-x64
+  VELOPACK_VERSION: 1.2.0
+
 jobs:
-  build:
+  release:
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - rid: win-x64
-            platform_target: x64
-            optional: false
-          - rid: win-arm64
-            platform_target: arm64
-            optional: true
-    continue-on-error: ${{ matrix.optional }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Detect executable project and target framework
-        id: detect_project
-        shell: pwsh
-        run: |
-          $projects = Get-ChildItem -Path . -Recurse -File -Filter *.csproj |
-            Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' }
-
-          $candidates = foreach ($project in $projects) {
-            [xml]$xml = Get-Content -Path $project.FullName -Raw
-
-            $outputType = ""
-            $useWindowsForms = $false
-            $useWpf = $false
-            $targetFramework = ""
-            $targetFrameworks = ""
-
-            foreach ($propertyGroup in @($xml.Project.PropertyGroup)) {
-              if (-not $outputType -and $propertyGroup.OutputType) {
-                $outputType = "$($propertyGroup.OutputType)".Trim()
-              }
-              if ($propertyGroup.UseWindowsForms -and "$($propertyGroup.UseWindowsForms)".Trim().ToLowerInvariant() -eq "true") {
-                $useWindowsForms = $true
-              }
-              if ($propertyGroup.UseWPF -and "$($propertyGroup.UseWPF)".Trim().ToLowerInvariant() -eq "true") {
-                $useWpf = $true
-              }
-              if (-not $targetFramework -and $propertyGroup.TargetFramework) {
-                $targetFramework = "$($propertyGroup.TargetFramework)".Trim()
-              }
-              if (-not $targetFrameworks -and $propertyGroup.TargetFrameworks) {
-                $targetFrameworks = "$($propertyGroup.TargetFrameworks)".Trim()
-              }
-            }
-
-            $isCandidate = $outputType -eq "WinExe" -or $useWindowsForms -or $useWpf
-            if ($isCandidate) {
-              $tfm = if ($targetFramework) {
-                $targetFramework
-              } elseif ($targetFrameworks) {
-                $targetFrameworks.Split(";")[0].Trim()
-              } else {
-                ""
-              }
-
-              [pscustomobject]@{
-                Path            = $project.FullName
-                OutputType      = $outputType
-                IsWinExe        = ($outputType -eq "WinExe")
-                IsDesktopUi     = ($useWindowsForms -or $useWpf)
-                TargetFramework = $tfm
-              }
-            }
-          }
-
-          if (-not $candidates) {
-            throw "No executable WinForms/WPF project found in repository."
-          }
-
-          $selected = $candidates |
-            Sort-Object `
-              @{ Expression = { if ($_.IsWinExe) { 0 } else { 1 } } }, `
-              @{ Expression = { if ($_.IsDesktopUi) { 0 } else { 1 } } }, `
-              Path |
-            Select-Object -First 1
-
-          if (-not $selected.TargetFramework) {
-            throw "Unable to determine TargetFramework for project $($selected.Path)."
-          }
-
-          "project_path=$($selected.Path)" >> $env:GITHUB_OUTPUT
-          "target_framework=$($selected.TargetFramework)" >> $env:GITHUB_OUTPUT
-          Write-Host "Selected project: $($selected.Path)"
-          Write-Host "Detected TargetFramework: $($selected.TargetFramework)"
 
       - name: Setup .NET from global.json
         if: ${{ hashFiles('global.json') != '' }}
@@ -113,181 +35,163 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Determine .NET SDK from TargetFramework
-        if: ${{ hashFiles('global.json') == '' }}
-        id: detect_sdk
-        shell: pwsh
-        run: |
-          $tfm = "${{ steps.detect_project.outputs.target_framework }}"
-          if ($tfm -match '^net(?<major>\d+)\.(?<minor>\d+)') {
-            $sdkVersion = "$($Matches.major).$($Matches.minor).x"
-          } elseif ($tfm -match '^net(?<major>\d+)$') {
-            $sdkVersion = "$($Matches.major).0.x"
-          } else {
-            throw "Unable to derive .NET SDK version from TargetFramework '$tfm'."
-          }
-
-          "sdk_version=$sdkVersion" >> $env:GITHUB_OUTPUT
-          Write-Host "Using SDK version: $sdkVersion"
-
-      - name: Setup .NET from TargetFramework
+      - name: Setup .NET 8 fallback
         if: ${{ hashFiles('global.json') == '' }}
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ steps.detect_sdk.outputs.sdk_version }}
+          dotnet-version: 8.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-${{ matrix.rid }}-nuget-${{ hashFiles('**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.rid }}-nuget-
             ${{ runner.os }}-nuget-
 
-      - name: Derive version metadata from tag
+      - name: Derive version from tag
         id: version
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          if (-not $tag.StartsWith("v")) {
-            throw "Tag '$tag' does not start with 'v'."
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
+            throw "Le tag '$tag' est invalide. Format attendu : vX.Y.Z, par exemple v1.4.0."
           }
 
-          $version = $tag.Substring(1)
-          $versionCore = $version.Split("-", 2)[0]
-          if ($versionCore -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Invalid core version '$versionCore' from tag '$tag'. Expected X.Y.Z."
-          }
-
-          $assemblyVersion = "$versionCore.0"
-          $isPrerelease = $version.Contains("-").ToString().ToLowerInvariant()
+          $version = $Matches.version
+          $assemblyVersion = "$version.0"
           $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $informationalVersion = "$version+$shortSha"
 
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
-          "version_core=$versionCore" >> $env:GITHUB_OUTPUT
           "assembly_version=$assemblyVersion" >> $env:GITHUB_OUTPUT
-          "prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
+          "informational_version=$informationalVersion" >> $env:GITHUB_OUTPUT
           "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
 
-          Write-Host "Tag: $tag"
-          Write-Host "Version: $version"
-          Write-Host "AssemblyVersion/FileVersion: $assemblyVersion"
+          Write-Host "Version package : $version"
+          Write-Host "AssemblyVersion/FileVersion : $assemblyVersion"
+          Write-Host "InformationalVersion : $informationalVersion"
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $previousTag = git tag --sort=-version:refname |
+            Where-Object { $_ -ne $tag -and $_ -match '^v\d+\.\d+\.\d+$' } |
+            Select-Object -First 1
+
+          $range = if ($previousTag) { "$previousTag..$tag" } else { $tag }
+          $commits = git log $range --pretty=format:"- %s (%h)"
+
+          $lines = @()
+          $lines += "## NVConso $tag"
+          $lines += ""
+          if ($previousTag) {
+            $lines += "Comparaison : https://github.com/${{ github.repository }}/compare/$previousTag...$tag"
+          } else {
+            $lines += "Première release taguée détectée dans ce dépôt."
+          }
+          $lines += ""
+          $lines += "### Changements"
+          if ($commits) {
+            $lines += $commits
+          } else {
+            $lines += "- Aucun commit listé pour ce tag."
+          }
+
+          $lines | Set-Content -Path release-notes.md -Encoding UTF8
 
       - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: >
+          dotnet build ${{ env.SOLUTION_PATH }}
+          --configuration Release
+          --no-restore
+          -p:ContinuousIntegrationBuild=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:AssemblyVersion=${{ steps.version.outputs.assembly_version }}
+          -p:FileVersion=${{ steps.version.outputs.assembly_version }}
+          -p:InformationalVersion=${{ steps.version.outputs.informational_version }}
+
+      - name: Test
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build
+
+      - name: Audit vulnerable packages
+        run: dotnet list ${{ env.SOLUTION_PATH }} package --vulnerable --include-transitive
+
+      - name: Audit deprecated packages
+        run: dotnet list ${{ env.SOLUTION_PATH }} package --deprecated
+
+      - name: Publish win-x64 self-contained
         shell: pwsh
         run: |
-          $solution = Get-ChildItem -Path . -File -Filter *.sln | Sort-Object Name | Select-Object -First 1
-          if ($solution) {
-            Write-Host "Restoring solution: $($solution.FullName)"
-            dotnet restore "$($solution.FullName)"
-          } else {
-            Write-Host "No solution detected. Restoring executable project."
-            dotnet restore "${{ steps.detect_project.outputs.project_path }}"
-          }
-
-      - name: Test (when tests are available)
-        if: ${{ matrix.optional == false }}
-        shell: pwsh
-        run: |
-          $solution = Get-ChildItem -Path . -File -Filter *.sln | Sort-Object Name | Select-Object -First 1
-          $testProjects = Get-ChildItem -Path . -Recurse -File -Filter *.csproj |
-            Where-Object {
-              $_.FullName -notmatch '\\(bin|obj)\\' -and
-              $_.BaseName -match '(?i)test(s)?'
-            } |
-            Sort-Object FullName
-
-          if ($testProjects.Count -eq 0) {
-            Write-Host "No test project detected. Skipping tests."
-          } elseif ($solution) {
-            Write-Host "Running tests on solution: $($solution.FullName)"
-            dotnet test "$($solution.FullName)" -c Release --no-restore
-          } else {
-            foreach ($testProject in $testProjects) {
-              Write-Host "Running tests on project: $($testProject.FullName)"
-              dotnet test "$($testProject.FullName)" -c Release --no-restore
-            }
-          }
-
-      - name: Publish ${{ matrix.rid }}
-        shell: pwsh
-        run: |
-          $publishDir = Join-Path $pwd "artifacts/publish/${{ matrix.rid }}"
+          $publishDir = Join-Path $pwd "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
           New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
 
-          dotnet publish "${{ steps.detect_project.outputs.project_path }}" `
+          dotnet publish "${{ env.PROJECT_PATH }}" `
             -c Release `
-            -r "${{ matrix.rid }}" `
+            -r "${{ env.RUNTIME_IDENTIFIER }}" `
             --self-contained true `
             -o "$publishDir" `
-            -p:PlatformTarget=${{ matrix.platform_target }} `
+            -p:PlatformTarget=x64 `
             -p:ContinuousIntegrationBuild=true `
             -p:Version=${{ steps.version.outputs.version }} `
             -p:AssemblyVersion=${{ steps.version.outputs.assembly_version }} `
             -p:FileVersion=${{ steps.version.outputs.assembly_version }} `
-            -p:InformationalVersion=${{ steps.version.outputs.version }}+${{ steps.version.outputs.short_sha }} `
+            -p:InformationalVersion=${{ steps.version.outputs.informational_version }} `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true
 
-      - name: Package zip ${{ matrix.rid }}
-        id: package
+      - name: Package portable ZIP
         shell: pwsh
         run: |
-          $publishDir = Join-Path $pwd "artifacts/publish/${{ matrix.rid }}"
-          $zipName = "NVConso-${{ steps.version.outputs.tag }}-${{ matrix.rid }}.zip"
-          $zipPath = Join-Path $pwd "artifacts/$zipName"
+          $publishDir = Join-Path $pwd "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
+          $releaseDir = Join-Path $pwd "artifacts/release"
+          $zipPath = Join-Path $releaseDir "NVConso-win-x64.zip"
 
-          if (-not (Test-Path $publishDir)) {
-            throw "Publish directory not found: $publishDir"
-          }
-
-          if ((Get-ChildItem -Path $publishDir -Force | Measure-Object).Count -eq 0) {
-            throw "Publish directory is empty: $publishDir"
-          }
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
           if (Test-Path $zipPath) {
             Remove-Item $zipPath -Force
           }
 
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
-          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
       - name: Install Velopack CLI
-        if: ${{ matrix.rid == 'win-x64' }}
         shell: pwsh
         run: |
-          dotnet tool install --global vpk --version 1.2.0
+          dotnet tool install --global vpk --version "${{ env.VELOPACK_VERSION }}"
           $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
           $toolPath >> $env:GITHUB_PATH
           & (Join-Path $toolPath "vpk.exe") --version
 
-      - name: Restore previous Velopack release
-        if: ${{ matrix.rid == 'win-x64' }}
+      - name: Restore previous Velopack feed
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ matrix.rid }}"
+          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
           New-Item -ItemType Directory -Path $velopackDir -Force | Out-Null
 
           try {
             vpk download github `
               --repoUrl "https://github.com/${{ github.repository }}" `
-              --token "${{ secrets.GITHUB_TOKEN }}" `
+              --token "$env:GITHUB_TOKEN" `
               --channel stable `
               --outputDir "$velopackDir" `
               --timeout 10
           } catch {
-            Write-Warning "Aucune release Velopack précédente récupérable. Le paquet complet sera tout de même généré. $($_.Exception.Message)"
+            Write-Warning "Aucune release Velopack précédente récupérable. Un paquet complet sera généré sans delta. $($_.Exception.Message)"
           }
 
-      - name: Package Velopack ${{ matrix.rid }}
-        if: ${{ matrix.rid == 'win-x64' }}
-        id: velopack
+      - name: Package Velopack stable
         shell: pwsh
         run: |
-          $publishDir = Join-Path $pwd "artifacts/publish/${{ matrix.rid }}"
-          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ matrix.rid }}"
+          $publishDir = Join-Path $pwd "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
+          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
 
           vpk pack `
             --packId NVConso `
@@ -295,106 +199,45 @@ jobs:
             --packDir "$publishDir" `
             --mainExe NVConso.exe `
             --channel stable `
-            --runtime "${{ matrix.rid }}" `
+            --runtime "${{ env.RUNTIME_IDENTIFIER }}" `
             --packAuthors "Arnaud Wissart" `
             --packTitle NVConso `
+            --releaseNotes release-notes.md `
             --icon "NVConso/Assets/NVConso.ico" `
             --outputDir "$velopackDir"
 
-      - name: Upload artifact ${{ matrix.rid }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: nvconso-${{ matrix.rid }}
-          path: ${{ steps.package.outputs.zip_path }}
-          if-no-files-found: error
-
-      - name: Upload Velopack artifact ${{ matrix.rid }}
-        if: ${{ matrix.rid == 'win-x64' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: nvconso-velopack-${{ matrix.rid }}
-          path: artifacts/velopack/${{ matrix.rid }}/*
-          if-no-files-found: error
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: nvconso-*
-          path: dist
-          merge-multiple: true
-
-      - name: Generate release notes with git-cliff
-        id: git_cliff
-        continue-on-error: true
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --latest --strip header
-        env:
-          OUTPUT: release-notes.md
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Ensure release notes are present
-        shell: bash
+      - name: Collect release assets
+        shell: pwsh
         run: |
-          if [[ ! -f release-notes.md ]] || [[ -z "$(tr -d '[:space:]' < release-notes.md)" ]]; then
-            previous_tag="$(git tag --sort=-version:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n 1 || true)"
-            {
-              echo "Release ${GITHUB_REF_NAME}"
-              echo
-              echo "Commit: \`${GITHUB_SHA::7}\`"
-              if [[ -n "${previous_tag}" ]]; then
-                echo "Compare: https://github.com/${GITHUB_REPOSITORY}/compare/${previous_tag}...${GITHUB_REF_NAME}"
-              else
-                echo "Compare: https://github.com/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}"
-              fi
-            } > release-notes.md
-          fi
+          $releaseDir = Join-Path $pwd "artifacts/release"
+          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
 
-      - name: Add note if win-arm64 artifact is missing
-        shell: bash
-        run: |
-          if ! compgen -G "dist/*win-arm64.zip" > /dev/null; then
-            {
-              echo
-              echo "Note: l'artefact win-arm64 n'a pas été généré sur cette release (dépendances natives / incompatibilité)."
-            } >> release-notes.md
-          fi
+          Copy-Item -Path (Join-Path $velopackDir '*') -Destination $releaseDir -Force
 
-      - name: Generate checksums
-        shell: bash
-        run: |
-          cd dist
-          if [[ -z "$(find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print -quit)" ]]; then
-            echo "No release artifacts found in dist/."
-            exit 1
-          fi
+          $files = Get-ChildItem -Path $releaseDir -File |
+            Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
+            Sort-Object Name
 
-          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%P\0' |
-            sort -z |
-            xargs -0 sha256sum > SHA256SUMS.txt
+          if (-not $files) {
+            throw "Aucun artefact de release trouvé."
+          }
+
+          $checksums = foreach ($file in $files) {
+            $hash = (Get-FileHash -Path $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+
+          $checksums | Set-Content -Path (Join-Path $releaseDir "SHA256SUMS.txt") -Encoding ASCII
+          Get-ChildItem -Path $releaseDir -File | Sort-Object Name | ForEach-Object { Write-Host $_.Name }
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: NVConso ${{ github.ref_name }}
           body_path: release-notes.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
-          files: |
-            dist/*
-          fail_on_unmatched_files: false
+          files: artifacts/release/*
+          fail_on_unmatched_files: true
+          make_latest: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
