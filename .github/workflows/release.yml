@@ -214,7 +214,7 @@ jobs:
           dotnet tool install --global vpk --version "${{ env.VELOPACK_VERSION }}"
           $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
           $toolPath >> $env:GITHUB_PATH
-          & (Join-Path $toolPath "vpk.exe") --version
+          dotnet tool list --global
 
       - name: Restore previous Velopack feed
         shell: pwsh
