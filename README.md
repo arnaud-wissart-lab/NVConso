@@ -9,8 +9,8 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 ## Téléchargement
 - Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
 - Version installée auto-updatable: installeur Velopack `NVConso-Setup.exe` et paquets associés, publiés sur le canal `stable` pour `win-x64`.
-- Version portable: archives ZIP self-contained `win-x64` et `win-arm64` si compatible. Elles ne nécessitent pas d'installation .NET, mais ne bénéficient pas de l'auto-update complet.
-- Fichier `SHA256SUMS.txt` fourni avec chaque release pour les artefacts publiés.
+- Version portable: archive ZIP self-contained `NVConso-win-x64.zip`. Elle ne nécessite pas d'installation .NET, mais ne bénéficie pas de l'auto-update complet.
+- Fichier `SHA256SUMS.txt` fourni avec chaque release pour vérifier les artefacts publiés.
 
 ## Démo live
 - Démo live: Application desktop Windows, aucune instance publique référencée dans ce dépôt.
@@ -19,6 +19,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 ## Ce que ça démontre
 - Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Tableau de bord WinForms optionnel, ouvert depuis le tray, avec cartes de métriques, jauges et graphes locaux sur 5 minutes ([`NVConso/DashboardForm.cs`](./NVConso/DashboardForm.cs)).
+- Fenêtre `Préférences` WinForms centralisant les options utilisateur : général, profils, Canicule Guard, démarrage Windows, mises à jour, apparence et avancé ([`NVConso/SettingsForm.cs`](./NVConso/SettingsForm.cs)).
 - Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la télémétrie et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
@@ -26,7 +27,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 - Mises à jour via Velopack et GitHub Releases: vérification manuelle ou périodique, téléchargement explicite, puis installation avec redémarrage uniquement après consentement utilisateur ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
 - Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 - Testabilité via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
-- Pipeline CI Windows sur GitHub Actions (restore/build/test) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+- Pipeline CI Windows sur GitHub Actions (restore/build/test/audit packages) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
 ## Captures
 
@@ -42,6 +43,12 @@ NVConso reste une application WinForms légère, avec le menu natif de la zone d
 Le tableau de bord est une fenêtre WinForms optionnelle, construite avec des contrôles internes simples : cartes de métriques, jauges GDI+, pastille de statut, boutons de profil et graphes locaux. Aucune migration vers WPF, WinUI, Avalonia ou MAUI n'est faite dans cette passe, et aucun framework UI massif n'est introduit.
 
 La couche de thème centralise les couleurs, espacements, rayons, polices et états visuels. Les thèmes disponibles sont `System`, `Light` et `Dark`. L'état des métriques reste lisible par le texte et les valeurs affichées, pas uniquement par la couleur.
+
+La fenêtre `Préférences...` est accessible depuis le tray et depuis le tableau de bord. Elle centralise les options qui ne doivent pas rester uniquement dans le menu contextuel : démarrage réduit, restauration `Stock`, dashboard au démarrage, thème, profil de démarrage, démarrage Windows via tâche planifiée, mises à jour, durée d'historique graphique, chemin du fichier `settings.json`, export diagnostic et réinitialisation locale des préférences.
+
+Les valeurs numériques sont bornées avant sauvegarde. Le fichier `%LOCALAPPDATA%\\NVConso\\settings.json` est chargé avec fallback résilient et écrit via un fichier temporaire avant remplacement, afin d'éviter autant que possible les écritures partielles.
+
+Les réglages `Canicule Guard` sont centralisés et validés dans les préférences. La logique d'alerte automatique associée reste à brancher explicitement si elle évolue dans une passe dédiée.
 
 ## Profils GPU
 NVConso ajuste le `power limit` NVIDIA, c'est-à-dire un plafond de puissance. Ce plafond ne force pas la carte à consommer cette valeur en permanence : le GPU consomme seulement ce dont il a besoin, jusqu'à la limite appliquée.
@@ -138,8 +145,10 @@ dotnet build Tools.sln --configuration Release --no-restore
 ```
 
 Packaging binaire/release:
-- la CI publie encore des ZIP portables self-contained ;
-- le workflow de release génère aussi les artefacts Velopack nécessaires à l'installation et à l'auto-update `stable` ;
+- la CI reste séparée et ne publie pas de release ;
+- le workflow `.github/workflows/release.yml` se déclenche sur un tag `vX.Y.Z` ;
+- le tag `v1.4.0` produit les versions assembly/package `1.4.0`, `1.4.0.0` et `1.4.0+<sha>` ;
+- la release publie `NVConso-win-x64.zip`, les artefacts Velopack `stable` et `SHA256SUMS.txt` ;
 - l'auto-update complet n'est disponible que pour une application installée via Velopack, pas depuis `bin/Debug`, `bin/Release` ou une archive ZIP portable.
 
 ## Tests
@@ -184,6 +193,7 @@ Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent 
   "AutoCheckUpdates": true,
   "AutoDownloadUpdates": false,
   "AutoApplyUpdatesOnStartup": false,
+  "IncludePrereleaseUpdates": false,
   "UpdateChannel": "stable",
   "LastUpdateCheckUtc": null,
   "LastUpdateError": null,
@@ -191,6 +201,11 @@ Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent 
   "DashboardTheme": "System",
   "DashboardWindowBounds": null,
   "TelemetryHistorySeconds": 300,
+  "CaniculeGuardEnabled": false,
+  "CaniculeGuardPowerThresholdWatts": 220,
+  "CaniculeGuardTemperatureThresholdCelsius": 82,
+  "CaniculeGuardAlertDelaySeconds": 30,
+  "CaniculeGuardCooldownSeconds": 300,
   "HasSavedMode": true,
   "LastSelectedMode": "Custom",
   "CustomPowerLimitMilliwatt": 180000
@@ -214,13 +229,36 @@ Les graphes sont alimentés par `GpuTelemetryHistory`, un buffer circulaire en m
 Le canal applicatif par défaut est `stable`. Les prereleases GitHub ne sont pas incluses par l'application dans cette passe.
 
 Depuis une installation Velopack:
-- `Rechercher une mise à jour` vérifie les artefacts Velopack publiés dans GitHub Releases.
+- `Rechercher une mise à jour` vérifie les artefacts Velopack publiés dans GitHub Releases, notamment `releases.stable.json` et les paquets `.nupkg`.
 - `Télécharger la mise à jour` récupère le paquet Velopack et le prépare localement.
 - `Installer et redémarrer` applique le paquet téléchargé via le mécanisme externe Velopack, puis relance NVConso avec `--tray`.
 
 Depuis une archive ZIP portable ou un lancement développeur `bin/Debug` / `bin/Release`, les fonctions d'update échouent proprement avec un message du type `application non installée via Velopack`. Le ZIP portable reste fonctionnel pour l'usage GPU, mais la mise à jour doit être faite manuellement depuis [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases).
 
 Les préférences sont stockées dans `%LOCALAPPDATA%\\NVConso\\settings.json`. Lors d'une mise à jour Velopack, ce fichier reste hors du dossier applicatif et n'est pas remplacé par le paquet.
+
+`SHA256SUMS.txt` est publié dans chaque release GitHub à côté du ZIP portable et des fichiers Velopack. Il permet de vérifier manuellement les fichiers téléchargés avant installation ou archivage.
+
+## Créer une release
+Le workflow de release est déclenché uniquement par un tag au format `vX.Y.Z` :
+
+```powershell
+git tag v1.4.0
+git push origin v1.4.0
+```
+
+Le workflow exécute sur `windows-latest` :
+- `dotnet restore Tools.sln` ;
+- `dotnet build Tools.sln --configuration Release` avec version dérivée du tag ;
+- `dotnet test Tools.sln --configuration Release` ;
+- les audits NuGet vulnérables et dépréciés ;
+- `dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained true` ;
+- la génération de `NVConso-win-x64.zip` ;
+- la génération des artefacts Velopack `stable` ;
+- la génération de `SHA256SUMS.txt` ;
+- la publication des assets dans la GitHub Release avec `GITHUB_TOKEN`.
+
+La version portable ZIP reste utile pour un usage manuel sans installation, mais l'auto-update fiable repose sur les assets Velopack installables de la même release.
 
 ## Packaging Velopack développeur
 Exemple local pour générer une release `stable` à partir d'un publish `win-x64`:
@@ -255,7 +293,7 @@ vpk pack `
   --outputDir artifacts/velopack/win-x64
 ```
 
-Le workflow `.github/workflows/release.yml` exécute l'équivalent sur tag `vX.Y.Z`, conserve les ZIP portables et publie les fichiers Velopack dans la release GitHub. Pour un test end-to-end, installez une version plus ancienne via Velopack, publiez une version supérieure sur GitHub Releases (ou sur un dépôt de test pointé par une branche dédiée), puis vérifiez que le menu tray détecte, télécharge et marque la mise à jour comme prête.
+Le workflow `.github/workflows/release.yml` exécute l'équivalent sur tag `vX.Y.Z`, publie le ZIP portable `NVConso-win-x64.zip` et les fichiers Velopack dans la release GitHub. Pour un test end-to-end, installez une version plus ancienne via Velopack, publiez une version supérieure sur GitHub Releases (ou sur un dépôt de test pointé par une branche dédiée), puis vérifiez que le menu tray détecte, télécharge et marque la mise à jour comme prête.
 
 ## Licence
 Licence MIT. Voir [LICENSE](./LICENSE).
