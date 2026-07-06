@@ -6,8 +6,8 @@ Ce document regroupe les commandes de maintenance courante du projet.
 
 ```powershell
 dotnet restore Tools.sln
-dotnet build Tools.sln -c Debug
-dotnet test Tools.sln -c Debug
+dotnet build Tools.sln --configuration Release
+dotnet test Tools.sln --configuration Release
 ```
 
 ## 2. Vérifier les dépendances obsolètes
@@ -27,7 +27,8 @@ dotnet list Tools.sln package --outdated --include-transitive
 ## 3. Vérifier les vulnérabilités NuGet
 
 ```powershell
-dotnet list Tools.sln package --vulnerable
+dotnet list Tools.sln package --vulnerable --include-transitive
+dotnet list Tools.sln package --deprecated
 ```
 
 ## 4. Politique de mise à jour recommandée

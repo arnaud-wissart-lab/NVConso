@@ -1,0 +1,22 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+
+[*.cs]
+indent_size = 4
+csharp_style_namespace_declarations = block_scoped:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+
+# Les noms de tests utilisent volontairement le style Method_Should_Expected.
+dotnet_diagnostic.CA1707.severity = none
+
+# Le volume de logs est faible et la migration LoggerMessage serait disproportionnée ici.
+dotnet_diagnostic.CA1848.severity = none

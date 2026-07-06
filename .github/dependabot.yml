@@ -3,11 +3,15 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "06:00"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "github-actions"
@@ -17,11 +21,16 @@ updates:
   - package-ecosystem: "nuget"
     directory: "/NVConso"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "06:15"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
+    groups:
+      dotnet-runtime:
+        patterns:
+          - "Microsoft.Extensions.*"
+          - "NvAPIWrapper.Net"
     labels:
       - "dependencies"
       - "dotnet"
@@ -31,11 +40,19 @@ updates:
   - package-ecosystem: "nuget"
     directory: "/NVConso.Tests"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "06:30"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
+    groups:
+      dotnet-tests:
+        patterns:
+          - "coverlet.*"
+          - "Microsoft.NET.Test.Sdk"
+          - "Newtonsoft.Json"
+          - "System.*"
+          - "xunit*"
     labels:
       - "dependencies"
       - "dotnet"
