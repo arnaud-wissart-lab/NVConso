@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace NVConso
 {
@@ -28,6 +30,7 @@ namespace NVConso
             dynamic definition = registeredTask.Definition;
             dynamic principal = definition.Principal;
             StartupTaskAction action = ReadExecAction(definition.Actions);
+            StartupLogonTrigger logonTrigger = ReadLogonTrigger(definition.Triggers);
 
             return new StartupTaskInfo(
                 taskName,
@@ -36,7 +39,8 @@ namespace NVConso
                 action.WorkingDirectory,
                 Convert.ToString(principal.UserId) ?? string.Empty,
                 Convert.ToInt32(principal.RunLevel) == TaskRunLevelHighest,
-                HasLogonTrigger(definition.Triggers));
+                logonTrigger.Exists,
+                logonTrigger.UserId);
         }
 
         public void RegisterOrUpdate(StartupTaskInfo task)
@@ -127,17 +131,33 @@ namespace NVConso
             return new StartupTaskAction(string.Empty, string.Empty, string.Empty);
         }
 
-        private static bool HasLogonTrigger(dynamic triggers)
+        private static StartupLogonTrigger ReadLogonTrigger(dynamic triggers)
         {
             int count = Convert.ToInt32(triggers.Count);
             for (int index = 1; index <= count; index++)
             {
                 dynamic trigger = triggers[index];
                 if (Convert.ToInt32(trigger.Type) == TaskTriggerLogon)
-                    return true;
+                    return new StartupLogonTrigger(true, ReadOptionalString(() => trigger.UserId));
             }
 
-            return false;
+            return new StartupLogonTrigger(false, string.Empty);
+        }
+
+        private static string ReadOptionalString(Func<object> valueAccessor)
+        {
+            try
+            {
+                return Convert.ToString(valueAccessor(), CultureInfo.InvariantCulture) ?? string.Empty;
+            }
+            catch (COMException)
+            {
+                return string.Empty;
+            }
+            catch (RuntimeBinderException)
+            {
+                return string.Empty;
+            }
         }
 
         private static bool IsTaskNotFound(COMException exception)
@@ -157,6 +177,18 @@ namespace NVConso
             public string Path { get; }
             public string Arguments { get; }
             public string WorkingDirectory { get; }
+        }
+
+        private sealed class StartupLogonTrigger
+        {
+            public StartupLogonTrigger(bool exists, string userId)
+            {
+                Exists = exists;
+                UserId = userId ?? string.Empty;
+            }
+
+            public bool Exists { get; }
+            public string UserId { get; }
         }
     }
 }

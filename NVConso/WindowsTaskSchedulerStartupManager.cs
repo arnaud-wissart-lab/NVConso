@@ -104,6 +104,13 @@ namespace NVConso
 
         private StartupTaskStatus BuildStatus(StartupTaskInfo task)
         {
+            if (!UserIdsEqual(task.UserId, _applicationInfo.UserId))
+            {
+                return StartupTaskStatus.NeedsUpdate(
+                    task,
+                    $"La tâche planifiée NVConso existe mais appartient à un autre utilisateur : {task.UserId}");
+            }
+
             if (!PathsEqual(task.ExecutablePath, _applicationInfo.ExecutablePath))
             {
                 return StartupTaskStatus.NeedsUpdate(
@@ -123,6 +130,13 @@ namespace NVConso
                 return StartupTaskStatus.NeedsUpdate(
                     task,
                     "La tâche planifiée NVConso existe mais n'a pas de déclencheur à l'ouverture de session.");
+            }
+
+            if (!UserIdsEqual(task.LogonTriggerUserId, _applicationInfo.UserId))
+            {
+                return StartupTaskStatus.NeedsUpdate(
+                    task,
+                    $"La tâche planifiée NVConso existe mais son déclencheur cible un autre utilisateur : {task.LogonTriggerUserId}");
             }
 
             if (!task.RunWithHighestPrivileges)
@@ -148,7 +162,15 @@ namespace NVConso
                 _applicationInfo.WorkingDirectory,
                 _applicationInfo.UserId,
                 runWithHighestPrivileges: true,
-                hasLogonTrigger: true);
+                hasLogonTrigger: true,
+                logonTriggerUserId: _applicationInfo.UserId);
+        }
+
+        private static bool UserIdsEqual(string left, string right)
+        {
+            return !string.IsNullOrWhiteSpace(left)
+                && !string.IsNullOrWhiteSpace(right)
+                && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool PathsEqual(string left, string right)

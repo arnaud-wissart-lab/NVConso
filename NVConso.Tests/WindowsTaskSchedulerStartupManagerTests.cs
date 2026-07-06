@@ -96,6 +96,54 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void GetStatus_ShouldRequireUpdate_WhenTaskBelongsToAnotherUser()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    @"TEST\autre",
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: UserId)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.True(status.Exists);
+            Assert.False(status.IsEnabledForCurrentExecutable);
+            Assert.Contains("autre utilisateur", status.Message);
+        }
+
+        [Fact]
+        public void GetStatus_ShouldRequireUpdate_WhenLogonTriggerTargetsAnotherUser()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    UserId,
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: @"TEST\autre")
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.True(status.Exists);
+            Assert.False(status.IsEnabledForCurrentExecutable);
+            Assert.Contains("déclencheur cible un autre utilisateur", status.Message);
+        }
+
+        [Fact]
         public void Enable_ShouldUpdateTask_WhenExistingTaskUsesOldPath()
         {
             var scheduler = new FakeStartupTaskScheduler
