@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Security.Principal;
+using Velopack;
 
 namespace NVConso
 {
@@ -10,6 +11,10 @@ namespace NVConso
         [STAThread]
         static void Main(string[] args)
         {
+            VelopackApp.Build()
+                .SetAutoApplyOnStartup(false)
+                .Run();
+
             StartupLaunchOptions launchOptions = StartupLaunchOptions.Parse(args);
 
             ApplicationConfiguration.Initialize();
@@ -46,16 +51,9 @@ namespace NVConso
                 }))
                 .AddSingleton(StartupApplicationInfo.Create(Application.ExecutablePath))
                 .AddSingleton(new AppSettingsStore())
-                .AddSingleton(new HttpClient
-                {
-                    Timeout = GitHubReleaseUpdateChecker.DefaultTimeout
-                })
                 .AddSingleton<IStartupTaskScheduler, WindowsTaskSchedulerClient>()
                 .AddSingleton<IStartupManager, WindowsTaskSchedulerStartupManager>()
-                .AddSingleton<IUpdateChecker>(services => new GitHubReleaseUpdateChecker(
-                    services.GetRequiredService<HttpClient>(),
-                    ApplicationVersionProvider.GetCurrentVersion(),
-                    services.GetRequiredService<ILogger<GitHubReleaseUpdateChecker>>()))
+                .AddSingleton<IAppUpdater, VelopackAppUpdater>()
                 .AddSingleton<INvmlManager, NvmlManager>()
                 .BuildServiceProvider();
 
@@ -67,10 +65,10 @@ namespace NVConso
 
             var nvml = services.GetRequiredService<INvmlManager>();
             var startupManager = services.GetRequiredService<IStartupManager>();
-            var updateChecker = services.GetRequiredService<IUpdateChecker>();
+            var appUpdater = services.GetRequiredService<IAppUpdater>();
             var settingsStore = services.GetRequiredService<AppSettingsStore>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            Application.Run(new TrayAppContext(nvml, startupManager, updateChecker, settingsStore, trayLogger, launchOptions));
+            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, settingsStore, trayLogger, launchOptions));
         }
 
         private static bool IsRunAsAdmin()

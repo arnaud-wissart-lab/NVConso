@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -135,6 +135,15 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ steps.detect_sdk.outputs.sdk_version }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-${{ matrix.rid }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.rid }}-nuget-
+            ${{ runner.os }}-nuget-
 
       - name: Derive version metadata from tag
         id: version
@@ -245,11 +254,66 @@ jobs:
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
           "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
 
+      - name: Install Velopack CLI
+        if: ${{ matrix.rid == 'win-x64' }}
+        shell: pwsh
+        run: |
+          dotnet tool install --global vpk --version 1.2.0
+          $toolPath = Join-Path $env:USERPROFILE ".dotnet\tools"
+          $toolPath >> $env:GITHUB_PATH
+          & (Join-Path $toolPath "vpk.exe") --version
+
+      - name: Restore previous Velopack release
+        if: ${{ matrix.rid == 'win-x64' }}
+        shell: pwsh
+        run: |
+          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ matrix.rid }}"
+          New-Item -ItemType Directory -Path $velopackDir -Force | Out-Null
+
+          try {
+            vpk download github `
+              --repoUrl "https://github.com/${{ github.repository }}" `
+              --token "${{ secrets.GITHUB_TOKEN }}" `
+              --channel stable `
+              --outputDir "$velopackDir" `
+              --timeout 10
+          } catch {
+            Write-Warning "Aucune release Velopack précédente récupérable. Le paquet complet sera tout de même généré. $($_.Exception.Message)"
+          }
+
+      - name: Package Velopack ${{ matrix.rid }}
+        if: ${{ matrix.rid == 'win-x64' }}
+        id: velopack
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $pwd "artifacts/publish/${{ matrix.rid }}"
+          $velopackDir = Join-Path $pwd "artifacts/velopack/${{ matrix.rid }}"
+
+          vpk pack `
+            --packId NVConso `
+            --packVersion "${{ steps.version.outputs.version }}" `
+            --packDir "$publishDir" `
+            --mainExe NVConso.exe `
+            --channel stable `
+            --runtime "${{ matrix.rid }}" `
+            --packAuthors "Arnaud Wissart" `
+            --packTitle NVConso `
+            --icon "NVConso/Assets/NVConso.ico" `
+            --outputDir "$velopackDir"
+
       - name: Upload artifact ${{ matrix.rid }}
         uses: actions/upload-artifact@v7
         with:
           name: nvconso-${{ matrix.rid }}
           path: ${{ steps.package.outputs.zip_path }}
+          if-no-files-found: error
+
+      - name: Upload Velopack artifact ${{ matrix.rid }}
+        if: ${{ matrix.rid == 'win-x64' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: nvconso-velopack-${{ matrix.rid }}
+          path: artifacts/velopack/${{ matrix.rid }}/*
           if-no-files-found: error
 
   release:
@@ -258,7 +322,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -312,14 +376,14 @@ jobs:
         shell: bash
         run: |
           cd dist
-          if ! compgen -G "*.zip" > /dev/null; then
-            echo "No ZIP artifacts found in dist/."
+          if [[ -z "$(find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print -quit)" ]]; then
+            echo "No release artifacts found in dist/."
             exit 1
           fi
 
-          for file in *.zip; do
-            sha256sum "${file}"
-          done > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%P\0' |
+            sort -z |
+            xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -330,8 +394,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
           files: |
-            dist/*.zip
-            dist/SHA256SUMS.txt
+            dist/*
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

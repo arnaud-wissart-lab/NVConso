@@ -8,9 +8,9 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 
 ## Téléchargement
 - Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
-- Archives ZIP self-contained (pas besoin d'installer .NET).
-- Artefacts disponibles: `win-x64` (obligatoire) et `win-arm64` si compatible.
-- Fichier `SHA256SUMS.txt` fourni avec chaque release.
+- Version installée auto-updatable: installeur Velopack `NVConso-Setup.exe` et paquets associés, publiés sur le canal `stable` pour `win-x64`.
+- Version portable: archives ZIP self-contained `win-x64` et `win-arm64` si compatible. Elles ne nécessitent pas d'installation .NET, mais ne bénéficient pas de l'auto-update complet.
+- Fichier `SHA256SUMS.txt` fourni avec chaque release pour les artefacts publiés.
 
 ## Démo live
 - Démo live: Application desktop Windows, aucune instance publique référencée dans ce dépôt.
@@ -22,7 +22,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 - Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
 - Démarrage avec Windows via une tâche planifiée utilisateur à l'ouverture de session, configurée avec les privilèges les plus élevés et sans mot de passe stocké ([`NVConso/WindowsTaskSchedulerStartupManager.cs`](./NVConso/WindowsTaskSchedulerStartupManager.cs)).
-- Vérification manuelle et périodique des mises à jour via GitHub Releases, avec notification tray et ouverture de la release GitHub sans téléchargement ni exécution automatique ([`NVConso/GitHubReleaseUpdateChecker.cs`](./NVConso/GitHubReleaseUpdateChecker.cs)).
+- Mises à jour via Velopack et GitHub Releases: vérification manuelle ou périodique, téléchargement explicite, puis installation avec redémarrage uniquement après consentement utilisateur ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
 - Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 - Testabilité via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
 - Pipeline CI Windows sur GitHub Actions (restore/build/test) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
@@ -30,6 +30,36 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 ## Captures
 
 ![Capture NVConso](./docs/screenshots/NVConso.png)
+
+TODO: mettre à jour cette capture après génération sur une machine Windows avec pilote NVIDIA et accès NVML. La capture actuelle peut ne pas refléter tous les items récents du menu tray.
+
+## Profils GPU
+NVConso ajuste le `power limit` NVIDIA, c'est-à-dire un plafond de puissance. Ce plafond ne force pas la carte à consommer cette valeur en permanence : le GPU consomme seulement ce dont il a besoin, jusqu'à la limite appliquée.
+
+Les limites sont calculées depuis les contraintes NVML du GPU actif:
+- `Canicule`: limite minimale exposée par NVML.
+- `VideoSurf`: minimum + 10 % de l'intervalle entre minimum et stock/default.
+- `Indie2D`: minimum + 25 % de l'intervalle entre minimum et stock/default.
+- `Stock`: limite stock/default constructeur lue depuis NVML quand elle est disponible. Si NVML ne fournit pas cette valeur, NVConso privilégie la limite active comme secours ; si elle est aussi indisponible, il utilise la limite minimale plutôt que `Max`.
+- `Max`: limite maximale autorisée par le GPU/BIOS.
+- `Custom`: limite personnalisée saisie en watts, validée contre la plage NVML autorisée.
+
+`Stock` et `Max` sont volontairement distincts. `Stock` revient au comportement constructeur normal, tandis que `Max` applique le plafond maximal autorisé par la carte. `Max` est destiné aux gros jeux, benchmarks ou essais volontaires, pas au surf, à la vidéo ou à la bureautique.
+
+## Usage recommandé en période de canicule
+- `Canicule`: bureautique, surf léger, vidéo simple, priorité au silence et à la chaleur minimale.
+- `VideoSurf`: navigation plus lourde, vidéo haute résolution, appels visio ou multitâche léger.
+- `Indie2D`: petits jeux peu gourmands, jeux 2D ou titres indés modestes.
+- `Stock`: retour normal avant une session de jeu classique ou après une phase basse consommation.
+- `Max`: usage volontairement agressif pour gros jeux ou benchmarks, à éviter pour surf/vidéo.
+- `Custom`: réglage manuel si vous connaissez une limite stable pour votre GPU et votre usage.
+
+## Ce que NVConso ne fait pas
+- Ne désactive pas automatiquement RTX Video, RTX HDR ou d'autres traitements NVIDIA.
+- Ne modifie pas les paramètres Chrome, Edge ou d'autres navigateurs.
+- Ne contrôle pas les ventilateurs dans cette version.
+- Ne remplace pas NVIDIA App.
+- Ne bascule pas automatiquement une application vers un iGPU.
 
 ## Architecture
 ```mermaid
@@ -45,8 +75,9 @@ flowchart LR
   J --> C
   C --> K[IStartupManager]
   K --> L["Tâche planifiée Windows utilisateur"]
-  C --> M[IUpdateChecker]
-  M --> N[GitHub Releases API]
+  C --> M[IAppUpdater]
+  M --> N[Velopack UpdateManager]
+  N --> O[GitHub Releases]
 ```
 
 ### Comment ça marche
@@ -56,13 +87,14 @@ flowchart LR
 4. Une limite personnalisée peut être saisie en watts depuis le menu tray, puis validée strictement contre la plage NVML autorisée.
 5. Un timer (1 s) met à jour la télémétrie (consommation, limite active, température, utilisation, décodeur vidéo, fréquences, ventilateur en lecture seule et état performance si disponibles), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 6. L'option `Démarrer avec Windows` crée ou met à jour une tâche planifiée `NVConso` déclenchée à l'ouverture de session de l'utilisateur courant. L'action pointe vers le chemin complet de `NVConso.exe`, avec `--tray` ou `--minimized` comme argument et le dossier de l'exécutable comme dossier de travail.
-7. L'option `Rechercher une mise à jour` interroge `https://api.github.com/repos/arnaud-wissart-lab/NVConso/releases/latest`, compare le tag de release à la version de l'assembly et affiche un accès direct à la release GitHub si une version plus récente est publiée.
+7. L'option `Rechercher une mise à jour` utilise Velopack avec les releases GitHub du dépôt. Si une version plus récente existe sur le canal `stable`, NVConso peut la télécharger, afficher `Mise à jour prête`, puis l'appliquer avec redémarrage seulement après validation utilisateur.
 
 ## Stack technique
 - Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Plateforme cible: `x64` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Interop GPU: NVML (`nvml.dll`) via `DllImport` ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Injection de dépendances et logging: `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Logging`, `Microsoft.Extensions.Logging.Console` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
+- Installation et auto-update: Velopack 1.2.x avec source GitHub Releases ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
 - Package présent dans le projet: `NvAPIWrapper.Net` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - WMI: non détecté dans le code actuel.
 - Tests: xUnit + `Microsoft.NET.Test.Sdk` + `coverlet.collector` ([`NVConso.Tests/NVConso.Tests.csproj`](./NVConso.Tests/NVConso.Tests.csproj)).
@@ -90,7 +122,9 @@ dotnet build Tools.sln --configuration Release --no-restore
 ```
 
 Packaging binaire/release:
-https://github.com/arnaud-wissart-lab/NVConso/releases
+- la CI publie encore des ZIP portables self-contained ;
+- le workflow de release génère aussi les artefacts Velopack nécessaires à l'installation et à l'auto-update `stable` ;
+- l'auto-update complet n'est disponible que pour une application installée via Velopack, pas depuis `bin/Debug`, `bin/Release` ou une archive ZIP portable.
 
 ## Tests
 Tests unitaires (projet de tests):
@@ -114,23 +148,83 @@ Type de tests détectés:
 - Privilèges: niveau `requireAdministrator` dans le manifest et relance `runas` au démarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
 - Pourquoi admin: l'écriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut être refusée sans élévation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Démarrage Windows: NVConso utilise une tâche planifiée utilisateur à l'ouverture de session plutôt qu'une clé `HKCU\\Run` ou `RunOnce`. Cette tâche demande le niveau d'exécution le plus élevé disponible afin que l'application puisse écrire la limite de puissance via NVML après le lancement. Elle ne stocke pas de mot de passe, ne crée pas de service Windows et ne promet pas de contourner l'UAC.
-- Mises à jour: NVConso vérifie GitHub Releases avec les en-têtes `User-Agent: NVConso` et `Accept: application/vnd.github+json`, sans token GitHub. La vérification automatique est activée par défaut, attend au moins l'intervalle configuré entre deux requêtes et ignore les prereleases par défaut. Cette passe ne télécharge pas les archives, ne remplace aucun fichier et n'exécute jamais de binaire téléchargé. Pour installer une mise à jour, ouvrez la release GitHub depuis le menu tray, téléchargez manuellement l'archive ZIP self-contained adaptée à votre architecture et vérifiez `SHA256SUMS.txt` si nécessaire.
+- Mises à jour: NVConso délègue l'installation et l'auto-update à Velopack. L'application ne remplace jamais artisanalement son propre `.exe`, ne télécharge pas puis n'exécute pas arbitrairement une archive ZIP, et s'appuie sur les paquets/checksums Velopack. En exécution Debug/bin ou ZIP portable, le menu signale clairement que l'application n'est pas installée via Velopack.
+- Consentement: la vérification automatique peut notifier qu'une version existe, et le téléchargement automatique est désactivé par défaut. L'installation avec redémarrage n'est pas lancée sans action explicite dans le menu tray.
+- Variabilité NVML: certaines métriques ou limites peuvent être indisponibles selon le GPU, le pilote ou la version NVML. Dans ce cas, NVConso affiche `--` ou ignore la métrique sans fermer l'application.
+- Limites GPU: les profils et la limite personnalisée sont calculés ou validés depuis la plage NVML du GPU actif. Aucune valeur spécifique à un modèle de carte n'est codée en dur.
+- Restauration Stock: `RestoreStockOnExit` restaure la limite `Stock` à la fermeture si NVML est prêt et si la limite stock/default réelle est disponible. NVConso ne restaure jamais `Max` automatiquement et ignore l'échec sans bloquer la fermeture.
 - Variables d'environnement: aucune variable `.env` / secret détectée dans le code actuel.
 - Configuration locale persistante: `%LOCALAPPDATA%\\NVConso\\settings.json`.
-- Sécurité de sortie: l'option `RestoreStockOnExit` restaure la limite Stock à la fermeture si la limite stock/default NVML est disponible.
 
-Exemple de `settings.json` (placeholders):
+Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent de votre machine, du GPU sélectionné et de vos choix dans le menu tray:
 
 ```json
 {
-  "SelectedGpuIndex": "<index_gpu>",
-  "AutoApplySavedMode": "<true_or_false>",
-  "RestoreStockOnExit": "<true_or_false>",
-  "HasSavedMode": "<true_or_false>",
-  "LastSelectedMode": "<Canicule|VideoSurf|Indie2D|Stock|Max|Custom>",
-  "CustomPowerLimitMilliwatt": "<limite_personnalisee_mw_ou_null>"
+  "SelectedGpuIndex": 0,
+  "AutoApplySavedMode": true,
+  "RestoreStockOnExit": true,
+  "StartWithWindows": false,
+  "StartMinimized": true,
+  "AutoCheckUpdates": true,
+  "AutoDownloadUpdates": false,
+  "AutoApplyUpdatesOnStartup": false,
+  "UpdateChannel": "stable",
+  "LastUpdateCheckUtc": null,
+  "LastUpdateError": null,
+  "HasSavedMode": true,
+  "LastSelectedMode": "Custom",
+  "CustomPowerLimitMilliwatt": 180000
 }
 ```
+
+`CustomPowerLimitMilliwatt` reste en milliwatts dans le fichier de configuration. Dans l'interface, la même valeur est affichée en watts.
+
+## Mises à jour Velopack
+Le canal applicatif par défaut est `stable`. Les prereleases GitHub ne sont pas incluses par l'application dans cette passe.
+
+Depuis une installation Velopack:
+- `Rechercher une mise à jour` vérifie les artefacts Velopack publiés dans GitHub Releases.
+- `Télécharger la mise à jour` récupère le paquet Velopack et le prépare localement.
+- `Installer et redémarrer` applique le paquet téléchargé via le mécanisme externe Velopack, puis relance NVConso avec `--tray`.
+
+Depuis une archive ZIP portable ou un lancement développeur `bin/Debug` / `bin/Release`, les fonctions d'update échouent proprement avec un message du type `application non installée via Velopack`. Le ZIP portable reste fonctionnel pour l'usage GPU, mais la mise à jour doit être faite manuellement depuis [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases).
+
+Les préférences sont stockées dans `%LOCALAPPDATA%\\NVConso\\settings.json`. Lors d'une mise à jour Velopack, ce fichier reste hors du dossier applicatif et n'est pas remplacé par le paquet.
+
+## Packaging Velopack développeur
+Exemple local pour générer une release `stable` à partir d'un publish `win-x64`:
+
+```powershell
+dotnet publish NVConso/NVConso.csproj `
+  -c Release `
+  -r win-x64 `
+  --self-contained true `
+  -o artifacts/publish/win-x64 `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:Version=1.0.0
+
+dotnet tool install --global vpk --version 1.2.0
+
+vpk download github `
+  --repoUrl https://github.com/arnaud-wissart-lab/NVConso `
+  --channel stable `
+  --outputDir artifacts/velopack/win-x64
+
+vpk pack `
+  --packId NVConso `
+  --packVersion 1.0.0 `
+  --packDir artifacts/publish/win-x64 `
+  --mainExe NVConso.exe `
+  --channel stable `
+  --runtime win-x64 `
+  --packAuthors "Arnaud Wissart" `
+  --packTitle NVConso `
+  --icon NVConso/Assets/NVConso.ico `
+  --outputDir artifacts/velopack/win-x64
+```
+
+Le workflow `.github/workflows/release.yml` exécute l'équivalent sur tag `vX.Y.Z`, conserve les ZIP portables et publie les fichiers Velopack dans la release GitHub. Pour un test end-to-end, installez une version plus ancienne via Velopack, publiez une version supérieure sur GitHub Releases (ou sur un dépôt de test pointé par une branche dédiée), puis vérifiez que le menu tray détecte, télécharge et marque la mise à jour comme prête.
 
 ## Licence
 Licence MIT. Voir [LICENSE](./LICENSE).

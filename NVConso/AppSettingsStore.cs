@@ -89,23 +89,26 @@ namespace NVConso
             if (TryGetBoolean(root, nameof(AppSettings.StartMinimized), out bool startMinimized))
                 settings.StartMinimized = startMinimized;
 
-            if (TryGetBoolean(root, nameof(AppSettings.CheckUpdatesAutomatically), out bool checkUpdatesAutomatically))
-                settings.CheckUpdatesAutomatically = checkUpdatesAutomatically;
+            if (TryGetBoolean(root, nameof(AppSettings.AutoCheckUpdates), out bool autoCheckUpdates)
+                || TryGetBoolean(root, "CheckUpdatesAutomatically", out autoCheckUpdates))
+            {
+                settings.AutoCheckUpdates = autoCheckUpdates;
+            }
 
-            if (TryGetInt32(root, nameof(AppSettings.UpdateCheckIntervalHours), out int updateCheckIntervalHours))
-                settings.UpdateCheckIntervalHours = updateCheckIntervalHours;
+            if (TryGetBoolean(root, nameof(AppSettings.AutoDownloadUpdates), out bool autoDownloadUpdates))
+                settings.AutoDownloadUpdates = autoDownloadUpdates;
+
+            if (TryGetBoolean(root, nameof(AppSettings.AutoApplyUpdatesOnStartup), out bool autoApplyUpdatesOnStartup))
+                settings.AutoApplyUpdatesOnStartup = autoApplyUpdatesOnStartup;
+
+            if (TryGetString(root, nameof(AppSettings.UpdateChannel), out string updateChannel))
+                settings.UpdateChannel = updateChannel;
 
             if (TryGetDateTimeOffset(root, nameof(AppSettings.LastUpdateCheckUtc), out DateTimeOffset lastUpdateCheckUtc))
                 settings.LastUpdateCheckUtc = lastUpdateCheckUtc;
 
-            if (TryGetBoolean(root, nameof(AppSettings.IncludePrereleaseUpdates), out bool includePrereleaseUpdates))
-                settings.IncludePrereleaseUpdates = includePrereleaseUpdates;
-
-            if (TryGetBoolean(root, nameof(AppSettings.NotifyOnlyOncePerVersion), out bool notifyOnlyOncePerVersion))
-                settings.NotifyOnlyOncePerVersion = notifyOnlyOncePerVersion;
-
-            if (TryGetString(root, nameof(AppSettings.LastNotifiedVersion), out string lastNotifiedVersion))
-                settings.LastNotifiedVersion = lastNotifiedVersion;
+            if (TryGetString(root, nameof(AppSettings.LastUpdateError), out string lastUpdateError))
+                settings.LastUpdateError = lastUpdateError;
 
             if (TryGetBoolean(root, nameof(AppSettings.HasSavedMode), out bool hasSavedMode))
                 settings.HasSavedMode = hasSavedMode;
@@ -127,12 +130,12 @@ namespace NVConso
                 RestoreStockOnExit = settings.RestoreStockOnExit,
                 StartWithWindows = settings.StartWithWindows,
                 StartMinimized = settings.StartMinimized,
-                CheckUpdatesAutomatically = settings.CheckUpdatesAutomatically,
-                UpdateCheckIntervalHours = NormalizeUpdateCheckIntervalHours(settings.UpdateCheckIntervalHours),
+                AutoCheckUpdates = settings.AutoCheckUpdates,
+                AutoDownloadUpdates = settings.AutoDownloadUpdates,
+                AutoApplyUpdatesOnStartup = settings.AutoApplyUpdatesOnStartup,
+                UpdateChannel = NormalizeUpdateChannel(settings.UpdateChannel),
                 LastUpdateCheckUtc = settings.LastUpdateCheckUtc,
-                IncludePrereleaseUpdates = settings.IncludePrereleaseUpdates,
-                NotifyOnlyOncePerVersion = settings.NotifyOnlyOncePerVersion,
-                LastNotifiedVersion = NormalizeOptionalString(settings.LastNotifiedVersion),
+                LastUpdateError = NormalizeOptionalString(settings.LastUpdateError),
                 HasSavedMode = settings.HasSavedMode,
                 LastSelectedMode = NormalizePowerMode(settings.LastSelectedMode),
                 CustomPowerLimitMilliwatt = settings.CustomPowerLimitMilliwatt
@@ -258,17 +261,17 @@ namespace NVConso
                 : GpuPowerMode.Stock;
         }
 
-        private static int NormalizeUpdateCheckIntervalHours(int intervalHours)
-        {
-            return intervalHours > 0
-                ? intervalHours
-                : 24;
-        }
-
         private static string NormalizeOptionalString(string value)
         {
             return string.IsNullOrWhiteSpace(value)
                 ? null
+                : value.Trim();
+        }
+
+        private static string NormalizeUpdateChannel(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? VelopackAppUpdater.StableChannel
                 : value.Trim();
         }
     }

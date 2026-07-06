@@ -7,12 +7,12 @@ namespace NVConso
         public bool RestoreStockOnExit { get; set; } = true;
         public bool StartWithWindows { get; set; }
         public bool StartMinimized { get; set; } = true;
-        public bool CheckUpdatesAutomatically { get; set; } = true;
-        public int UpdateCheckIntervalHours { get; set; } = 24;
+        public bool AutoCheckUpdates { get; set; } = true;
+        public bool AutoDownloadUpdates { get; set; }
+        public bool AutoApplyUpdatesOnStartup { get; set; }
+        public string UpdateChannel { get; set; } = "stable";
         public DateTimeOffset? LastUpdateCheckUtc { get; set; }
-        public bool IncludePrereleaseUpdates { get; set; }
-        public bool NotifyOnlyOncePerVersion { get; set; } = true;
-        public string LastNotifiedVersion { get; set; }
+        public string LastUpdateError { get; set; }
         public bool HasSavedMode { get; set; }
         public GpuPowerMode LastSelectedMode { get; set; } = GpuPowerMode.Stock;
         public uint? CustomPowerLimitMilliwatt { get; set; }

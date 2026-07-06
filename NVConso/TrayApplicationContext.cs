@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace NVConso
@@ -44,30 +43,33 @@ namespace NVConso
         private readonly ToolStripMenuItem _startWithWindowsItem;
         private readonly ToolStripMenuItem _startMinimizedItem;
         private readonly ToolStripMenuItem _manualUpdateCheckItem;
-        private readonly ToolStripMenuItem _automaticUpdateCheckItem;
+        private readonly ToolStripMenuItem _downloadUpdateItem;
+        private readonly ToolStripMenuItem _applyUpdateItem;
+        private readonly ToolStripMenuItem _automaticUpdatesItem;
         private readonly ToolStripMenuItem _availableUpdateItem;
-        private readonly ToolStripMenuItem _openLatestReleaseItem;
         private readonly ToolStripMenuItem _gpuMenuItem;
         private readonly Dictionary<GpuPowerMode, ToolStripMenuItem> _profileItems = [];
         private readonly System.Windows.Forms.Timer _telemetryTimer;
         private readonly System.Windows.Forms.Timer _updateCheckTimer;
         private readonly INvmlManager _nvml;
         private readonly IStartupManager _startupManager;
-        private readonly IUpdateChecker _updateChecker;
+        private readonly IAppUpdater _appUpdater;
+        private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly AppSettingsStore _settingsStore;
         private readonly ILogger<TrayAppContext> _logger;
         private readonly StartupLaunchOptions _launchOptions;
 
         private AppSettings _settings;
         private bool _nvmlReady;
-        private bool _updateCheckInProgress;
-        private UpdateInfo _availableUpdate;
+        private bool _updateOperationInProgress;
+        private bool _downloadedUpdateReady;
+        private AppUpdateInfo _availableUpdate;
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
             : this(
                 nvml,
                 new WindowsTaskSchedulerStartupManager(),
-                new GitHubReleaseUpdateChecker(),
+                new VelopackAppUpdater(),
                 new AppSettingsStore(),
                 logger,
                 StartupLaunchOptions.Default)
@@ -77,14 +79,15 @@ namespace NVConso
         public TrayAppContext(
             INvmlManager nvml,
             IStartupManager startupManager,
-            IUpdateChecker updateChecker,
+            IAppUpdater appUpdater,
             AppSettingsStore settingsStore,
             ILogger<TrayAppContext> logger = null,
             StartupLaunchOptions launchOptions = null)
         {
             _nvml = nvml;
             _startupManager = startupManager ?? new WindowsTaskSchedulerStartupManager();
-            _updateChecker = updateChecker ?? new GitHubReleaseUpdateChecker();
+            _appUpdater = appUpdater ?? new VelopackAppUpdater();
+            _updateWorkflow = new AppUpdateWorkflow(_appUpdater);
             _logger = logger;
             _settingsStore = settingsStore ?? new AppSettingsStore();
             _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
@@ -174,19 +177,30 @@ namespace NVConso
             _manualUpdateCheckItem.Click += async (_, _) => await CheckForUpdatesAsync(showUpToDateStatus: true, isAutomatic: false);
             _trayMenu.Items.Add(_manualUpdateCheckItem);
 
-            _automaticUpdateCheckItem = new ToolStripMenuItem("Vérifier les mises à jour automatiquement");
-            _automaticUpdateCheckItem.Click += (_, _) => ToggleAutomaticUpdateChecks();
-            UpdateAutomaticUpdateCheckLabel();
-            _trayMenu.Items.Add(_automaticUpdateCheckItem);
+            _downloadUpdateItem = new ToolStripMenuItem("Télécharger la mise à jour")
+            {
+                Enabled = false
+            };
+            _downloadUpdateItem.Click += async (_, _) => await DownloadUpdateAsync(isAutomatic: false);
+            _trayMenu.Items.Add(_downloadUpdateItem);
 
-            _openLatestReleaseItem = new ToolStripMenuItem("Ouvrir la release GitHub");
-            _openLatestReleaseItem.Click += (_, _) => OpenLatestRelease();
+            _applyUpdateItem = new ToolStripMenuItem("Installer et redémarrer")
+            {
+                Enabled = false
+            };
+            _applyUpdateItem.Click += async (_, _) => await ApplyUpdateAndRestartAsync();
+            _trayMenu.Items.Add(_applyUpdateItem);
+
+            _automaticUpdatesItem = new ToolStripMenuItem();
+            _automaticUpdatesItem.Click += (_, _) => ToggleAutomaticUpdateChecks();
+            UpdateAutomaticUpdateCheckLabel();
+            _trayMenu.Items.Add(_automaticUpdatesItem);
 
             _availableUpdateItem = new ToolStripMenuItem("Nouvelle version disponible")
             {
+                Enabled = false,
                 Visible = false
             };
-            _availableUpdateItem.DropDownItems.Add(_openLatestReleaseItem);
             _trayMenu.Items.Add(_availableUpdateItem);
 
             _trayMenu.Items.Add(new ToolStripSeparator());
@@ -223,9 +237,10 @@ namespace NVConso
             };
 
             _updateCheckTimer.Tick += async (_, _) => await OnUpdateCheckTimerTickAsync();
-            if (_settings.CheckUpdatesAutomatically)
+            if (_settings.AutoCheckUpdates)
                 _updateCheckTimer.Start();
 
+            RefreshPendingUpdateState();
             InitializeRuntime();
         }
 
@@ -377,28 +392,30 @@ namespace NVConso
 
         private void ToggleAutomaticUpdateChecks()
         {
-            _settings.CheckUpdatesAutomatically = !_settings.CheckUpdatesAutomatically;
+            _settings.AutoCheckUpdates = !_settings.AutoCheckUpdates;
             _settingsStore.Save(_settings);
             UpdateAutomaticUpdateCheckLabel();
 
-            if (_settings.CheckUpdatesAutomatically)
+            if (_settings.AutoCheckUpdates)
             {
                 _updateCheckTimer.Interval = InitialUpdateCheckDelayMs;
                 _updateCheckTimer.Start();
-                SetStatus("✅ Vérification automatique des mises à jour activée.");
+                SetStatus("✅ Mises à jour automatiques activées.");
                 return;
             }
 
             _updateCheckTimer.Stop();
-            SetStatus("ℹ️ Vérification automatique des mises à jour désactivée.");
+            SetStatus("ℹ️ Mises à jour automatiques désactivées.");
         }
 
         private void UpdateAutomaticUpdateCheckLabel()
         {
-            _automaticUpdateCheckItem.Checked = _settings.CheckUpdatesAutomatically;
-            _automaticUpdateCheckItem.ToolTipText = _settings.CheckUpdatesAutomatically
-                ? $"Prochaine requête GitHub au plus tôt après {GetUpdateCheckIntervalHours()} h."
-                : "Aucune vérification GitHub automatique ne sera lancée.";
+            string status = _settings.AutoCheckUpdates ? "activé" : "désactivé";
+            _automaticUpdatesItem.Text = $"Mises à jour automatiques : {status}";
+            _automaticUpdatesItem.Checked = _settings.AutoCheckUpdates;
+            _automaticUpdatesItem.ToolTipText = _settings.AutoCheckUpdates
+                ? $"Canal Velopack : {GetUpdateChannel()}. Une vérification silencieuse est lancée au plus toutes les {DefaultUpdateCheckIntervalHours} h."
+                : "Aucune vérification Velopack automatique ne sera lancée.";
         }
 
         private async Task OnUpdateCheckTimerTickAsync()
@@ -406,7 +423,7 @@ namespace NVConso
             if (_updateCheckTimer.Interval != UpdateCheckPollingIntervalMs)
                 _updateCheckTimer.Interval = UpdateCheckPollingIntervalMs;
 
-            if (!_settings.CheckUpdatesAutomatically)
+            if (!_settings.AutoCheckUpdates)
             {
                 _updateCheckTimer.Stop();
                 return;
@@ -420,45 +437,46 @@ namespace NVConso
 
         private async Task CheckForUpdatesAsync(bool showUpToDateStatus, bool isAutomatic)
         {
-            if (_updateCheckInProgress)
+            if (_updateOperationInProgress)
             {
                 if (!isAutomatic)
-                    SetStatus("ℹ️ Une vérification de mise à jour est déjà en cours.");
+                    SetStatus("ℹ️ Une opération de mise à jour est déjà en cours.");
 
                 return;
             }
 
             try
             {
-                _updateCheckInProgress = true;
-                _manualUpdateCheckItem.Enabled = false;
+                SetUpdateMenuEnabled(false);
 
                 if (!isAutomatic)
-                    SetStatus("ℹ️ Recherche de mise à jour en cours...");
+                    SetStatus("ℹ️ Recherche de mise à jour Velopack en cours...");
 
-                UpdateCheckResult result = await _updateChecker.CheckForUpdatesAsync(
-                    _settings.IncludePrereleaseUpdates);
-
-                _settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;
+                AppUpdateOperationResult result = await _updateWorkflow.CheckForUpdatesAsync(_settings);
                 _settingsStore.Save(_settings);
 
                 if (!result.Success)
                 {
-                    _logger?.LogWarning("Vérification de mise à jour impossible : {Message}", result.Message);
+                    _logger?.LogWarning("Vérification Velopack impossible : {Message}", result.Message);
                     if (!isAutomatic)
                         SetStatus($"⚠️ {result.Message}");
 
+                    RefreshPendingUpdateState();
                     return;
                 }
 
-                UpdateInfo updateInfo = result.UpdateInfo;
-                if (updateInfo?.IsNewer == true)
+                if (result.Status == AppUpdateStatus.UpdateAvailable && result.Update is not null)
                 {
-                    ShowAvailableUpdate(updateInfo, isAutomatic);
+                    ShowAvailableUpdate(result.Update, isAutomatic);
+
+                    if (isAutomatic && _settings.AutoDownloadUpdates)
+                        await DownloadUpdateAsync(isAutomatic: true);
+
                     return;
                 }
 
                 ClearAvailableUpdate();
+                RefreshPendingUpdateState();
                 if (showUpToDateStatus || !isAutomatic)
                     SetStatus("✅ NVConso est à jour.");
                 else
@@ -466,71 +484,173 @@ namespace NVConso
             }
             finally
             {
-                _manualUpdateCheckItem.Enabled = true;
-                _updateCheckInProgress = false;
+                SetUpdateMenuEnabled(true);
             }
         }
 
-        private void ShowAvailableUpdate(UpdateInfo updateInfo, bool isAutomatic)
+        private async Task DownloadUpdateAsync(bool isAutomatic)
         {
-            _availableUpdate = updateInfo;
-            _availableUpdateItem.Text = $"Nouvelle version disponible : {updateInfo.LatestVersion}";
-            _availableUpdateItem.Visible = true;
-            _availableUpdateItem.Enabled = true;
-            _openLatestReleaseItem.Enabled = !string.IsNullOrWhiteSpace(updateInfo.HtmlUrl);
-            SetStatus($"✅ Nouvelle version disponible : {updateInfo.LatestVersion}");
-
-            if (!ShouldNotifyUpdate(updateInfo, isAutomatic))
-                return;
-
-            _icon.ShowBalloonTip(
-                5000,
-                "Mise à jour NVConso disponible",
-                $"La version {updateInfo.LatestVersion} est disponible sur GitHub.",
-                ToolTipIcon.Info);
-
-            _settings.LastNotifiedVersion = updateInfo.LatestVersion;
-            _settingsStore.Save(_settings);
-        }
-
-        private bool ShouldNotifyUpdate(UpdateInfo updateInfo, bool isAutomatic)
-        {
-            if (!isAutomatic || !_settings.NotifyOnlyOncePerVersion)
-                return true;
-
-            return !string.Equals(
-                _settings.LastNotifiedVersion,
-                updateInfo.LatestVersion,
-                StringComparison.OrdinalIgnoreCase);
-        }
-
-        private void ClearAvailableUpdate()
-        {
-            _availableUpdate = null;
-            _availableUpdateItem.Visible = false;
-            _openLatestReleaseItem.Enabled = false;
-        }
-
-        private void OpenLatestRelease()
-        {
-            if (string.IsNullOrWhiteSpace(_availableUpdate?.HtmlUrl))
+            bool ownsOperation = !_updateOperationInProgress;
+            if (!ownsOperation && !isAutomatic)
             {
-                SetStatus("⚠️ URL de release GitHub indisponible.");
+                SetStatus("ℹ️ Une opération de mise à jour est déjà en cours.");
                 return;
             }
 
             try
             {
-                Process.Start(new ProcessStartInfo(_availableUpdate.HtmlUrl)
+                if (ownsOperation)
+                    SetUpdateMenuEnabled(false);
+
+                SetStatus("ℹ️ Téléchargement de la mise à jour...");
+
+                var progress = new Progress<int>(value =>
                 {
-                    UseShellExecute = true
+                    _downloadUpdateItem.Text = $"Télécharger la mise à jour ({value} %)";
                 });
+
+                AppUpdateOperationResult result = await _updateWorkflow.DownloadUpdateAsync(_settings, progress);
+                _settingsStore.Save(_settings);
+
+                if (!result.Success)
+                {
+                    SetStatus($"⚠️ {result.Message}");
+                    return;
+                }
+
+                if (result.Status == AppUpdateStatus.NoUpdate || result.Update is null)
+                {
+                    ClearAvailableUpdate();
+                    SetStatus("✅ NVConso est à jour.");
+                    return;
+                }
+
+                if (result.Update is not null)
+                    _availableUpdate = result.Update;
+
+                ShowDownloadedUpdate(result.Update);
             }
-            catch (Exception exception)
+            finally
             {
-                _logger?.LogWarning(exception, "Impossible d'ouvrir la release GitHub.");
-                SetStatus($"⚠️ Impossible d'ouvrir la release GitHub : {exception.Message}");
+                _downloadUpdateItem.Text = "Télécharger la mise à jour";
+                if (ownsOperation)
+                    SetUpdateMenuEnabled(true);
             }
+        }
+
+        private async Task ApplyUpdateAndRestartAsync()
+        {
+            DialogResult confirmation = MessageBox.Show(
+                "NVConso va installer la mise à jour téléchargée puis redémarrer. Continuer ?",
+                "Mise à jour NVConso",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2);
+
+            if (confirmation != DialogResult.Yes)
+                return;
+
+            SetUpdateMenuEnabled(false);
+            AppUpdateOperationResult result = await _updateWorkflow.ApplyUpdateAndRestartAsync(
+                _settings,
+            [
+                StartupLaunchOptions.TrayArgument
+            ]);
+
+            if (!result.Success)
+            {
+                _settingsStore.Save(_settings);
+                SetStatus($"⚠️ {result.Message}");
+                SetUpdateMenuEnabled(true);
+            }
+        }
+
+        private void ShowAvailableUpdate(AppUpdateInfo updateInfo, bool isAutomatic)
+        {
+            _availableUpdate = updateInfo;
+            _availableUpdateItem.Text = $"Nouvelle version disponible : {updateInfo.Version}";
+            _availableUpdateItem.Visible = true;
+            _availableUpdateItem.Enabled = true;
+            _downloadedUpdateReady = false;
+            _downloadUpdateItem.Enabled = true;
+            _applyUpdateItem.Enabled = false;
+            SetStatus($"✅ Nouvelle version disponible : {updateInfo.Version}");
+
+            if (isAutomatic)
+            {
+                _icon.ShowBalloonTip(
+                    5000,
+                    "Mise à jour NVConso disponible",
+                    $"La version {updateInfo.Version} est disponible via Velopack.",
+                    ToolTipIcon.Info);
+                return;
+            }
+
+            _icon.ShowBalloonTip(
+                5000,
+                "Mise à jour NVConso disponible",
+                $"La version {updateInfo.Version} est disponible via Velopack.",
+                ToolTipIcon.Info);
+        }
+
+        private void ShowDownloadedUpdate(AppUpdateInfo updateInfo)
+        {
+            string version = updateInfo?.Version ?? _availableUpdate?.Version ?? "téléchargée";
+            _availableUpdateItem.Text = $"Mise à jour prête : {version}";
+            _availableUpdateItem.Visible = true;
+            _availableUpdateItem.Enabled = false;
+            _downloadedUpdateReady = true;
+            _downloadUpdateItem.Enabled = false;
+            _applyUpdateItem.Enabled = true;
+            SetStatus($"✅ Mise à jour prête : {version}");
+
+            _icon.ShowBalloonTip(
+                5000,
+                "Mise à jour NVConso prête",
+                "La mise à jour est téléchargée. Choisissez \"Installer et redémarrer\" pour l'appliquer.",
+                ToolTipIcon.Info);
+        }
+
+        private void RefreshPendingUpdateState()
+        {
+            PendingUpdateStatus pendingStatus = _updateWorkflow.GetPendingUpdateStatus();
+            if (!pendingStatus.IsPendingRestart)
+                return;
+
+            _availableUpdateItem.Text = pendingStatus.Message;
+            _availableUpdateItem.Visible = true;
+            _availableUpdateItem.Enabled = false;
+            _downloadedUpdateReady = true;
+            _downloadUpdateItem.Enabled = false;
+            _applyUpdateItem.Enabled = true;
+            SetStatus($"✅ {pendingStatus.Message}");
+        }
+
+        private void ClearAvailableUpdate()
+        {
+            _availableUpdate = null;
+            _downloadedUpdateReady = false;
+            _availableUpdateItem.Visible = false;
+            _downloadUpdateItem.Enabled = false;
+            _applyUpdateItem.Enabled = false;
+        }
+
+        private void SetUpdateMenuEnabled(bool enabled)
+        {
+            _updateOperationInProgress = !enabled;
+            _manualUpdateCheckItem.Enabled = enabled;
+
+            if (!enabled)
+            {
+                _downloadUpdateItem.Enabled = false;
+                _applyUpdateItem.Enabled = false;
+                return;
+            }
+
+            PendingUpdateStatus pendingStatus = _updateWorkflow.GetPendingUpdateStatus();
+            bool isReadyToApply = pendingStatus.IsPendingRestart || _downloadedUpdateReady;
+            _applyUpdateItem.Enabled = isReadyToApply;
+            _downloadUpdateItem.Enabled = _availableUpdate is not null && !isReadyToApply;
         }
 
         private bool IsUpdateCheckDue()
@@ -538,15 +658,15 @@ namespace NVConso
             if (!_settings.LastUpdateCheckUtc.HasValue)
                 return true;
 
-            TimeSpan minimumInterval = TimeSpan.FromHours(GetUpdateCheckIntervalHours());
+            TimeSpan minimumInterval = TimeSpan.FromHours(DefaultUpdateCheckIntervalHours);
             return DateTimeOffset.UtcNow - _settings.LastUpdateCheckUtc.Value >= minimumInterval;
         }
 
-        private int GetUpdateCheckIntervalHours()
+        private string GetUpdateChannel()
         {
-            return _settings.UpdateCheckIntervalHours > 0
-                ? _settings.UpdateCheckIntervalHours
-                : DefaultUpdateCheckIntervalHours;
+            return string.IsNullOrWhiteSpace(_settings.UpdateChannel)
+                ? VelopackAppUpdater.StableChannel
+                : _settings.UpdateChannel.Trim();
         }
 
         private void InitializeRuntime()
