@@ -22,6 +22,8 @@ namespace NVConso
             _settingsPath = settingsPath;
         }
 
+        public string SettingsPath => _settingsPath;
+
         public AppSettingsStore()
             : this(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -38,7 +40,7 @@ namespace NVConso
                     return new AppSettings();
 
                 string raw = File.ReadAllText(_settingsPath);
-                return DeserializeSettings(raw);
+                return Normalize(DeserializeSettings(raw));
             }
             catch
             {
@@ -48,19 +50,35 @@ namespace NVConso
 
         public void Save(AppSettings settings)
         {
+            TrySave(settings, out _);
+        }
+
+        public bool TrySave(AppSettings settings, out string message)
+        {
+            string tempPath = null;
+            string backupPath = null;
+
             try
             {
                 string directory = Path.GetDirectoryName(_settingsPath);
                 if (!string.IsNullOrWhiteSpace(directory))
                     Directory.CreateDirectory(directory);
 
-                AppSettings normalizedSettings = NormalizeSettings(settings);
+                AppSettings normalizedSettings = Normalize(settings);
                 string raw = JsonSerializer.Serialize(normalizedSettings, JsonOptions);
-                File.WriteAllText(_settingsPath, raw);
+                WriteAllTextAtomically(_settingsPath, raw, out tempPath, out backupPath);
+                message = "Préférences enregistrées.";
+                return true;
             }
-            catch
+            catch (Exception exception)
             {
-                // Les erreurs d'I/O ne doivent pas interrompre l'application tray.
+                message = $"Enregistrement des préférences impossible : {exception.Message}";
+                return false;
+            }
+            finally
+            {
+                TryDelete(tempPath);
+                TryDelete(backupPath);
             }
         }
 
@@ -101,6 +119,9 @@ namespace NVConso
             if (TryGetBoolean(root, nameof(AppSettings.AutoApplyUpdatesOnStartup), out bool autoApplyUpdatesOnStartup))
                 settings.AutoApplyUpdatesOnStartup = autoApplyUpdatesOnStartup;
 
+            if (TryGetBoolean(root, nameof(AppSettings.IncludePrereleaseUpdates), out bool includePrereleaseUpdates))
+                settings.IncludePrereleaseUpdates = includePrereleaseUpdates;
+
             if (TryGetString(root, nameof(AppSettings.UpdateChannel), out string updateChannel))
                 settings.UpdateChannel = updateChannel;
 
@@ -122,6 +143,21 @@ namespace NVConso
             if (TryGetInt32(root, nameof(AppSettings.TelemetryHistorySeconds), out int telemetryHistorySeconds))
                 settings.TelemetryHistorySeconds = telemetryHistorySeconds;
 
+            if (TryGetBoolean(root, nameof(AppSettings.CaniculeGuardEnabled), out bool caniculeGuardEnabled))
+                settings.CaniculeGuardEnabled = caniculeGuardEnabled;
+
+            if (TryGetInt32(root, nameof(AppSettings.CaniculeGuardPowerThresholdWatts), out int caniculeGuardPowerThresholdWatts))
+                settings.CaniculeGuardPowerThresholdWatts = caniculeGuardPowerThresholdWatts;
+
+            if (TryGetInt32(root, nameof(AppSettings.CaniculeGuardTemperatureThresholdCelsius), out int caniculeGuardTemperatureThresholdCelsius))
+                settings.CaniculeGuardTemperatureThresholdCelsius = caniculeGuardTemperatureThresholdCelsius;
+
+            if (TryGetInt32(root, nameof(AppSettings.CaniculeGuardAlertDelaySeconds), out int caniculeGuardAlertDelaySeconds))
+                settings.CaniculeGuardAlertDelaySeconds = caniculeGuardAlertDelaySeconds;
+
+            if (TryGetInt32(root, nameof(AppSettings.CaniculeGuardCooldownSeconds), out int caniculeGuardCooldownSeconds))
+                settings.CaniculeGuardCooldownSeconds = caniculeGuardCooldownSeconds;
+
             if (TryGetBoolean(root, nameof(AppSettings.HasSavedMode), out bool hasSavedMode))
                 settings.HasSavedMode = hasSavedMode;
 
@@ -133,8 +169,10 @@ namespace NVConso
             return settings;
         }
 
-        private static AppSettings NormalizeSettings(AppSettings settings)
+        public static AppSettings Normalize(AppSettings settings)
         {
+            settings ??= new AppSettings();
+
             return new AppSettings
             {
                 SelectedGpuIndex = settings.SelectedGpuIndex,
@@ -145,6 +183,7 @@ namespace NVConso
                 AutoCheckUpdates = settings.AutoCheckUpdates,
                 AutoDownloadUpdates = settings.AutoDownloadUpdates,
                 AutoApplyUpdatesOnStartup = settings.AutoApplyUpdatesOnStartup,
+                IncludePrereleaseUpdates = settings.IncludePrereleaseUpdates,
                 UpdateChannel = NormalizeUpdateChannel(settings.UpdateChannel),
                 LastUpdateCheckUtc = settings.LastUpdateCheckUtc,
                 LastUpdateError = NormalizeOptionalString(settings.LastUpdateError),
@@ -152,6 +191,27 @@ namespace NVConso
                 DashboardTheme = NormalizeUiTheme(settings.DashboardTheme),
                 DashboardWindowBounds = NormalizeDashboardWindowBounds(settings.DashboardWindowBounds),
                 TelemetryHistorySeconds = NormalizeTelemetryHistorySeconds(settings.TelemetryHistorySeconds),
+                CaniculeGuardEnabled = settings.CaniculeGuardEnabled,
+                CaniculeGuardPowerThresholdWatts = NormalizeRange(
+                    settings.CaniculeGuardPowerThresholdWatts,
+                    CaniculeGuardDefaults.PowerThresholdWatts,
+                    AppSettingsValidator.MinimumCaniculePowerThresholdWatts,
+                    AppSettingsValidator.MaximumCaniculePowerThresholdWatts),
+                CaniculeGuardTemperatureThresholdCelsius = NormalizeRange(
+                    settings.CaniculeGuardTemperatureThresholdCelsius,
+                    CaniculeGuardDefaults.TemperatureThresholdCelsius,
+                    AppSettingsValidator.MinimumCaniculeTemperatureThresholdCelsius,
+                    AppSettingsValidator.MaximumCaniculeTemperatureThresholdCelsius),
+                CaniculeGuardAlertDelaySeconds = NormalizeRange(
+                    settings.CaniculeGuardAlertDelaySeconds,
+                    CaniculeGuardDefaults.AlertDelaySeconds,
+                    AppSettingsValidator.MinimumCaniculeAlertDelaySeconds,
+                    AppSettingsValidator.MaximumCaniculeAlertDelaySeconds),
+                CaniculeGuardCooldownSeconds = NormalizeRange(
+                    settings.CaniculeGuardCooldownSeconds,
+                    CaniculeGuardDefaults.CooldownSeconds,
+                    AppSettingsValidator.MinimumCaniculeCooldownSeconds,
+                    AppSettingsValidator.MaximumCaniculeCooldownSeconds),
                 HasSavedMode = settings.HasSavedMode,
                 LastSelectedMode = NormalizePowerMode(settings.LastSelectedMode),
                 CustomPowerLimitMilliwatt = settings.CustomPowerLimitMilliwatt
@@ -372,6 +432,50 @@ namespace NVConso
                 seconds <= 0 ? GpuTelemetryHistory.DefaultCapacitySeconds : seconds,
                 GpuTelemetryHistory.MinimumCapacitySeconds,
                 GpuTelemetryHistory.MaximumCapacitySeconds);
+        }
+
+        private static int NormalizeRange(int value, int fallback, int minimum, int maximum)
+        {
+            int normalizedValue = value <= 0 ? fallback : value;
+            return Math.Clamp(normalizedValue, minimum, maximum);
+        }
+
+        private static void WriteAllTextAtomically(
+            string path,
+            string content,
+            out string tempPath,
+            out string backupPath)
+        {
+            string directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrWhiteSpace(directory))
+                directory = Directory.GetCurrentDirectory();
+
+            Directory.CreateDirectory(directory);
+            tempPath = Path.Combine(directory, $"{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            backupPath = tempPath + ".bak";
+
+            File.WriteAllText(tempPath, content);
+
+            if (File.Exists(path))
+            {
+                File.Replace(tempPath, path, backupPath, ignoreMetadataErrors: true);
+                return;
+            }
+
+            File.Move(tempPath, path);
+        }
+
+        private static void TryDelete(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                // Un fichier temporaire résiduel ne doit pas interrompre NVConso.
+            }
         }
     }
 }

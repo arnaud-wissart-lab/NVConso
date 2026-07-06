@@ -10,6 +10,7 @@ namespace NVConso
         public bool AutoCheckUpdates { get; set; } = true;
         public bool AutoDownloadUpdates { get; set; }
         public bool AutoApplyUpdatesOnStartup { get; set; }
+        public bool IncludePrereleaseUpdates { get; set; }
         public string UpdateChannel { get; set; } = "stable";
         public DateTimeOffset? LastUpdateCheckUtc { get; set; }
         public string LastUpdateError { get; set; }
@@ -17,6 +18,11 @@ namespace NVConso
         public UiTheme DashboardTheme { get; set; } = UiTheme.System;
         public DashboardWindowBounds DashboardWindowBounds { get; set; }
         public int TelemetryHistorySeconds { get; set; } = GpuTelemetryHistory.DefaultCapacitySeconds;
+        public bool CaniculeGuardEnabled { get; set; }
+        public int CaniculeGuardPowerThresholdWatts { get; set; } = CaniculeGuardDefaults.PowerThresholdWatts;
+        public int CaniculeGuardTemperatureThresholdCelsius { get; set; } = CaniculeGuardDefaults.TemperatureThresholdCelsius;
+        public int CaniculeGuardAlertDelaySeconds { get; set; } = CaniculeGuardDefaults.AlertDelaySeconds;
+        public int CaniculeGuardCooldownSeconds { get; set; } = CaniculeGuardDefaults.CooldownSeconds;
         public bool HasSavedMode { get; set; }
         public GpuPowerMode LastSelectedMode { get; set; } = GpuPowerMode.Stock;
         public uint? CustomPowerLimitMilliwatt { get; set; }

@@ -4,11 +4,11 @@ namespace NVConso
     {
         private readonly IGpuTelemetryService _telemetryService;
         private readonly ThemeService _themeService;
-        private readonly AppSettings _settings;
-        private readonly AppSettingsStore _settingsStore;
+        private readonly AppSettingsService _settingsService;
         private readonly Action<GpuPowerMode> _applyProfile;
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
+        private readonly Action _openPreferences;
         private readonly Dictionary<string, MetricCardControl> _metrics = [];
         private readonly GaugeControl _powerGauge;
         private readonly GaugeControl _temperatureGauge;
@@ -20,24 +20,26 @@ namespace NVConso
         private readonly Label _gpuNameLabel;
         private readonly Label _profileLabel;
         private readonly StatusPillControl _statusPill;
+        private AppSettings _settings;
         private ThemePalette _palette;
 
         public DashboardForm(
             IGpuTelemetryService telemetryService,
             ThemeService themeService,
-            AppSettings settings,
-            AppSettingsStore settingsStore,
+            AppSettingsService settingsService,
             Action<GpuPowerMode> applyProfile,
             Action restoreStock,
-            Action showCustomPowerLimit)
+            Action showCustomPowerLimit,
+            Action openPreferences)
         {
             _telemetryService = telemetryService;
             _themeService = themeService ?? new ThemeService();
-            _settings = settings;
-            _settingsStore = settingsStore;
+            _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
+            _settings = _settingsService.Current;
             _applyProfile = applyProfile;
             _restoreStock = restoreStock;
             _showCustomPowerLimit = showCustomPowerLimit;
+            _openPreferences = openPreferences;
             _palette = _themeService.GetPalette(_settings.DashboardTheme);
 
             Text = "NVConso - Tableau de bord";
@@ -45,7 +47,7 @@ namespace NVConso
             MinimumSize = new Size(1000, 680);
             Size = new Size(1180, 780);
             Font = DashboardFonts.Body();
-            Icon = new Icon("Assets/NVConso.ico");
+            Icon = AppIcon.Load();
 
             if (_settings.DashboardWindowBounds?.IsUsable() == true)
             {
@@ -61,7 +63,7 @@ namespace NVConso
                 Padding = new Padding(UiSpacing.Large),
                 BackColor = _palette.Background
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 230));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -173,12 +175,13 @@ namespace NVConso
             var actions = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                RowCount = 2,
+                RowCount = 3,
                 ColumnCount = 1,
                 BackColor = Color.Transparent
             };
-            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
-            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
+            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
+            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
+            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
             layout.Controls.Add(actions, 1, 0);
 
             statusPill = new StatusPillControl
@@ -192,6 +195,11 @@ namespace NVConso
             restoreButton.Dock = DockStyle.Fill;
             restoreButton.Click += (_, _) => _restoreStock();
             actions.Controls.Add(restoreButton, 0, 1);
+
+            ProfileButtonControl preferencesButton = CreateActionButton("Préférences");
+            preferencesButton.Dock = DockStyle.Fill;
+            preferencesButton.Click += (_, _) => _openPreferences?.Invoke();
+            actions.Controls.Add(preferencesButton, 0, 2);
 
             return card;
         }
@@ -439,12 +447,19 @@ namespace NVConso
             }
         }
 
+        public void ApplySettings(AppSettings settings)
+        {
+            _settings = settings ?? _settingsService.Current;
+            ApplyPalette();
+            Invalidate(true);
+        }
+
         private void SaveBounds()
         {
             if (WindowState == FormWindowState.Normal && Bounds.Width >= MinimumSize.Width && Bounds.Height >= MinimumSize.Height)
             {
                 _settings.DashboardWindowBounds = DashboardWindowBounds.FromRectangle(Bounds);
-                _settingsStore.Save(_settings);
+                _settingsService.Save(_settings);
             }
         }
 

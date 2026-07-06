@@ -50,7 +50,8 @@ namespace NVConso
                     options.TimestampFormat = "[HH:mm:ss] ";
                 }))
                 .AddSingleton(StartupApplicationInfo.Create(Application.ExecutablePath))
-                .AddSingleton(new AppSettingsStore())
+                .AddSingleton<AppSettingsStore>()
+                .AddSingleton<AppSettingsService>()
                 .AddSingleton<IStartupTaskScheduler, WindowsTaskSchedulerClient>()
                 .AddSingleton<IStartupManager, WindowsTaskSchedulerStartupManager>()
                 .AddSingleton<IAppUpdater, VelopackAppUpdater>()
@@ -70,9 +71,9 @@ namespace NVConso
             var appUpdater = services.GetRequiredService<IAppUpdater>();
             var telemetryService = services.GetRequiredService<IGpuTelemetryService>();
             var themeService = services.GetRequiredService<ThemeService>();
-            var settingsStore = services.GetRequiredService<AppSettingsStore>();
+            var settingsService = services.GetRequiredService<AppSettingsService>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, themeService, settingsStore, trayLogger, launchOptions));
+            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, themeService, settingsService, trayLogger, launchOptions));
         }
 
         private static bool IsRunAsAdmin()

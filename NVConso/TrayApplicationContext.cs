@@ -38,6 +38,7 @@ namespace NVConso
         private readonly ToolStripMenuItem _statusItem;
         private readonly ToolStripMenuItem _openDashboardItem;
         private readonly ToolStripMenuItem _showDashboardOnStartupItem;
+        private readonly ToolStripMenuItem _preferencesItem;
         private readonly ToolStripMenuItem _customPowerLimitItem;
         private readonly ToolStripMenuItem _restoreStockItem;
         private readonly ToolStripMenuItem _restoreStockOnExitItem;
@@ -58,7 +59,7 @@ namespace NVConso
         private readonly IGpuTelemetryService _telemetryService;
         private readonly ThemeService _themeService;
         private readonly AppUpdateWorkflow _updateWorkflow;
-        private readonly AppSettingsStore _settingsStore;
+        private readonly AppSettingsService _settingsService;
         private readonly ILogger<TrayAppContext> _logger;
         private readonly StartupLaunchOptions _launchOptions;
 
@@ -68,6 +69,7 @@ namespace NVConso
         private bool _downloadedUpdateReady;
         private AppUpdateInfo _availableUpdate;
         private DashboardForm _dashboardForm;
+        private SettingsForm _settingsForm;
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
             : this(
@@ -76,7 +78,7 @@ namespace NVConso
                 new VelopackAppUpdater(),
                 new GpuTelemetryService(nvml),
                 new ThemeService(),
-                new AppSettingsStore(),
+                new AppSettingsService(new AppSettingsStore()),
                 logger,
                 StartupLaunchOptions.Default)
         {
@@ -88,7 +90,7 @@ namespace NVConso
             IAppUpdater appUpdater,
             IGpuTelemetryService telemetryService,
             ThemeService themeService,
-            AppSettingsStore settingsStore,
+            AppSettingsService settingsService,
             ILogger<TrayAppContext> logger = null,
             StartupLaunchOptions launchOptions = null)
         {
@@ -99,9 +101,10 @@ namespace NVConso
             _themeService = themeService ?? new ThemeService();
             _updateWorkflow = new AppUpdateWorkflow(_appUpdater);
             _logger = logger;
-            _settingsStore = settingsStore ?? new AppSettingsStore();
+            _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
             _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
-            _settings = _settingsStore.Load();
+            _settings = _settingsService.Current;
+            _settingsService.SettingsChanged += OnSettingsChanged;
             _telemetryService.SetHistoryCapacitySeconds(_settings.TelemetryHistorySeconds);
             _telemetryService.SnapshotUpdated += OnTelemetrySnapshotUpdated;
 
@@ -182,6 +185,10 @@ namespace NVConso
 
             _trayMenu.Items.Add(CreateSectionHeader("Options"));
 
+            _preferencesItem = new ToolStripMenuItem("Préférences...");
+            _preferencesItem.Click += (_, _) => OpenPreferences();
+            _trayMenu.Items.Add(_preferencesItem);
+
             _restoreStockOnExitItem = new ToolStripMenuItem();
             _restoreStockOnExitItem.Click += (_, _) => ToggleRestoreStockOnExit();
             UpdateRestoreStockOnExitLabel();
@@ -242,7 +249,7 @@ namespace NVConso
             {
                 Visible = true,
                 Text = "NVConso - Gestion GPU",
-                Icon = new Icon("Assets/NVConso.ico"),
+                Icon = AppIcon.Load(),
                 ContextMenuStrip = _trayMenu,
             };
 
@@ -332,19 +339,39 @@ namespace NVConso
             _dashboardForm = new DashboardForm(
                 _telemetryService,
                 _themeService,
-                _settings,
-                _settingsStore,
+                _settingsService,
                 mode => ApplyProfile(mode, persistSelection: true, showBalloon: true),
                 () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
-                ShowCustomPowerLimitDialog);
+                ShowCustomPowerLimitDialog,
+                OpenPreferences);
 
             return _dashboardForm;
+        }
+
+        private void OpenPreferences()
+        {
+            if (_settingsForm is { IsDisposed: false })
+            {
+                _settingsForm.Show();
+                _settingsForm.Activate();
+                return;
+            }
+
+            _settingsForm = new SettingsForm(
+                _settingsService,
+                _startupManager,
+                _updateWorkflow,
+                _nvml,
+                _telemetryService);
+            _settingsForm.FormClosed += (_, _) => _settingsForm = null;
+            _settingsForm.Show();
+            _settingsForm.Activate();
         }
 
         private void ToggleShowDashboardOnStartup()
         {
             _settings.ShowDashboardOnStartup = !_settings.ShowDashboardOnStartup;
-            _settingsStore.Save(_settings);
+            SaveSettings();
             UpdateShowDashboardOnStartupLabel();
             SetStatus(_settings.ShowDashboardOnStartup
                 ? "Tableau de bord affiché au démarrage."
@@ -359,7 +386,7 @@ namespace NVConso
         private void ToggleRestoreStockOnExit()
         {
             _settings.RestoreStockOnExit = !_settings.RestoreStockOnExit;
-            _settingsStore.Save(_settings);
+            SaveSettings();
             UpdateRestoreStockOnExitLabel();
         }
 
@@ -391,7 +418,7 @@ namespace NVConso
         private void ToggleStartMinimized()
         {
             _settings.StartMinimized = !_settings.StartMinimized;
-            _settingsStore.Save(_settings);
+            SaveSettings();
             UpdateStartMinimizedLabel();
 
             StartupTaskStatus currentStatus = _startupManager.GetStatus();
@@ -448,7 +475,41 @@ namespace NVConso
                 return;
 
             _settings.StartWithWindows = startWithWindows;
-            _settingsStore.Save(_settings);
+            SaveSettings();
+        }
+
+        private void SaveSettings()
+        {
+            if (!_settingsService.TrySave(_settings, out string message))
+            {
+                SetStatus($"⚠️ {message}");
+                _logger?.LogWarning("Enregistrement des préférences impossible : {Message}", message);
+            }
+        }
+
+        private void OnSettingsChanged(object sender, AppSettings settings)
+        {
+            _settings = settings;
+            _telemetryService.SetHistoryCapacitySeconds(_settings.TelemetryHistorySeconds);
+            UpdateRestoreStockOnExitLabel();
+            UpdateStartMinimizedLabel();
+            UpdateShowDashboardOnStartupLabel();
+            UpdateAutomaticUpdateCheckLabel();
+
+            if (_settings.AutoCheckUpdates)
+            {
+                if (!_updateCheckTimer.Enabled)
+                {
+                    _updateCheckTimer.Interval = InitialUpdateCheckDelayMs;
+                    _updateCheckTimer.Start();
+                }
+            }
+            else
+            {
+                _updateCheckTimer.Stop();
+            }
+
+            _dashboardForm?.ApplySettings(_settings);
         }
 
         private void ShowStartupFailure(string message)
@@ -460,7 +521,7 @@ namespace NVConso
         private void ToggleAutomaticUpdateChecks()
         {
             _settings.AutoCheckUpdates = !_settings.AutoCheckUpdates;
-            _settingsStore.Save(_settings);
+            SaveSettings();
             UpdateAutomaticUpdateCheckLabel();
 
             if (_settings.AutoCheckUpdates)
@@ -520,7 +581,7 @@ namespace NVConso
                     SetStatus("ℹ️ Recherche de mise à jour Velopack en cours...");
 
                 AppUpdateOperationResult result = await _updateWorkflow.CheckForUpdatesAsync(_settings);
-                _settingsStore.Save(_settings);
+                SaveSettings();
 
                 if (!result.Success)
                 {
@@ -577,7 +638,7 @@ namespace NVConso
                 });
 
                 AppUpdateOperationResult result = await _updateWorkflow.DownloadUpdateAsync(_settings, progress);
-                _settingsStore.Save(_settings);
+                SaveSettings();
 
                 if (!result.Success)
                 {
@@ -626,7 +687,7 @@ namespace NVConso
 
             if (!result.Success)
             {
-                _settingsStore.Save(_settings);
+                SaveSettings();
                 SetStatus($"⚠️ {result.Message}");
                 SetUpdateMenuEnabled(true);
             }
@@ -835,7 +896,7 @@ namespace NVConso
             if (persistSelection)
             {
                 _settings.SelectedGpuIndex = gpuIndex;
-                _settingsStore.Save(_settings);
+                SaveSettings();
             }
 
             UpdateGpuMenuChecks(gpuIndex);
@@ -887,7 +948,7 @@ namespace NVConso
             {
                 _settings.HasSavedMode = true;
                 _settings.LastSelectedMode = mode;
-                _settingsStore.Save(_settings);
+                SaveSettings();
             }
 
             string modeLabel = ProfileLabels.GetDisplayName(mode);
@@ -984,7 +1045,7 @@ namespace NVConso
                 _settings.HasSavedMode = true;
                 _settings.LastSelectedMode = GpuPowerMode.Custom;
                 _settings.CustomPowerLimitMilliwatt = targetMilliwatt;
-                _settingsStore.Save(_settings);
+                SaveSettings();
             }
 
             string formattedLimit = GpuTelemetryFormatter.FormatWatts(targetMilliwatt);
@@ -1103,6 +1164,7 @@ namespace NVConso
         {
             if (disposing)
             {
+                _settingsService.SettingsChanged -= OnSettingsChanged;
                 _telemetryService.SnapshotUpdated -= OnTelemetrySnapshotUpdated;
                 _telemetryService.StopPolling();
                 _trayClickTimer.Stop();
