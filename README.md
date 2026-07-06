@@ -1,300 +1,247 @@
-# NVConso
-Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de puissance d'un GPU NVIDIA via NVML.
+# WattPilot
+
+Utilitaire Windows WinForms pour piloter prudemment la limite de puissance d'un GPU NVIDIA via NVML, suivre la télémétrie et appliquer des profils d'usage sobres.
+
+WattPilot est le nom produit. Certains identifiants techniques restent `NVConso` pour préserver la compatibilité des installations et mises à jour existantes : dépôt GitHub, PackId Velopack, exécutable, tâche planifiée et dossier de préférences.
 
 [![CI](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/arnaud-wissart-lab/NVConso)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-net10.0--windows-512BD4)](./NVConso/NVConso.csproj)
 [![WinForms](https://img.shields.io/badge/UI-WinForms-0078D4)](./NVConso/NVConso.csproj)
 
-## Téléchargement
-- Dernière version: [`/releases/latest`](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
-- Version installée auto-updatable: installeur Velopack `NVConso-Setup.exe` et paquets associés, publiés sur le canal `stable` pour `win-x64`.
-- Version portable: archive ZIP self-contained `NVConso-win-x64.zip`. Elle embarque le runtime .NET requis et ne nécessite pas d'installation de runtime, mais ne bénéficie pas de l'auto-update complet.
-- Fichier `SHA256SUMS.txt` fourni avec chaque release pour vérifier les artefacts publiés.
+## Télécharger
 
-## Démo live
-- Démo live: Application desktop Windows, aucune instance publique référencée dans ce dépôt.
-- Release: [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases).
+- Dernière version : [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest).
+- Installation avec mises à jour : artefacts Velopack `stable` pour `win-x64`.
+- Version portable : `NVConso-win-x64.zip`, publiée en self-contained. Elle embarque le runtime .NET et ne demande pas d'installer le runtime sur la machine.
+- Alias portable : `WattPilot-win-x64.zip`, contenu identique au ZIP `NVConso`, ajouté pour rendre le nom produit visible sans casser les chemins existants.
+- Vérification manuelle : `SHA256SUMS.txt` est publié avec les artefacts de release.
 
-## Ce que ça démontre
-- Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-- Tableau de bord WinForms optionnel, ouvert depuis le tray, avec cartes de métriques, jauges et graphes locaux sur 5 minutes ([`NVConso/DashboardForm.cs`](./NVConso/DashboardForm.cs)).
-- Fenêtre `Préférences` WinForms centralisant les options utilisateur : général, profils, Canicule Guard, démarrage Windows, mises à jour, apparence et avancé ([`NVConso/SettingsForm.cs`](./NVConso/SettingsForm.cs)).
-- Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la télémétrie et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-- Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
-- Démarrage avec Windows via une tâche planifiée utilisateur à l'ouverture de session, configurée avec les privilèges les plus élevés et sans mot de passe stocké ([`NVConso/WindowsTaskSchedulerStartupManager.cs`](./NVConso/WindowsTaskSchedulerStartupManager.cs)).
-- Mises à jour via Velopack et GitHub Releases: vérification manuelle ou périodique, téléchargement explicite, puis installation avec redémarrage uniquement après consentement utilisateur ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
-- Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
-- Testabilité via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
-- Pipeline CI Windows sur GitHub Actions (restore/build/test/audit packages) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+Chaque tag Git `vX.Y.Z` déclenche le workflow de release et produit une nouvelle version téléchargeable dans GitHub Releases. Le tag reste la source de vérité pour la version publiée, la version Velopack et les métadonnées d'assembly.
+
+## Mise à jour
+
+WattPilot vérifie les mises à jour au lancement si `AutoCheckUpdates` est activé. La vérification est planifiée après un court délai afin de ne pas bloquer l'ouverture du dashboard.
+
+Si une version existe, une seule action est proposée : `Mettre à jour vers vX.Y.Z...`. WattPilot enchaîne alors confirmation, téléchargement, application Velopack et redémarrage avec `--tray`. Si la mise à jour est déjà téléchargée, l'action devient `Installer et redémarrer...`.
+
+L'auto-update est disponible uniquement pour les installations Velopack compatibles. Le PackId Velopack reste `NVConso` afin de préserver la continuité des installations existantes. WattPilot utilise encore l'identifiant technique `NVConso` pour préserver la compatibilité des mises à jour.
+
+Depuis le ZIP portable ou une exécution développeur, la mise à jour reste manuelle. L'interface affiche un message clair et renvoie vers [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest). Aucun fichier arbitraire n'est exécuté.
+
+## Fonctionnalités
+
+- Profils GPU `Canicule`, `VideoSurf`, `Indie2D`, `Stock`, `Max` et `Custom`.
+- Tableau de bord WinForms avec temps réel, historique persisté, résumé journalier et état Canicule Guard.
+- Préférences centralisées : profils, démarrage Windows, mises à jour, historique, affichage, thème et options avancées.
+- Démarrage avec Windows via tâche planifiée utilisateur, sans service Windows et sans mot de passe stocké.
+- Mises à jour via Velopack pour les installations compatibles.
+- Historisation GPU persistante en CSV/JSON sous `%LOCALAPPDATA%\NVConso\telemetry\`.
+- Profils écran optionnels, désactivés par défaut, limités au refresh rate supporté.
+- Canicule Guard : alertes puissance/température avec seuils adaptés au profil actif, sans changement automatique de profil.
+
+## Profils GPU
+
+WattPilot ajuste le `power limit` NVIDIA. Ce plafond ne force pas la carte à consommer cette puissance ; il limite seulement le maximum autorisé par le GPU.
+
+Les profils sont calculés depuis la plage NVML du GPU actif :
+
+| Profil | Rôle | Comportement |
+|---|---|---|
+| `Canicule` | Sobriété maximale | Applique la limite minimale exposée par NVML. |
+| `VideoSurf` | Vidéo, navigateur, visio | Applique une limite basse mais plus confortable. |
+| `Indie2D` | Petits jeux et jeux 2D | Applique un compromis entre sobriété et marge GPU. |
+| `Stock` | Retour constructeur | Restaure la limite stock/default quand elle est disponible. |
+| `Max` | Usage volontairement agressif | Applique la limite maximale autorisée par la carte. |
+| `Custom` | Réglage manuel | Valide une limite en watts contre la plage NVML. |
+
+`Stock` et `Max` restent volontairement distincts. `Stock` revient au comportement normal du constructeur. `Max` pousse le plafond au maximum autorisé par le BIOS GPU.
+
+## Menu tray
+
+Le menu tray est volontairement compact. Il sert de télécommande rapide, pas de dashboard miniature.
+
+Il affiche seulement :
+
+- le nom `WattPilot` ;
+- un résumé GPU/profil ;
+- un résumé puissance/température ;
+- un résumé affichage quand HDR ou VRR/G-Sync sont connus ;
+- l'action `Ouvrir le tableau de bord` ;
+- le sous-menu `Profils` ;
+- une ligne de mise à jour et une seule action si une version est disponible ou prête ;
+- `Préférences...` et `Quitter`.
+
+Les métriques détaillées, les graphes, les jauges, les options de démarrage, les options d'affichage, les réglages Canicule Guard et les détails de mise à jour sont dans le dashboard ou les préférences.
+
+Clic gauche sur l'icône : ouvrir ou afficher le dashboard. Clic droit : afficher le menu compact. Double-clic gauche : ouvrir ou masquer le dashboard.
+
+## Dashboard
+
+Le dashboard est le cockpit graphique de WattPilot. Quand il faut comprendre ce que fait la carte, c'est cette fenêtre qu'il faut ouvrir plutôt que le menu tray.
+
+WattPilot démarre dans la zone de notification ; le dashboard s'ouvre par clic gauche sur l'icône tray, par double-clic gauche ou depuis le menu compact. Fermer la fenêtre masque le dashboard sans arrêter l'application. L'arrêt réel passe par `Quitter` dans le tray.
+
+Il contient :
+
+- un en-tête avec GPU actif, profil actif, version WattPilot, statut de mise à jour court et état Canicule Guard ;
+- un onglet `Temps réel`, alimenté par le buffer mémoire `GpuTelemetryHistory` ;
+- un onglet `Historique`, alimenté par les fichiers CSV/JSON persistés ;
+- les métriques GPU principales : puissance, limite, température, utilisation, décodeur, fréquences et ventilateur quand NVML les expose ;
+- les jauges puissance/limite, température/seuil, utilisation GPU et décodeur vidéo ;
+- les graphes puissance, température et utilisation GPU/décodeur ;
+- une carte `Écrans` avec fréquence courante, fréquence maximale connue, HDR et VRR/G-Sync quand l'information est disponible ;
+- les maxima du jour et le nombre de pics enregistrés ;
+- l'état de Canicule Guard.
+
+Les graphes temps réel affichent la durée réelle configurée par `TelemetryHistorySeconds`. Ils ne promettent pas de survivre à un redémarrage. L'historique persisté est relu depuis le disque, uniquement pour la journée sélectionnée.
+
+TODO produit : étudier un mode dashboard `Compact` avec 4 cartes, 2 jauges, 1 graphe principal et un bouton `Détails`.
+
+## Préférences
+
+La fenêtre `Préférences` regroupe les réglages qui ne doivent pas rester uniquement dans le menu tray :
+
+- profil de démarrage et restauration `Stock` à la fermeture ;
+- démarrage Windows ;
+- réglages avancés des mises à jour : vérification automatique, téléchargement automatique, préversions, dernière vérification et lien GitHub Releases ;
+- thème du dashboard ;
+- Canicule Guard ;
+- historique GPU persistant ;
+- profils écran ;
+- export diagnostic et réinitialisation locale.
+
+Les valeurs numériques sont bornées avant sauvegarde. Les préférences sont stockées dans `%LOCALAPPDATA%\NVConso\settings.json`.
+
+## Historisation persistante
+
+L'enregistrement est activé par défaut. Les fichiers sont écrits de manière asynchrone pour éviter de bloquer l'interface.
+
+Arborescence :
+
+```text
+%LOCALAPPDATA%\NVConso\telemetry\
+  snapshots\yyyy-MM-dd.csv
+  peaks\yyyy-MM-dd.jsonl
+  summaries\yyyy-MM.json
+```
+
+Les snapshots ne contiennent pas les noms de fenêtres ni la liste des processus. La rétention vaut 30 jours par défaut et ne supprime que les fichiers du dossier `telemetry`.
+
+Voir [docs/telemetry.md](./docs/telemetry.md) pour le format CSV, les événements de pics, la rétention et les exemples d'analyse dans Excel ou LibreOffice.
+
+## Profils écran
+
+Les profils écran sont désactivés par défaut. Une fois activés, ils peuvent réduire uniquement la fréquence de rafraîchissement d'un écran actif, sans changer la résolution, sans couper d'écran et sans modifier la disposition multi-écrans.
+
+État actuel :
+
+| Sujet | Statut |
+|---|---|
+| Refresh rate | Supporté, avec `CDS_TEST`, mode supporté obligatoire et rollback. |
+| HDR | Détection prudente via DXGI/`IDXGIOutput6` quand Windows expose l'état actif. Pas de bascule automatique. |
+| VRR/G-Sync | Détection lecture seule via NVAPI quand disponible. État inconnu si l'API ou le pilote ne répond pas. Pas de bascule automatique. |
+| Changements HDR/VRR expérimentaux | Options présentes, désactivées par défaut, sans action automatique dans cette version. |
+
+Voir [docs/display-profiles.md](./docs/display-profiles.md) pour les détails de sécurité, restauration et limitations.
+
+La détection HDR indique si HDR est actif sur un écran. Quand DXGI renvoie un état SDR, WattPilot ne peut pas toujours savoir si l'écran ne supporte pas HDR ou si HDR est simplement désactivé dans Windows. Dans ce cas, l'interface affiche un support HDR inconnu.
+
+La détection VRR/G-Sync utilise NVAPI quand le pilote NVIDIA expose `NvAPI_Disp_GetVRRInfo` pour l'écran actif. Windows VRR, NVIDIA G-Sync, G-Sync Compatible et Adaptive Sync sont affichés comme informations de diagnostic quand elles sont fiables. WattPilot peut ouvrir les paramètres graphiques Windows ou le panneau NVIDIA pour une vérification manuelle, mais ne modifie pas ces réglages.
+
+## Canicule Guard
+
+Canicule Guard avertit. Il ne change pas automatiquement de profil et ne modifie pas les réglages écran.
+
+Quand l'option est active, WattPilot surveille la puissance et la température. Les seuils puissance sont adaptés au profil actif : plus stricts en `Canicule`, intermédiaires en `VideoSurf`, plus hauts en `Indie2D`. En `Stock` et `Max`, l'alerte puissance basse consommation est désactivée ; la température reste surveillée dans tous les profils.
+
+Un délai avant alerte et un cooldown évitent le spam. Les alertes peuvent aussi enregistrer un événement de pic dans l'historique.
+
+## Démarrage Windows
+
+WattPilot utilise une tâche planifiée utilisateur déclenchée à l'ouverture de session. La tâche conserve le nom technique `NVConso`, pointe vers `NVConso.exe`, utilise `--tray` et demande le niveau d'exécution le plus élevé disponible.
+
+Cette tâche ne stocke pas de mot de passe. Elle ne remplace pas l'UAC. Elle peut devoir être réparée si l'exécutable a été déplacé.
+
+## Mises à jour et packaging
+
+Velopack est utilisé pour les installations mises à jour automatiquement. Le ZIP portable reste une distribution simple, self-contained, sans installation du runtime .NET, mais la mise à jour automatique complète n'y est pas supportée.
+
+Le workflow de release publie :
+
+- `NVConso-win-x64.zip` ;
+- `WattPilot-win-x64.zip`, alias portable équivalent ;
+- les artefacts Velopack `stable` pour `win-x64` ;
+- `SHA256SUMS.txt`.
+
+Voir [docs/release.md](./docs/release.md) pour le processus de release et les commandes locales de packaging.
+
+## Sécurité
+
+- L'écriture du power limit passe par NVML et peut demander les droits administrateur.
+- Les limites sont calculées depuis la plage NVML du GPU actif, pas depuis des valeurs codées pour un modèle précis.
+- La restauration `Stock` à la fermeture est optionnelle et activée par défaut.
+- Les profils écran ne s'appliquent jamais sans snapshot préalable.
+- Les changements écran refusés déclenchent une restauration du snapshot.
+- Les mises à jour Velopack demandent une action explicite avant installation/redémarrage.
+- L'historique GPU ne journalise pas les fenêtres ni les processus.
+
+## Limitations
+
+- Windows uniquement.
+- GPU NVIDIA avec pilote et NVML requis pour les fonctions GPU.
+- Certaines métriques NVML peuvent être absentes selon le GPU ou le pilote.
+- Certains GPU refusent la modification du power limit.
+- HDR et G-Sync/VRR ne sont pas modifiés automatiquement.
+- La mise à jour automatique Velopack est indisponible en ZIP portable ou en exécution développeur `bin`.
+- WattPilot ne contrôle pas les ventilateurs et ne remplace pas NVIDIA App.
+
+Voir [docs/troubleshooting.md](./docs/troubleshooting.md) pour les diagnostics courants.
 
 ## Captures
 
-![Capture NVConso](./docs/screenshots/NVConso.png)
+Aucune fausse capture n'est fournie. Les captures seront faites manuellement sur une machine Windows avec GPU NVIDIA, pilote installé et télémétrie NVML disponible.
 
-TODO: mettre à jour cette capture après génération sur une machine Windows avec pilote NVIDIA et accès NVML. La capture actuelle peut ne pas refléter tous les items récents du menu tray.
+Chemins prévus :
 
-TODO: ajouter une capture du tableau de bord après validation visuelle sur une machine Windows avec pilote NVIDIA et télémétrie NVML disponible.
-
-## Interface
-NVConso reste une application WinForms légère, avec le menu natif de la zone de notification comme point d'entrée principal. Les entrées du menu sont groupées par usage : statut, profils, tableau de bord, options, mises à jour et arrêt.
-
-Le tableau de bord est une fenêtre WinForms optionnelle, construite avec des contrôles internes simples : cartes de métriques, jauges GDI+, pastille de statut, boutons de profil et graphes locaux. Aucune migration vers WPF, WinUI, Avalonia ou MAUI n'est faite dans cette passe, et aucun framework UI massif n'est introduit.
-
-La couche de thème centralise les couleurs, espacements, rayons, polices et états visuels. Les thèmes disponibles sont `System`, `Light` et `Dark`. L'état des métriques reste lisible par le texte et les valeurs affichées, pas uniquement par la couleur.
-
-La fenêtre `Préférences...` est accessible depuis le tray et depuis le tableau de bord. Elle centralise les options qui ne doivent pas rester uniquement dans le menu contextuel : démarrage réduit, restauration `Stock`, dashboard au démarrage, thème, profil de démarrage, démarrage Windows via tâche planifiée, mises à jour, durée d'historique graphique, chemin du fichier `settings.json`, export diagnostic et réinitialisation locale des préférences.
-
-Les valeurs numériques sont bornées avant sauvegarde. Le fichier `%LOCALAPPDATA%\\NVConso\\settings.json` est chargé avec fallback résilient et écrit via un fichier temporaire avant remplacement, afin d'éviter autant que possible les écritures partielles.
-
-Les réglages `Canicule Guard` sont centralisés et validés dans les préférences. La logique d'alerte automatique associée reste à brancher explicitement si elle évolue dans une passe dédiée.
-
-## Profils GPU
-NVConso ajuste le `power limit` NVIDIA, c'est-à-dire un plafond de puissance. Ce plafond ne force pas la carte à consommer cette valeur en permanence : le GPU consomme seulement ce dont il a besoin, jusqu'à la limite appliquée.
-
-Les limites sont calculées depuis les contraintes NVML du GPU actif:
-- `Canicule`: limite minimale exposée par NVML.
-- `VideoSurf`: minimum + 10 % de l'intervalle entre minimum et stock/default.
-- `Indie2D`: minimum + 25 % de l'intervalle entre minimum et stock/default.
-- `Stock`: limite stock/default constructeur lue depuis NVML quand elle est disponible. Si NVML ne fournit pas cette valeur, NVConso privilégie la limite active comme secours ; si elle est aussi indisponible, il utilise la limite minimale plutôt que `Max`.
-- `Max`: limite maximale autorisée par le GPU/BIOS.
-- `Custom`: limite personnalisée saisie en watts, validée contre la plage NVML autorisée.
-
-`Stock` et `Max` sont volontairement distincts. `Stock` revient au comportement constructeur normal, tandis que `Max` applique le plafond maximal autorisé par la carte. `Max` est destiné aux gros jeux, benchmarks ou essais volontaires, pas au surf, à la vidéo ou à la bureautique.
-
-## Usage recommandé en période de canicule
-- `Canicule`: bureautique, surf léger, vidéo simple, priorité au silence et à la chaleur minimale.
-- `VideoSurf`: navigation plus lourde, vidéo haute résolution, appels visio ou multitâche léger.
-- `Indie2D`: petits jeux peu gourmands, jeux 2D ou titres indés modestes.
-- `Stock`: retour normal avant une session de jeu classique ou après une phase basse consommation.
-- `Max`: usage volontairement agressif pour gros jeux ou benchmarks, à éviter pour surf/vidéo.
-- `Custom`: réglage manuel si vous connaissez une limite stable pour votre GPU et votre usage.
-
-## Ce que NVConso ne fait pas
-- Ne désactive pas automatiquement RTX Video, RTX HDR ou d'autres traitements NVIDIA.
-- Ne modifie pas les paramètres Chrome, Edge ou d'autres navigateurs.
-- Ne contrôle pas les ventilateurs dans cette version.
-- Ne remplace pas NVIDIA App.
-- Ne bascule pas automatiquement une application vers un iGPU.
-
-## Architecture
-```mermaid
-flowchart LR
-  A[Utilisateur] --> B[Menu tray WinForms]
-  B --> C[TrayAppContext]
-  C --> D[INvmlManager]
-  D --> E[NvmlManager]
-  E --> F[nvml.dll]
-  C --> G[AppSettingsStore]
-  G --> H[%LOCALAPPDATA%/NVConso/settings.json]
-  C --> P[IGpuTelemetryService]
-  P --> Q[GpuTelemetryHistory]
-  P --> D
-  C --> R[DashboardForm]
-  R --> P
-  I[Program.cs] --> J[Elevation admin runas]
-  J --> C
-  C --> K[IStartupManager]
-  K --> L["Tâche planifiée Windows utilisateur"]
-  C --> M[IAppUpdater]
-  M --> N[Velopack UpdateManager]
-  N --> O[GitHub Releases]
+```text
+docs/screenshots/tray-menu.png
+docs/screenshots/dashboard-realtime.png
+docs/screenshots/dashboard-history.png
+docs/screenshots/preferences.png
 ```
 
-### Comment ça marche
-1. Au lancement, l'application initialise WinForms puis demande l'élévation admin si nécessaire ([`NVConso/Program.cs`](./NVConso/Program.cs)).
-2. `TrayAppContext` initialise NVML, charge la liste GPU, puis sélectionne le GPU sauvegardé (ou le premier disponible) ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
-3. Les profils `Canicule`, `VideoSurf`, `Indie2D`, `Stock` et `Max` calculent/appliquent une limite de puissance en milliwatts via NVML, à partir des limites minimum, stock/default et maximum exposées par le GPU ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-4. Une limite personnalisée peut être saisie en watts depuis le menu tray, puis validée strictement contre la plage NVML autorisée.
-5. Un service central `IGpuTelemetryService` interroge NVML au maximum une fois par seconde, publie un snapshot partagé et alimente un historique circulaire en mémoire. Le tray et le dashboard consomment cette même source, sans double polling NVML.
-6. L'option `Démarrer avec Windows` crée ou met à jour une tâche planifiée `NVConso` déclenchée à l'ouverture de session de l'utilisateur courant. L'action pointe vers le chemin complet de `NVConso.exe`, avec `--tray` ou `--minimized` comme argument et le dossier de l'exécutable comme dossier de travail.
-7. L'option `Rechercher une mise à jour` utilise Velopack avec les releases GitHub du dépôt. Si une version plus récente existe sur le canal `stable`, NVConso peut la télécharger, afficher `Mise à jour prête`, puis l'appliquer avec redémarrage seulement après validation utilisateur.
+Voir [docs/screenshots/README.md](./docs/screenshots/README.md).
 
-## Stack technique
-- Runtime/UI: .NET `net10.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- Plateforme cible: `x64` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- Interop GPU: NVML (`nvml.dll`) via `DllImport` ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Visualisation: contrôles WinForms/GDI+ internes pour cartes, jauges et graphes afin d'éviter une dépendance UI lourde ([`NVConso/TelemetryChartControl.cs`](./NVConso/TelemetryChartControl.cs)).
-- Injection de dépendances et logging: `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Logging`, `Microsoft.Extensions.Logging.Console` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- Installation et auto-update: Velopack 1.2.x avec source GitHub Releases ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
-- Package présent dans le projet: `NvAPIWrapper.Net` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
-- WMI: non détecté dans le code actuel.
-- Tests: xUnit + `Microsoft.NET.Test.Sdk` + `coverlet.collector` ([`NVConso.Tests/NVConso.Tests.csproj`](./NVConso.Tests/NVConso.Tests.csproj)).
-- CI: GitHub Actions sur `windows-latest` ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+## Développement
 
-## Démarrage rapide (dev local)
-Prérequis:
+Prérequis :
+
 - Windows.
-- SDK .NET 10.x pour le développement local (la CI utilise `10.x` en fallback si `global.json` est absent).
-- Pilote NVIDIA installé (pour `nvml.dll`).
-- Droits administrateur (requis pour modifier la limite de puissance).
+- SDK .NET 10.x. Le dépôt contient [global.json](./global.json) pour stabiliser le SDK.
+- Pilote NVIDIA installé pour tester NVML sur une machine réelle.
 
-Restaurer, builder, lancer:
-
-```powershell
-dotnet restore Tools.sln
-dotnet build Tools.sln --configuration Debug
-dotnet run --project NVConso/NVConso.csproj
-```
-
-Build Release (commande CI):
-
-```powershell
-dotnet build Tools.sln --configuration Release --no-restore
-```
-
-Packaging binaire/release:
-- la CI reste séparée et ne publie pas de release ;
-- le workflow `.github/workflows/release.yml` se déclenche sur un tag `vX.Y.Z` ;
-- le tag `v1.4.0` produit les versions assembly/package `1.4.0`, `1.4.0.0` et `1.4.0+<sha>` ;
-- la release publie `NVConso-win-x64.zip`, les artefacts Velopack `stable` et `SHA256SUMS.txt` ;
-- le ZIP portable est self-contained et ne nécessite pas d'installation du runtime .NET ;
-- l'auto-update complet n'est disponible que pour une application installée via Velopack, pas depuis `bin/Debug`, `bin/Release` ou une archive ZIP portable.
-
-## Tests
-Tests unitaires (projet de tests):
-
-```powershell
-dotnet test NVConso.Tests/NVConso.Tests.csproj --configuration Release --no-build
-```
-
-Validation locale complète (documentation maintenance):
+Commandes principales :
 
 ```powershell
 dotnet restore Tools.sln
-dotnet build Tools.sln -c Debug
-dotnet test Tools.sln -c Debug
+dotnet build Tools.sln --configuration Release
+dotnet test Tools.sln --configuration Release
+dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained true
 ```
 
-Type de tests détectés:
-- Unitaires: oui ([`NVConso.Tests/`](./NVConso.Tests/)).
+La cible principale est `net10.0-windows` en `x64`. Nullable reste désactivé globalement pour éviter un diff massif.
 
-## Sécurité & configuration
-- Privilèges: niveau `requireAdministrator` dans le manifest et relance `runas` au démarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
-- Pourquoi admin: l'écriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut être refusée sans élévation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
-- Démarrage Windows: NVConso utilise une tâche planifiée utilisateur à l'ouverture de session plutôt qu'une clé `HKCU\\Run` ou `RunOnce`. Cette tâche demande le niveau d'exécution le plus élevé disponible afin que l'application puisse écrire la limite de puissance via NVML après le lancement. Elle ne stocke pas de mot de passe, ne crée pas de service Windows et ne promet pas de contourner l'UAC.
-- Mises à jour: NVConso délègue l'installation et l'auto-update à Velopack. L'application ne remplace jamais artisanalement son propre `.exe`, ne télécharge pas puis n'exécute pas arbitrairement une archive ZIP, et s'appuie sur les paquets/checksums Velopack. En exécution Debug/bin ou ZIP portable, le menu signale clairement que l'application n'est pas installée via Velopack.
-- Consentement: la vérification automatique peut notifier qu'une version existe, et le téléchargement automatique est désactivé par défaut. L'installation avec redémarrage n'est pas lancée sans action explicite dans le menu tray.
-- Variabilité NVML: certaines métriques ou limites peuvent être indisponibles selon le GPU, le pilote ou la version NVML. Dans ce cas, NVConso affiche `--` ou ignore la métrique sans fermer l'application.
-- Limites GPU: les profils et la limite personnalisée sont calculés ou validés depuis la plage NVML du GPU actif. Aucune valeur spécifique à un modèle de carte n'est codée en dur.
-- Restauration Stock: `RestoreStockOnExit` restaure la limite `Stock` à la fermeture si NVML est prêt et si la limite stock/default réelle est disponible. NVConso ne restaure jamais `Max` automatiquement et ignore l'échec sans bloquer la fermeture.
-- Variables d'environnement: aucune variable `.env` / secret détectée dans le code actuel.
-- Configuration locale persistante: `%LOCALAPPDATA%\\NVConso\\settings.json`.
+## Documentation
 
-Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent de votre machine, du GPU sélectionné et de vos choix dans le menu tray:
-
-```json
-{
-  "SelectedGpuIndex": 0,
-  "AutoApplySavedMode": true,
-  "RestoreStockOnExit": true,
-  "StartWithWindows": false,
-  "StartMinimized": true,
-  "AutoCheckUpdates": true,
-  "AutoDownloadUpdates": false,
-  "AutoApplyUpdatesOnStartup": false,
-  "IncludePrereleaseUpdates": false,
-  "UpdateChannel": "stable",
-  "LastUpdateCheckUtc": null,
-  "LastUpdateError": null,
-  "ShowDashboardOnStartup": false,
-  "DashboardTheme": "System",
-  "DashboardWindowBounds": null,
-  "TelemetryHistorySeconds": 300,
-  "CaniculeGuardEnabled": false,
-  "CaniculeGuardPowerThresholdWatts": 220,
-  "CaniculeGuardTemperatureThresholdCelsius": 82,
-  "CaniculeGuardAlertDelaySeconds": 30,
-  "CaniculeGuardCooldownSeconds": 300,
-  "HasSavedMode": true,
-  "LastSelectedMode": "Custom",
-  "CustomPowerLimitMilliwatt": 180000
-}
-```
-
-`CustomPowerLimitMilliwatt` reste en milliwatts dans le fichier de configuration. Dans l'interface, la même valeur est affichée en watts.
-
-## Tableau de bord
-Le tableau de bord est optionnel. NVConso continue de démarrer en zone de notification ; la fenêtre s'ouvre depuis le menu tray `Ouvrir le tableau de bord` ou par clic sur l'icône tray. La fermeture de la fenêtre la masque seulement : l'action `Quitter` du tray reste l'arrêt réel.
-
-Le dashboard affiche:
-- l'identité du GPU actif, le profil détecté et l'état NVML ;
-- les métriques instantanées principales : puissance, power limit, température, utilisation GPU, décodeur vidéo, fréquences et ventilateur si disponible ;
-- des jauges simples pour puissance/limite, température/seuil, utilisation GPU et décodeur ;
-- des graphes locaux sur environ 5 minutes pour puissance, température et utilisation GPU/decode.
-
-Les graphes sont alimentés par `GpuTelemetryHistory`, un buffer circulaire en mémoire. Ils ne sont pas persistés par défaut et sont remis à zéro au redémarrage. Les préférences `ShowDashboardOnStartup`, `DashboardTheme`, `DashboardWindowBounds` et `TelemetryHistorySeconds` sont persistées dans `%LOCALAPPDATA%\\NVConso\\settings.json`.
-
-## Mises à jour Velopack
-Le canal applicatif par défaut est `stable`. Les prereleases GitHub ne sont pas incluses par l'application dans cette passe.
-
-Depuis une installation Velopack:
-- `Rechercher une mise à jour` vérifie les artefacts Velopack publiés dans GitHub Releases, notamment `releases.stable.json` et les paquets `.nupkg`.
-- `Télécharger la mise à jour` récupère le paquet Velopack et le prépare localement.
-- `Installer et redémarrer` applique le paquet téléchargé via le mécanisme externe Velopack, puis relance NVConso avec `--tray`.
-
-Depuis une archive ZIP portable ou un lancement développeur `bin/Debug` / `bin/Release`, les fonctions d'update échouent proprement avec un message du type `application non installée via Velopack`. Le ZIP portable reste fonctionnel pour l'usage GPU, mais la mise à jour doit être faite manuellement depuis [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases).
-
-Les préférences sont stockées dans `%LOCALAPPDATA%\\NVConso\\settings.json`. Lors d'une mise à jour Velopack, ce fichier reste hors du dossier applicatif et n'est pas remplacé par le paquet.
-
-`SHA256SUMS.txt` est publié dans chaque release GitHub à côté du ZIP portable et des fichiers Velopack. Il permet de vérifier manuellement les fichiers téléchargés avant installation ou archivage.
-
-## Créer une release
-Le workflow de release est déclenché uniquement par un tag au format `vX.Y.Z` :
-
-```powershell
-git tag v1.4.0
-git push origin v1.4.0
-```
-
-Le workflow exécute sur `windows-latest` :
-- `dotnet restore Tools.sln` ;
-- `dotnet build Tools.sln --configuration Release` avec version dérivée du tag ;
-- `dotnet test Tools.sln --configuration Release` ;
-- les audits NuGet vulnérables et dépréciés ;
-- `dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained true` ;
-- la génération de `NVConso-win-x64.zip` ;
-- la génération des artefacts Velopack `stable` ;
-- la génération de `SHA256SUMS.txt` ;
-- la publication des assets dans la GitHub Release avec `GITHUB_TOKEN`.
-
-La version portable ZIP reste utile pour un usage manuel sans installation, mais l'auto-update fiable repose sur les assets Velopack installables de la même release.
-
-## Packaging Velopack développeur
-Exemple local pour générer une release `stable` à partir d'un publish `win-x64`:
-
-```powershell
-dotnet publish NVConso/NVConso.csproj `
-  -c Release `
-  -r win-x64 `
-  --self-contained true `
-  -o artifacts/publish/win-x64 `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:Version=1.0.0
-
-dotnet tool install --global vpk --version 1.2.0
-
-vpk download github `
-  --repoUrl https://github.com/arnaud-wissart-lab/NVConso `
-  --channel stable `
-  --outputDir artifacts/velopack/win-x64
-
-vpk pack `
-  --packId NVConso `
-  --packVersion 1.0.0 `
-  --packDir artifacts/publish/win-x64 `
-  --mainExe NVConso.exe `
-  --channel stable `
-  --runtime win-x64 `
-  --packAuthors "Arnaud Wissart" `
-  --packTitle NVConso `
-  --icon NVConso/Assets/NVConso.ico `
-  --outputDir artifacts/velopack/win-x64
-```
-
-Le workflow `.github/workflows/release.yml` exécute l'équivalent sur tag `vX.Y.Z`, publie le ZIP portable `NVConso-win-x64.zip` et les fichiers Velopack dans la release GitHub. Pour un test end-to-end, installez une version plus ancienne via Velopack, publiez une version supérieure sur GitHub Releases (ou sur un dépôt de test pointé par une branche dédiée), puis vérifiez que le menu tray détecte, télécharge et marque la mise à jour comme prête.
+- [Architecture](./docs/architecture.md)
+- [Publication et packaging](./docs/release.md)
+- [Télémétrie persistante](./docs/telemetry.md)
+- [Profils écran](./docs/display-profiles.md)
+- [Dépannage](./docs/troubleshooting.md)
+- [Maintenance](./docs/MAINTENANCE.md)
+- [Changelog](./CHANGELOG.md)
 
 ## Licence
+
 Licence MIT. Voir [LICENSE](./LICENSE).

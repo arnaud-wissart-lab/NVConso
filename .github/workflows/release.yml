@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag existant à publier, au format vX.Y.Z. Requis si le workflow n'est pas lancé depuis un tag."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -18,6 +24,11 @@ env:
   PROJECT_PATH: NVConso/NVConso.csproj
   RUNTIME_IDENTIFIER: win-x64
   VELOPACK_VERSION: 1.2.0
+  PRODUCT_DISPLAY_NAME: WattPilot
+  VELOPACK_PACK_ID: NVConso
+  PORTABLE_ZIP_NAME: NVConso-win-x64.zip
+  PORTABLE_ZIP_ALIAS_NAME: WattPilot-win-x64.zip
+  MAIN_EXE_NAME: NVConso.exe
 
 jobs:
   release:
@@ -53,22 +64,51 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $eventName = "${{ github.event_name }}"
+          $inputVersion = "${{ inputs.version }}"
+          $currentRef = "${{ github.ref }}"
           $tag = "${{ github.ref_name }}"
+
+          if ($eventName -eq "workflow_dispatch") {
+            if (-not [string]::IsNullOrWhiteSpace($inputVersion)) {
+              $tag = $inputVersion.Trim()
+            } elseif ($currentRef.StartsWith("refs/tags/", [System.StringComparison]::OrdinalIgnoreCase)) {
+              $tag = "${{ github.ref_name }}"
+            } else {
+              throw "workflow_dispatch nécessite un tag existant au format vX.Y.Z dans l'input 'version'. Aucune release non taguée n'est publiée."
+            }
+          }
+
           if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
-            throw "Le tag '$tag' est invalide. Format attendu : vX.Y.Z, par exemple v1.4.0."
+            throw "Le tag '$tag' est invalide. Format attendu : vX.Y.Z, par exemple v1.1.0."
+          }
+
+          git fetch --tags --force
+          $tagCommit = git rev-list -n 1 "refs/tags/$tag" 2>$null
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tagCommit)) {
+            throw "Le tag '$tag' n'existe pas dans le dépôt. Créez et poussez d'abord le tag, puis relancez le workflow."
+          }
+
+          git checkout --detach "$tag"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de checkout le tag '$tag'."
           }
 
           $version = $Matches.version
           $assemblyVersion = "$version.0"
-          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $commitSha = (git rev-parse HEAD).Trim()
+          $shortSha = $commitSha.Substring(0, 7)
           $informationalVersion = "$version+$shortSha"
 
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
           "assembly_version=$assemblyVersion" >> $env:GITHUB_OUTPUT
           "informational_version=$informationalVersion" >> $env:GITHUB_OUTPUT
+          "commit_sha=$commitSha" >> $env:GITHUB_OUTPUT
           "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
 
+          Write-Host "Tag source : $tag"
+          Write-Host "Commit source : $commitSha"
           Write-Host "Version package : $version"
           Write-Host "AssemblyVersion/FileVersion : $assemblyVersion"
           Write-Host "InformationalVersion : $informationalVersion"
@@ -85,7 +125,8 @@ jobs:
           $commits = git log $range --pretty=format:"- %s (%h)"
 
           $lines = @()
-          $lines += "## NVConso $tag"
+          $productName = "${{ env.PRODUCT_DISPLAY_NAME }}"
+          $lines += "## $productName $tag"
           $lines += ""
           if ($previousTag) {
             $lines += "Comparaison : https://github.com/${{ github.repository }}/compare/$previousTag...$tag"
@@ -150,7 +191,8 @@ jobs:
         run: |
           $publishDir = Join-Path $pwd "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
           $releaseDir = Join-Path $pwd "artifacts/release"
-          $zipPath = Join-Path $releaseDir "NVConso-win-x64.zip"
+          $zipPath = Join-Path $releaseDir "${{ env.PORTABLE_ZIP_NAME }}"
+          $aliasZipPath = Join-Path $releaseDir "${{ env.PORTABLE_ZIP_ALIAS_NAME }}"
 
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
@@ -159,6 +201,12 @@ jobs:
           }
 
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
+
+          if (Test-Path $aliasZipPath) {
+            Remove-Item $aliasZipPath -Force
+          }
+
+          Copy-Item -Path $zipPath -Destination $aliasZipPath
 
       - name: Install Velopack CLI
         shell: pwsh
@@ -194,14 +242,14 @@ jobs:
           $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
 
           vpk pack `
-            --packId NVConso `
+            --packId "${{ env.VELOPACK_PACK_ID }}" `
             --packVersion "${{ steps.version.outputs.version }}" `
             --packDir "$publishDir" `
-            --mainExe NVConso.exe `
+            --mainExe "${{ env.MAIN_EXE_NAME }}" `
             --channel stable `
             --runtime "${{ env.RUNTIME_IDENTIFIER }}" `
             --packAuthors "Arnaud Wissart" `
-            --packTitle NVConso `
+            --packTitle "${{ env.PRODUCT_DISPLAY_NAME }}" `
             --releaseNotes release-notes.md `
             --icon "NVConso/Assets/NVConso.ico" `
             --outputDir "$velopackDir"
@@ -233,8 +281,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: NVConso ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ env.PRODUCT_DISPLAY_NAME }} ${{ steps.version.outputs.tag }}
           body_path: release-notes.md
           files: artifacts/release/*
           fail_on_unmatched_files: true
