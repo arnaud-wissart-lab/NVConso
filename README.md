@@ -21,6 +21,8 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 - Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la télémétrie et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
+- Démarrage avec Windows via une tâche planifiée utilisateur à l'ouverture de session, configurée avec les privilèges les plus élevés et sans mot de passe stocké ([`NVConso/WindowsTaskSchedulerStartupManager.cs`](./NVConso/WindowsTaskSchedulerStartupManager.cs)).
+- Vérification manuelle et périodique des mises à jour via GitHub Releases, avec notification tray et ouverture de la release GitHub sans téléchargement ni exécution automatique ([`NVConso/GitHubReleaseUpdateChecker.cs`](./NVConso/GitHubReleaseUpdateChecker.cs)).
 - Persistance locale résiliente des préférences utilisateur (`%LOCALAPPDATA%\\NVConso\\settings.json`) avec fallback sur valeurs par défaut ([`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
 - Testabilité via abstraction `INvmlManager` + mock (`MockNvmlManager`) et tests unitaires xUnit ([`NVConso/INvmlManager.cs`](./NVConso/INvmlManager.cs), [`NVConso.Tests/`](./NVConso.Tests/)).
 - Pipeline CI Windows sur GitHub Actions (restore/build/test) ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
@@ -41,6 +43,10 @@ flowchart LR
   G --> H[%LOCALAPPDATA%/NVConso/settings.json]
   I[Program.cs] --> J[Elevation admin runas]
   J --> C
+  C --> K[IStartupManager]
+  K --> L["Tâche planifiée Windows utilisateur"]
+  C --> M[IUpdateChecker]
+  M --> N[GitHub Releases API]
 ```
 
 ### Comment ça marche
@@ -49,6 +55,8 @@ flowchart LR
 3. Les profils `Canicule`, `VideoSurf`, `Indie2D`, `Stock` et `Max` calculent/appliquent une limite de puissance en milliwatts via NVML, à partir des limites minimum, stock/default et maximum exposées par le GPU ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 4. Une limite personnalisée peut être saisie en watts depuis le menu tray, puis validée strictement contre la plage NVML autorisée.
 5. Un timer (1 s) met à jour la télémétrie (consommation, limite active, température, utilisation, décodeur vidéo, fréquences, ventilateur en lecture seule et état performance si disponibles), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
+6. L'option `Démarrer avec Windows` crée ou met à jour une tâche planifiée `NVConso` déclenchée à l'ouverture de session de l'utilisateur courant. L'action pointe vers le chemin complet de `NVConso.exe`, avec `--tray` ou `--minimized` comme argument et le dossier de l'exécutable comme dossier de travail.
+7. L'option `Rechercher une mise à jour` interroge `https://api.github.com/repos/arnaud-wissart-lab/NVConso/releases/latest`, compare le tag de release à la version de l'assembly et affiche un accès direct à la release GitHub si une version plus récente est publiée.
 
 ## Stack technique
 - Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
@@ -105,6 +113,8 @@ Type de tests détectés:
 ## Sécurité & configuration
 - Privilèges: niveau `requireAdministrator` dans le manifest et relance `runas` au démarrage ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
 - Pourquoi admin: l'écriture du power limit passe par `nvmlDeviceSetPowerManagementLimit`, qui peut être refusée sans élévation ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+- Démarrage Windows: NVConso utilise une tâche planifiée utilisateur à l'ouverture de session plutôt qu'une clé `HKCU\\Run` ou `RunOnce`. Cette tâche demande le niveau d'exécution le plus élevé disponible afin que l'application puisse écrire la limite de puissance via NVML après le lancement. Elle ne stocke pas de mot de passe, ne crée pas de service Windows et ne promet pas de contourner l'UAC.
+- Mises à jour: NVConso vérifie GitHub Releases avec les en-têtes `User-Agent: NVConso` et `Accept: application/vnd.github+json`, sans token GitHub. La vérification automatique est activée par défaut, attend au moins l'intervalle configuré entre deux requêtes et ignore les prereleases par défaut. Cette passe ne télécharge pas les archives, ne remplace aucun fichier et n'exécute jamais de binaire téléchargé. Pour installer une mise à jour, ouvrez la release GitHub depuis le menu tray, téléchargez manuellement l'archive ZIP self-contained adaptée à votre architecture et vérifiez `SHA256SUMS.txt` si nécessaire.
 - Variables d'environnement: aucune variable `.env` / secret détectée dans le code actuel.
 - Configuration locale persistante: `%LOCALAPPDATA%\\NVConso\\settings.json`.
 - Sécurité de sortie: l'option `RestoreStockOnExit` restaure la limite Stock à la fermeture si la limite stock/default NVML est disponible.

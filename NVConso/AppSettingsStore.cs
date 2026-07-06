@@ -83,6 +83,30 @@ namespace NVConso
             if (TryGetBoolean(root, nameof(AppSettings.RestoreStockOnExit), out bool restoreStockOnExit))
                 settings.RestoreStockOnExit = restoreStockOnExit;
 
+            if (TryGetBoolean(root, nameof(AppSettings.StartWithWindows), out bool startWithWindows))
+                settings.StartWithWindows = startWithWindows;
+
+            if (TryGetBoolean(root, nameof(AppSettings.StartMinimized), out bool startMinimized))
+                settings.StartMinimized = startMinimized;
+
+            if (TryGetBoolean(root, nameof(AppSettings.CheckUpdatesAutomatically), out bool checkUpdatesAutomatically))
+                settings.CheckUpdatesAutomatically = checkUpdatesAutomatically;
+
+            if (TryGetInt32(root, nameof(AppSettings.UpdateCheckIntervalHours), out int updateCheckIntervalHours))
+                settings.UpdateCheckIntervalHours = updateCheckIntervalHours;
+
+            if (TryGetDateTimeOffset(root, nameof(AppSettings.LastUpdateCheckUtc), out DateTimeOffset lastUpdateCheckUtc))
+                settings.LastUpdateCheckUtc = lastUpdateCheckUtc;
+
+            if (TryGetBoolean(root, nameof(AppSettings.IncludePrereleaseUpdates), out bool includePrereleaseUpdates))
+                settings.IncludePrereleaseUpdates = includePrereleaseUpdates;
+
+            if (TryGetBoolean(root, nameof(AppSettings.NotifyOnlyOncePerVersion), out bool notifyOnlyOncePerVersion))
+                settings.NotifyOnlyOncePerVersion = notifyOnlyOncePerVersion;
+
+            if (TryGetString(root, nameof(AppSettings.LastNotifiedVersion), out string lastNotifiedVersion))
+                settings.LastNotifiedVersion = lastNotifiedVersion;
+
             if (TryGetBoolean(root, nameof(AppSettings.HasSavedMode), out bool hasSavedMode))
                 settings.HasSavedMode = hasSavedMode;
 
@@ -101,6 +125,14 @@ namespace NVConso
                 SelectedGpuIndex = settings.SelectedGpuIndex,
                 AutoApplySavedMode = settings.AutoApplySavedMode,
                 RestoreStockOnExit = settings.RestoreStockOnExit,
+                StartWithWindows = settings.StartWithWindows,
+                StartMinimized = settings.StartMinimized,
+                CheckUpdatesAutomatically = settings.CheckUpdatesAutomatically,
+                UpdateCheckIntervalHours = NormalizeUpdateCheckIntervalHours(settings.UpdateCheckIntervalHours),
+                LastUpdateCheckUtc = settings.LastUpdateCheckUtc,
+                IncludePrereleaseUpdates = settings.IncludePrereleaseUpdates,
+                NotifyOnlyOncePerVersion = settings.NotifyOnlyOncePerVersion,
+                LastNotifiedVersion = NormalizeOptionalString(settings.LastNotifiedVersion),
                 HasSavedMode = settings.HasSavedMode,
                 LastSelectedMode = NormalizePowerMode(settings.LastSelectedMode),
                 CustomPowerLimitMilliwatt = settings.CustomPowerLimitMilliwatt
@@ -143,6 +175,34 @@ namespace NVConso
             return root.TryGetProperty(propertyName, out JsonElement property)
                 && property.ValueKind == JsonValueKind.Number
                 && property.TryGetUInt32(out value);
+        }
+
+        private static bool TryGetDateTimeOffset(JsonElement root, string propertyName, out DateTimeOffset value)
+        {
+            value = default;
+            return root.TryGetProperty(propertyName, out JsonElement property)
+                && property.ValueKind == JsonValueKind.String
+                && property.TryGetDateTimeOffset(out value);
+        }
+
+        private static bool TryGetString(JsonElement root, string propertyName, out string value)
+        {
+            value = default;
+
+            if (!root.TryGetProperty(propertyName, out JsonElement property))
+                return false;
+
+            if (property.ValueKind == JsonValueKind.Null)
+            {
+                value = null;
+                return true;
+            }
+
+            if (property.ValueKind != JsonValueKind.String)
+                return false;
+
+            value = property.GetString();
+            return true;
         }
 
         private static GpuPowerMode ReadPowerMode(JsonElement root)
@@ -196,6 +256,20 @@ namespace NVConso
             return Enum.IsDefined(typeof(GpuPowerMode), mode)
                 ? mode
                 : GpuPowerMode.Stock;
+        }
+
+        private static int NormalizeUpdateCheckIntervalHours(int intervalHours)
+        {
+            return intervalHours > 0
+                ? intervalHours
+                : 24;
+        }
+
+        private static string NormalizeOptionalString(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
         }
     }
 }

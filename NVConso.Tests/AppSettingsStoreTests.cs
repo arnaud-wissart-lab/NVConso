@@ -16,6 +16,14 @@ namespace NVConso.Tests
                 Assert.Equal(0, settings.SelectedGpuIndex);
                 Assert.True(settings.AutoApplySavedMode);
                 Assert.True(settings.RestoreStockOnExit);
+                Assert.False(settings.StartWithWindows);
+                Assert.True(settings.StartMinimized);
+                Assert.True(settings.CheckUpdatesAutomatically);
+                Assert.Equal(24, settings.UpdateCheckIntervalHours);
+                Assert.Null(settings.LastUpdateCheckUtc);
+                Assert.False(settings.IncludePrereleaseUpdates);
+                Assert.True(settings.NotifyOnlyOncePerVersion);
+                Assert.Null(settings.LastNotifiedVersion);
                 Assert.False(settings.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Stock, settings.LastSelectedMode);
             }
@@ -39,6 +47,14 @@ namespace NVConso.Tests
                     SelectedGpuIndex = 2,
                     AutoApplySavedMode = true,
                     RestoreStockOnExit = false,
+                    StartWithWindows = true,
+                    StartMinimized = false,
+                    CheckUpdatesAutomatically = false,
+                    UpdateCheckIntervalHours = 12,
+                    LastUpdateCheckUtc = new DateTimeOffset(2026, 7, 6, 10, 30, 0, TimeSpan.Zero),
+                    IncludePrereleaseUpdates = true,
+                    NotifyOnlyOncePerVersion = false,
+                    LastNotifiedVersion = "v1.2.3",
                     HasSavedMode = true,
                     LastSelectedMode = GpuPowerMode.Indie2D,
                     CustomPowerLimitMilliwatt = 225000
@@ -51,10 +67,25 @@ namespace NVConso.Tests
                 Assert.Equal(2, actual.SelectedGpuIndex);
                 Assert.True(actual.AutoApplySavedMode);
                 Assert.False(actual.RestoreStockOnExit);
+                Assert.True(actual.StartWithWindows);
+                Assert.False(actual.StartMinimized);
+                Assert.False(actual.CheckUpdatesAutomatically);
+                Assert.Equal(12, actual.UpdateCheckIntervalHours);
+                Assert.Equal(new DateTimeOffset(2026, 7, 6, 10, 30, 0, TimeSpan.Zero), actual.LastUpdateCheckUtc);
+                Assert.True(actual.IncludePrereleaseUpdates);
+                Assert.False(actual.NotifyOnlyOncePerVersion);
+                Assert.Equal("v1.2.3", actual.LastNotifiedVersion);
                 Assert.True(actual.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Indie2D, actual.LastSelectedMode);
                 Assert.Equal(225000u, actual.CustomPowerLimitMilliwatt);
                 Assert.Contains("\"RestoreStockOnExit\": false", rawSettings);
+                Assert.Contains("\"StartWithWindows\": true", rawSettings);
+                Assert.Contains("\"StartMinimized\": false", rawSettings);
+                Assert.Contains("\"CheckUpdatesAutomatically\": false", rawSettings);
+                Assert.Contains("\"UpdateCheckIntervalHours\": 12", rawSettings);
+                Assert.Contains("\"IncludePrereleaseUpdates\": true", rawSettings);
+                Assert.Contains("\"NotifyOnlyOncePerVersion\": false", rawSettings);
+                Assert.Contains("\"LastNotifiedVersion\": \"v1.2.3\"", rawSettings);
                 Assert.Contains("\"CustomPowerLimitMilliwatt\": 225000", rawSettings);
                 Assert.Contains("\"LastSelectedMode\": \"Indie2D\"", rawSettings);
             }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace NVConso
@@ -19,6 +20,9 @@ namespace NVConso
 
         private const int TelemetryRefreshIntervalMs = 1000;
         private const int CheckedThresholdMilliwatt = 200;
+        private const int InitialUpdateCheckDelayMs = 30000;
+        private const int UpdateCheckPollingIntervalMs = 60000;
+        private const int DefaultUpdateCheckIntervalHours = 24;
 
         private readonly NotifyIcon _icon;
         private readonly ContextMenuStrip _trayMenu;
@@ -37,24 +41,62 @@ namespace NVConso
         private readonly ToolStripMenuItem _customPowerLimitItem;
         private readonly ToolStripMenuItem _restoreStockItem;
         private readonly ToolStripMenuItem _restoreStockOnExitItem;
+        private readonly ToolStripMenuItem _startWithWindowsItem;
+        private readonly ToolStripMenuItem _startMinimizedItem;
+        private readonly ToolStripMenuItem _manualUpdateCheckItem;
+        private readonly ToolStripMenuItem _automaticUpdateCheckItem;
+        private readonly ToolStripMenuItem _availableUpdateItem;
+        private readonly ToolStripMenuItem _openLatestReleaseItem;
         private readonly ToolStripMenuItem _gpuMenuItem;
         private readonly Dictionary<GpuPowerMode, ToolStripMenuItem> _profileItems = [];
         private readonly System.Windows.Forms.Timer _telemetryTimer;
+        private readonly System.Windows.Forms.Timer _updateCheckTimer;
         private readonly INvmlManager _nvml;
+        private readonly IStartupManager _startupManager;
+        private readonly IUpdateChecker _updateChecker;
         private readonly AppSettingsStore _settingsStore;
         private readonly ILogger<TrayAppContext> _logger;
+        private readonly StartupLaunchOptions _launchOptions;
 
         private AppSettings _settings;
         private bool _nvmlReady;
+        private bool _updateCheckInProgress;
+        private UpdateInfo _availableUpdate;
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
+            : this(
+                nvml,
+                new WindowsTaskSchedulerStartupManager(),
+                new GitHubReleaseUpdateChecker(),
+                new AppSettingsStore(),
+                logger,
+                StartupLaunchOptions.Default)
+        {
+        }
+
+        public TrayAppContext(
+            INvmlManager nvml,
+            IStartupManager startupManager,
+            IUpdateChecker updateChecker,
+            AppSettingsStore settingsStore,
+            ILogger<TrayAppContext> logger = null,
+            StartupLaunchOptions launchOptions = null)
         {
             _nvml = nvml;
+            _startupManager = startupManager ?? new WindowsTaskSchedulerStartupManager();
+            _updateChecker = updateChecker ?? new GitHubReleaseUpdateChecker();
             _logger = logger;
-            _settingsStore = new AppSettingsStore();
+            _settingsStore = settingsStore ?? new AppSettingsStore();
+            _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
             _settings = _settingsStore.Load();
 
-            _trayMenu = new ContextMenuStrip();
+            if (_launchOptions.StartInTray)
+                _logger?.LogInformation("Lancement en zone de notification demandé.");
+
+            _trayMenu = new ContextMenuStrip
+            {
+                ShowItemToolTips = true
+            };
 
             _powerUsageItem = CreateInfoItem("⚡ Conso instantanée : --");
             _currentLimitItem = CreateInfoItem("🎯 Limite active : --");
@@ -116,6 +158,37 @@ namespace NVConso
             UpdateRestoreStockOnExitLabel();
             _trayMenu.Items.Add(_restoreStockOnExitItem);
 
+            _startWithWindowsItem = new ToolStripMenuItem("Démarrer avec Windows");
+            _startWithWindowsItem.Click += (_, _) => ToggleStartWithWindows();
+            _trayMenu.Items.Add(_startWithWindowsItem);
+
+            _startMinimizedItem = new ToolStripMenuItem("Démarrer réduit dans la zone de notification");
+            _startMinimizedItem.Click += (_, _) => ToggleStartMinimized();
+            UpdateStartMinimizedLabel();
+            _trayMenu.Items.Add(_startMinimizedItem);
+            RefreshStartupMenuState();
+
+            _trayMenu.Items.Add(new ToolStripSeparator());
+
+            _manualUpdateCheckItem = new ToolStripMenuItem("Rechercher une mise à jour");
+            _manualUpdateCheckItem.Click += async (_, _) => await CheckForUpdatesAsync(showUpToDateStatus: true, isAutomatic: false);
+            _trayMenu.Items.Add(_manualUpdateCheckItem);
+
+            _automaticUpdateCheckItem = new ToolStripMenuItem("Vérifier les mises à jour automatiquement");
+            _automaticUpdateCheckItem.Click += (_, _) => ToggleAutomaticUpdateChecks();
+            UpdateAutomaticUpdateCheckLabel();
+            _trayMenu.Items.Add(_automaticUpdateCheckItem);
+
+            _openLatestReleaseItem = new ToolStripMenuItem("Ouvrir la release GitHub");
+            _openLatestReleaseItem.Click += (_, _) => OpenLatestRelease();
+
+            _availableUpdateItem = new ToolStripMenuItem("Nouvelle version disponible")
+            {
+                Visible = false
+            };
+            _availableUpdateItem.DropDownItems.Add(_openLatestReleaseItem);
+            _trayMenu.Items.Add(_availableUpdateItem);
+
             _trayMenu.Items.Add(new ToolStripSeparator());
 
             _gpuMenuItem = new ToolStripMenuItem("🖥️ Choix du GPU")
@@ -143,6 +216,15 @@ namespace NVConso
             };
 
             _telemetryTimer.Tick += (_, _) => RefreshTelemetry();
+
+            _updateCheckTimer = new System.Windows.Forms.Timer
+            {
+                Interval = InitialUpdateCheckDelayMs
+            };
+
+            _updateCheckTimer.Tick += async (_, _) => await OnUpdateCheckTimerTickAsync();
+            if (_settings.CheckUpdatesAutomatically)
+                _updateCheckTimer.Start();
 
             InitializeRuntime();
         }
@@ -199,11 +281,272 @@ namespace NVConso
             UpdateRestoreStockOnExitLabel();
         }
 
+        private void ToggleStartWithWindows()
+        {
+            StartupTaskStatus currentStatus = _startupManager.GetStatus();
+            bool isEnabled = currentStatus.IsAvailable && currentStatus.IsEnabledForCurrentExecutable;
+
+            StartupOperationResult result = isEnabled
+                ? _startupManager.Disable()
+                : _startupManager.Enable(_settings.StartMinimized);
+
+            if (!result.Success)
+            {
+                if (!isEnabled)
+                    PersistStartWithWindows(false);
+
+                ShowStartupFailure(result.Message);
+                RefreshStartupMenuState();
+                return;
+            }
+
+            SyncStartWithWindowsSetting(result.Status);
+            RefreshStartupMenuState();
+            SetStatus($"✅ {result.Message}");
+            _icon.ShowBalloonTip(1000, "Démarrage Windows", result.Message, ToolTipIcon.Info);
+        }
+
+        private void ToggleStartMinimized()
+        {
+            _settings.StartMinimized = !_settings.StartMinimized;
+            _settingsStore.Save(_settings);
+            UpdateStartMinimizedLabel();
+
+            StartupTaskStatus currentStatus = _startupManager.GetStatus();
+            if (!currentStatus.IsAvailable || !currentStatus.Exists)
+                return;
+
+            StartupOperationResult result = _startupManager.Enable(_settings.StartMinimized);
+            if (!result.Success)
+            {
+                ShowStartupFailure(result.Message);
+                RefreshStartupMenuState();
+                return;
+            }
+
+            SyncStartWithWindowsSetting(result.Status);
+            RefreshStartupMenuState();
+            SetStatus($"✅ {result.Message}");
+        }
+
         private void UpdateRestoreStockOnExitLabel()
         {
             string status = _settings.RestoreStockOnExit ? "activé" : "désactivé";
             _restoreStockOnExitItem.Text = $"Restaurer Stock à la fermeture : {status}";
             _restoreStockOnExitItem.Checked = _settings.RestoreStockOnExit;
+        }
+
+        private void UpdateStartMinimizedLabel()
+        {
+            _startMinimizedItem.Checked = _settings.StartMinimized;
+            _startMinimizedItem.ToolTipText = _settings.StartMinimized
+                ? "La tâche planifiée lance NVConso avec --tray."
+                : "La tâche planifiée lance NVConso avec --minimized.";
+        }
+
+        private void RefreshStartupMenuState()
+        {
+            StartupTaskStatus status = _startupManager.GetStatus();
+            _startWithWindowsItem.Checked = status.IsAvailable && status.IsEnabledForCurrentExecutable;
+            _startWithWindowsItem.ToolTipText = status.Message;
+            UpdateStartMinimizedLabel();
+
+            if (status.IsAvailable)
+                SyncStartWithWindowsSetting(status);
+        }
+
+        private void SyncStartWithWindowsSetting(StartupTaskStatus status)
+        {
+            PersistStartWithWindows(status.IsEnabledForCurrentExecutable);
+        }
+
+        private void PersistStartWithWindows(bool startWithWindows)
+        {
+            if (_settings.StartWithWindows == startWithWindows)
+                return;
+
+            _settings.StartWithWindows = startWithWindows;
+            _settingsStore.Save(_settings);
+        }
+
+        private void ShowStartupFailure(string message)
+        {
+            SetStatus($"⚠️ {message}");
+            _icon.ShowBalloonTip(2500, "Démarrage Windows", message, ToolTipIcon.Warning);
+        }
+
+        private void ToggleAutomaticUpdateChecks()
+        {
+            _settings.CheckUpdatesAutomatically = !_settings.CheckUpdatesAutomatically;
+            _settingsStore.Save(_settings);
+            UpdateAutomaticUpdateCheckLabel();
+
+            if (_settings.CheckUpdatesAutomatically)
+            {
+                _updateCheckTimer.Interval = InitialUpdateCheckDelayMs;
+                _updateCheckTimer.Start();
+                SetStatus("✅ Vérification automatique des mises à jour activée.");
+                return;
+            }
+
+            _updateCheckTimer.Stop();
+            SetStatus("ℹ️ Vérification automatique des mises à jour désactivée.");
+        }
+
+        private void UpdateAutomaticUpdateCheckLabel()
+        {
+            _automaticUpdateCheckItem.Checked = _settings.CheckUpdatesAutomatically;
+            _automaticUpdateCheckItem.ToolTipText = _settings.CheckUpdatesAutomatically
+                ? $"Prochaine requête GitHub au plus tôt après {GetUpdateCheckIntervalHours()} h."
+                : "Aucune vérification GitHub automatique ne sera lancée.";
+        }
+
+        private async Task OnUpdateCheckTimerTickAsync()
+        {
+            if (_updateCheckTimer.Interval != UpdateCheckPollingIntervalMs)
+                _updateCheckTimer.Interval = UpdateCheckPollingIntervalMs;
+
+            if (!_settings.CheckUpdatesAutomatically)
+            {
+                _updateCheckTimer.Stop();
+                return;
+            }
+
+            if (!IsUpdateCheckDue())
+                return;
+
+            await CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+        }
+
+        private async Task CheckForUpdatesAsync(bool showUpToDateStatus, bool isAutomatic)
+        {
+            if (_updateCheckInProgress)
+            {
+                if (!isAutomatic)
+                    SetStatus("ℹ️ Une vérification de mise à jour est déjà en cours.");
+
+                return;
+            }
+
+            try
+            {
+                _updateCheckInProgress = true;
+                _manualUpdateCheckItem.Enabled = false;
+
+                if (!isAutomatic)
+                    SetStatus("ℹ️ Recherche de mise à jour en cours...");
+
+                UpdateCheckResult result = await _updateChecker.CheckForUpdatesAsync(
+                    _settings.IncludePrereleaseUpdates);
+
+                _settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;
+                _settingsStore.Save(_settings);
+
+                if (!result.Success)
+                {
+                    _logger?.LogWarning("Vérification de mise à jour impossible : {Message}", result.Message);
+                    if (!isAutomatic)
+                        SetStatus($"⚠️ {result.Message}");
+
+                    return;
+                }
+
+                UpdateInfo updateInfo = result.UpdateInfo;
+                if (updateInfo?.IsNewer == true)
+                {
+                    ShowAvailableUpdate(updateInfo, isAutomatic);
+                    return;
+                }
+
+                ClearAvailableUpdate();
+                if (showUpToDateStatus || !isAutomatic)
+                    SetStatus("✅ NVConso est à jour.");
+                else
+                    SetStatus("ℹ️ Aucune nouvelle version disponible.");
+            }
+            finally
+            {
+                _manualUpdateCheckItem.Enabled = true;
+                _updateCheckInProgress = false;
+            }
+        }
+
+        private void ShowAvailableUpdate(UpdateInfo updateInfo, bool isAutomatic)
+        {
+            _availableUpdate = updateInfo;
+            _availableUpdateItem.Text = $"Nouvelle version disponible : {updateInfo.LatestVersion}";
+            _availableUpdateItem.Visible = true;
+            _availableUpdateItem.Enabled = true;
+            _openLatestReleaseItem.Enabled = !string.IsNullOrWhiteSpace(updateInfo.HtmlUrl);
+            SetStatus($"✅ Nouvelle version disponible : {updateInfo.LatestVersion}");
+
+            if (!ShouldNotifyUpdate(updateInfo, isAutomatic))
+                return;
+
+            _icon.ShowBalloonTip(
+                5000,
+                "Mise à jour NVConso disponible",
+                $"La version {updateInfo.LatestVersion} est disponible sur GitHub.",
+                ToolTipIcon.Info);
+
+            _settings.LastNotifiedVersion = updateInfo.LatestVersion;
+            _settingsStore.Save(_settings);
+        }
+
+        private bool ShouldNotifyUpdate(UpdateInfo updateInfo, bool isAutomatic)
+        {
+            if (!isAutomatic || !_settings.NotifyOnlyOncePerVersion)
+                return true;
+
+            return !string.Equals(
+                _settings.LastNotifiedVersion,
+                updateInfo.LatestVersion,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ClearAvailableUpdate()
+        {
+            _availableUpdate = null;
+            _availableUpdateItem.Visible = false;
+            _openLatestReleaseItem.Enabled = false;
+        }
+
+        private void OpenLatestRelease()
+        {
+            if (string.IsNullOrWhiteSpace(_availableUpdate?.HtmlUrl))
+            {
+                SetStatus("⚠️ URL de release GitHub indisponible.");
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(_availableUpdate.HtmlUrl)
+                {
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogWarning(exception, "Impossible d'ouvrir la release GitHub.");
+                SetStatus($"⚠️ Impossible d'ouvrir la release GitHub : {exception.Message}");
+            }
+        }
+
+        private bool IsUpdateCheckDue()
+        {
+            if (!_settings.LastUpdateCheckUtc.HasValue)
+                return true;
+
+            TimeSpan minimumInterval = TimeSpan.FromHours(GetUpdateCheckIntervalHours());
+            return DateTimeOffset.UtcNow - _settings.LastUpdateCheckUtc.Value >= minimumInterval;
+        }
+
+        private int GetUpdateCheckIntervalHours()
+        {
+            return _settings.UpdateCheckIntervalHours > 0
+                ? _settings.UpdateCheckIntervalHours
+                : DefaultUpdateCheckIntervalHours;
         }
 
         private void InitializeRuntime()
@@ -538,6 +881,8 @@ namespace NVConso
             {
                 _telemetryTimer.Stop();
                 _telemetryTimer.Dispose();
+                _updateCheckTimer.Stop();
+                _updateCheckTimer.Dispose();
 
                 if (_nvmlReady)
                 {
