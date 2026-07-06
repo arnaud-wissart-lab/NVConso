@@ -62,7 +62,11 @@ namespace NVConso
 
         public void ApplySettings(AppSettings settings)
         {
-            if (settings.AutoCheckUpdates)
+            AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+            bool canScheduleAutomaticCheck = settings.AutoCheckUpdates
+                && executionMode.Mode != AppExecutionMode.DeveloperBuild;
+
+            if (canScheduleAutomaticCheck)
             {
                 if (!_updateCheckTimer.Enabled)
                     StartUpdateTimer(initialDelay: true);
@@ -89,7 +93,8 @@ namespace NVConso
             try
             {
                 SetUpdateOperationInProgress(true);
-                ApplyState(UpdateStatusPresenter.Checking(_settingsService.Current));
+                AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+                ApplyState(UpdateStatusPresenter.Checking(_settingsService.Current, executionMode));
 
                 if (!isAutomatic)
                     _notifications.SetStatus("Recherche de mise à jour Velopack en cours...");
@@ -97,12 +102,13 @@ namespace NVConso
                 AppSettings settings = _settingsService.Current;
                 AppUpdateOperationResult result = await _updateWorkflow.CheckForUpdatesAsync(settings);
                 SaveSettings(settings);
+                executionMode = _updateWorkflow.GetExecutionMode();
 
                 if (!result.Success)
                 {
                     _availableUpdate = null;
                     _downloadedUpdateReady = false;
-                    UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result);
+                    UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
                     ApplyState(state);
                     LogUpdateError(state);
                     if (!isAutomatic)
@@ -114,7 +120,7 @@ namespace NVConso
                 {
                     _availableUpdate = result.Update;
                     _downloadedUpdateReady = false;
-                    UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result);
+                    UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
                     ApplyState(state);
                     _notifications.SetStatus($"Nouvelle version disponible : {UpdateLabels.FormatVersion(result.Update.Version)}");
                     _notifications.ShowInfo(
@@ -129,7 +135,16 @@ namespace NVConso
                 }
 
                 ClearAvailableUpdate();
-                ApplyState(UpdateStatusPresenter.FromCheckResult(settings, result));
+                UpdateUiState finalState = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
+                ApplyState(finalState);
+                if (result.Status == AppUpdateStatus.UpdateUnavailable)
+                {
+                    if (!isAutomatic)
+                        _notifications.SetStatus(finalState.DetailMessage);
+
+                    return;
+                }
+
                 if (showUpToDateStatus || !isAutomatic)
                     _notifications.SetStatus($"{ProductNames.DisplayName} est à jour.");
             }
@@ -154,22 +169,24 @@ namespace NVConso
                     SetUpdateOperationInProgress(true);
 
                 AppSettings settings = _settingsService.Current;
-                ApplyState(UpdateStatusPresenter.Downloading(settings));
+                AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+                ApplyState(UpdateStatusPresenter.Downloading(settings, executionMode: executionMode));
                 _notifications.SetStatus("Téléchargement de la mise à jour...");
 
                 var progress = new Progress<int>(value =>
                 {
-                    ApplyState(UpdateStatusPresenter.Downloading(settings, value));
+                    ApplyState(UpdateStatusPresenter.Downloading(settings, value, executionMode));
                 });
 
                 AppUpdateOperationResult result = await _updateWorkflow.DownloadUpdateAsync(settings, progress);
                 SaveSettings(settings);
+                executionMode = _updateWorkflow.GetExecutionMode();
 
                 if (!result.Success)
                 {
                     _availableUpdate = null;
                     _downloadedUpdateReady = false;
-                    UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, result);
+                    UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, result, executionMode);
                     ApplyState(state);
                     LogUpdateError(state);
                     if (!isAutomatic)
@@ -180,14 +197,17 @@ namespace NVConso
                 if (result.Status == AppUpdateStatus.NoUpdate || result.Update is null)
                 {
                     ClearAvailableUpdate();
-                    ApplyState(UpdateStatusPresenter.FromDownloadResult(settings, result));
-                    _notifications.SetStatus($"{ProductNames.DisplayName} est à jour.");
+                    UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, result, executionMode);
+                    ApplyState(state);
+                    _notifications.SetStatus(result.Status == AppUpdateStatus.UpdateUnavailable
+                        ? state.DetailMessage
+                        : $"{ProductNames.DisplayName} est à jour.");
                     return;
                 }
 
                 _availableUpdate = result.Update;
                 _downloadedUpdateReady = true;
-                ApplyState(UpdateStatusPresenter.FromDownloadResult(settings, result));
+                ApplyState(UpdateStatusPresenter.FromDownloadResult(settings, result, executionMode));
                 _notifications.SetStatus($"Mise à jour prête : {UpdateLabels.FormatVersion(result.Update.Version)}");
             }
             finally
@@ -241,10 +261,12 @@ namespace NVConso
 
         public void RefreshPendingUpdateState()
         {
-            PendingUpdateStatus pendingStatus = _updateWorkflow.GetPendingUpdateStatus(_settingsService.Current);
+            AppSettings settings = _settingsService.Current;
+            AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+            PendingUpdateStatus pendingStatus = _updateWorkflow.GetPendingUpdateStatus(settings);
             _downloadedUpdateReady = pendingStatus.IsPendingRestart;
             if (_availableUpdate is null || pendingStatus.IsPendingRestart)
-                ApplyState(UpdateStatusPresenter.FromStoredState(_settingsService.Current, pendingStatus));
+                ApplyState(UpdateStatusPresenter.FromStoredState(settings, pendingStatus, executionMode));
         }
 
         public void Dispose()
@@ -273,7 +295,8 @@ namespace NVConso
         private async Task ApplyUpdateAsync(string version)
         {
             AppSettings settings = _settingsService.Current;
-            ApplyState(UpdateStatusPresenter.Installing(settings, version));
+            AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+            ApplyState(UpdateStatusPresenter.Installing(settings, version, executionMode));
             AppUpdateOperationResult result = await _updateWorkflow.ApplyUpdateAndRestartAsync(
                 settings,
             [
@@ -284,7 +307,7 @@ namespace NVConso
 
             if (!result.Success)
             {
-                UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, result);
+                UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, result, executionMode);
                 ApplyState(state);
                 LogUpdateError(state);
                 _notifications.SetStatus(state.DetailMessage);

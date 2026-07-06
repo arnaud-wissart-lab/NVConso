@@ -57,6 +57,70 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void TryMigrateLegacyDirectory_ShouldMoveNvconsoDataToWattPilotAndKeepBackup()
+        {
+            string root = CreateTempRoot();
+            try
+            {
+                string legacyDirectory = Path.Combine(root, ProductNames.LegacySettingsDirectoryName);
+                string targetDirectory = Path.Combine(root, ProductNames.SettingsDirectoryName);
+                string legacyTelemetryDirectory = Path.Combine(legacyDirectory, ProductNames.TelemetryDirectoryName, "snapshots");
+                Directory.CreateDirectory(legacyTelemetryDirectory);
+                File.WriteAllText(Path.Combine(legacyDirectory, ProductNames.SettingsFileName), """
+                    {
+                      "SelectedGpuIndex": 1
+                    }
+                    """);
+                File.WriteAllText(Path.Combine(legacyTelemetryDirectory, "2026-07-06.csv"), "telemetry");
+
+                AppSettingsMigrationResult result = AppSettingsStore.TryMigrateLegacyDirectory(
+                    legacyDirectory,
+                    targetDirectory);
+
+                Assert.True(result.Migrated);
+                Assert.False(result.Failed);
+                Assert.Equal("Migration NVConso -> WattPilot effectuée.", result.Message);
+                Assert.False(Directory.Exists(legacyDirectory));
+                Assert.True(File.Exists(Path.Combine(targetDirectory, ProductNames.SettingsFileName)));
+                Assert.True(File.Exists(Path.Combine(targetDirectory, ProductNames.TelemetryDirectoryName, "snapshots", "2026-07-06.csv")));
+                Assert.True(Directory.Exists(result.BackupDirectory));
+                Assert.True(File.Exists(Path.Combine(result.BackupDirectory, ProductNames.SettingsFileName)));
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [Fact]
+        public void TryMigrateLegacyDirectory_ShouldNotOverwriteExistingWattPilotDirectory()
+        {
+            string root = CreateTempRoot();
+            try
+            {
+                string legacyDirectory = Path.Combine(root, ProductNames.LegacySettingsDirectoryName);
+                string targetDirectory = Path.Combine(root, ProductNames.SettingsDirectoryName);
+                Directory.CreateDirectory(legacyDirectory);
+                Directory.CreateDirectory(targetDirectory);
+                File.WriteAllText(Path.Combine(legacyDirectory, ProductNames.SettingsFileName), "legacy");
+                File.WriteAllText(Path.Combine(targetDirectory, ProductNames.SettingsFileName), "current");
+
+                AppSettingsMigrationResult result = AppSettingsStore.TryMigrateLegacyDirectory(
+                    legacyDirectory,
+                    targetDirectory);
+
+                Assert.False(result.Migrated);
+                Assert.False(result.Failed);
+                Assert.True(Directory.Exists(legacyDirectory));
+                Assert.Equal("current", File.ReadAllText(Path.Combine(targetDirectory, ProductNames.SettingsFileName)));
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [Fact]
         public void SaveAndLoad_ShouldPersist_AllFields()
         {
             string root = CreateTempRoot();

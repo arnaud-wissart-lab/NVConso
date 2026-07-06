@@ -15,7 +15,7 @@ namespace NVConso
         public static TrayIconMouseAction FromMouseDoubleClick(MouseButtons button)
         {
             return button == MouseButtons.Left
-                ? TrayIconMouseAction.ToggleDashboard
+                ? TrayIconMouseAction.OpenDashboard
                 : TrayIconMouseAction.None;
         }
     }

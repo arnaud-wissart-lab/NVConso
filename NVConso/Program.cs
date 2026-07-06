@@ -23,7 +23,7 @@ namespace NVConso
             {
                 try
                 {
-                    var startInfo = new ProcessStartInfo(Application.ExecutablePath)
+                    var startInfo = new ProcessStartInfo(System.Windows.Forms.Application.ExecutablePath)
                     {
                         Arguments = WindowsCommandLine.FormatArguments(args),
                         Verb = "runas",
@@ -33,11 +33,11 @@ namespace NVConso
                 }
                 catch (Exception)
                 {
-                    MessageBox.Show(
+                    System.Windows.Forms.MessageBox.Show(
                         "Les droits administrateur sont requis pour ajuster la limite de puissance.",
                         ProductNames.DisplayName,
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Error);
                 }
 
                 return;
@@ -49,7 +49,7 @@ namespace NVConso
                     options.SingleLine = true;
                     options.TimestampFormat = "[HH:mm:ss] ";
                 }))
-                .AddSingleton(StartupApplicationInfo.Create(Application.ExecutablePath))
+                .AddSingleton(StartupApplicationInfo.Create(System.Windows.Forms.Application.ExecutablePath))
                 .AddSingleton<AppSettingsStore>()
                 .AddSingleton<AppSettingsService>()
                 .AddSingleton<IStartupTaskScheduler, WindowsTaskSchedulerClient>()
@@ -91,7 +91,7 @@ namespace NVConso
             var themeService = services.GetRequiredService<ThemeService>();
             var settingsService = services.GetRequiredService<AppSettingsService>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, displayManager, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
+            System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, displayManager, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
         }
 
         private static bool IsRunAsAdmin()

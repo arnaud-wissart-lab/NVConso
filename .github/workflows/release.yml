@@ -25,10 +25,9 @@ env:
   RUNTIME_IDENTIFIER: win-x64
   VELOPACK_VERSION: 1.2.0
   PRODUCT_DISPLAY_NAME: WattPilot
-  VELOPACK_PACK_ID: NVConso
-  PORTABLE_ZIP_NAME: NVConso-win-x64.zip
-  PORTABLE_ZIP_ALIAS_NAME: WattPilot-win-x64.zip
-  MAIN_EXE_NAME: NVConso.exe
+  VELOPACK_PACK_ID: WattPilot
+  PORTABLE_ZIP_NAME: WattPilot-win-x64.zip
+  MAIN_EXE_NAME: WattPilot.exe
 
 jobs:
   release:
@@ -192,7 +191,6 @@ jobs:
           $publishDir = Join-Path $pwd "artifacts/publish/${{ env.RUNTIME_IDENTIFIER }}"
           $releaseDir = Join-Path $pwd "artifacts/release"
           $zipPath = Join-Path $releaseDir "${{ env.PORTABLE_ZIP_NAME }}"
-          $aliasZipPath = Join-Path $releaseDir "${{ env.PORTABLE_ZIP_ALIAS_NAME }}"
 
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
@@ -201,12 +199,6 @@ jobs:
           }
 
           Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
-
-          if (Test-Path $aliasZipPath) {
-            Remove-Item $aliasZipPath -Force
-          }
-
-          Copy-Item -Path $zipPath -Destination $aliasZipPath
 
       - name: Install Velopack CLI
         shell: pwsh
@@ -251,20 +243,63 @@ jobs:
             --packAuthors "Arnaud Wissart" `
             --packTitle "${{ env.PRODUCT_DISPLAY_NAME }}" `
             --releaseNotes release-notes.md `
-            --icon "NVConso/Assets/NVConso.ico" `
+            --icon "NVConso/Assets/WattPilot.ico" `
             --outputDir "$velopackDir"
 
-      - name: Collect release assets
+      - name: Collect and validate release assets
         shell: pwsh
         run: |
           $releaseDir = Join-Path $pwd "artifacts/release"
           $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
+          $expectedPortableZipName = "${{ env.PORTABLE_ZIP_NAME }}"
+          $portableZipPath = Join-Path $releaseDir $expectedPortableZipName
+          $checksumPath = Join-Path $releaseDir "SHA256SUMS.txt"
 
           Copy-Item -Path (Join-Path $velopackDir '*') -Destination $releaseDir -Force
 
-          $files = Get-ChildItem -Path $releaseDir -File |
+          if (-not (Test-Path $portableZipPath)) {
+            throw "Asset portable absent : $expectedPortableZipName."
+          }
+
+          $unexpectedPortableZips = @(
+            Get-ChildItem -Path $releaseDir -File -Filter "*-${{ env.RUNTIME_IDENTIFIER }}.zip" |
+              Where-Object { $_.Name -ne $expectedPortableZipName }
+          )
+          if ($unexpectedPortableZips.Count -gt 0) {
+            $names = ($unexpectedPortableZips | ForEach-Object Name) -join ", "
+            throw "ZIP portable inattendu détecté : $names."
+          }
+
+          $setupAssets = @(
+            Get-ChildItem -Path $releaseDir -File |
+              Where-Object {
+                $_.Extension -ieq ".exe" `
+                  -and $_.Name -match "Setup" `
+                  -and $_.Name -match "${{ env.PRODUCT_DISPLAY_NAME }}"
+              }
+          )
+          if ($setupAssets.Count -eq 0) {
+            throw "Aucun installeur Velopack ${{ env.PRODUCT_DISPLAY_NAME }} trouvé dans les assets de release."
+          }
+
+          $velopackPackages = @(Get-ChildItem -Path $releaseDir -File -Filter "*.nupkg")
+          if ($velopackPackages.Count -eq 0) {
+            throw "Aucun paquet Velopack .nupkg trouvé dans les assets de release."
+          }
+
+          $velopackFeeds = @(
+            Get-ChildItem -Path $releaseDir -File |
+              Where-Object { $_.Name -match "(?i)^releases(\..*)?$" }
+          )
+          if ($velopackFeeds.Count -eq 0) {
+            throw "Aucun feed Velopack releases.* trouvé dans les assets de release."
+          }
+
+          $files = @(
+            Get-ChildItem -Path $releaseDir -File |
             Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
             Sort-Object Name
+          )
 
           if (-not $files) {
             throw "Aucun artefact de release trouvé."
@@ -275,8 +310,21 @@ jobs:
             "$hash  $($file.Name)"
           }
 
-          $checksums | Set-Content -Path (Join-Path $releaseDir "SHA256SUMS.txt") -Encoding ASCII
-          Get-ChildItem -Path $releaseDir -File | Sort-Object Name | ForEach-Object { Write-Host $_.Name }
+          $checksums | Set-Content -Path $checksumPath -Encoding ASCII
+
+          if (-not (Test-Path $checksumPath)) {
+            throw "SHA256SUMS.txt absent après génération des checksums."
+          }
+
+          $checksumLineCount = @(Get-Content -Path $checksumPath).Count
+          if ($checksumLineCount -ne $files.Count) {
+            throw "SHA256SUMS.txt contient $checksumLineCount ligne(s), attendu : $($files.Count)."
+          }
+
+          Write-Host "Assets de release validés :"
+          Get-ChildItem -Path $releaseDir -File |
+            Sort-Object Name |
+            ForEach-Object { Write-Host (" - {0} ({1:N0} octets)" -f $_.Name, $_.Length) }
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

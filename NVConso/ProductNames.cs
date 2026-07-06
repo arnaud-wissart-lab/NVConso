@@ -8,10 +8,13 @@ namespace NVConso
         public const string LegacyTechnicalName = "NVConso";
         public const string RepositoryOwner = "arnaud-wissart-lab";
         public const string RepositoryName = "NVConso";
-        public const string VelopackPackId = "NVConso";
-        public const string SettingsDirectoryName = "NVConso";
-        public const string StartupTaskName = "NVConso";
-        public const string ExecutableName = "NVConso.exe";
+        public const string VelopackPackId = DisplayName;
+        public const string SettingsDirectoryName = DisplayName;
+        public const string LegacySettingsDirectoryName = LegacyTechnicalName;
+        public const string StartupTaskName = DisplayName;
+        public const string LegacyStartupTaskName = LegacyTechnicalName;
+        public const string ExecutableName = "WattPilot.exe";
+        public const string LegacyExecutableName = "NVConso.exe";
         public const string SettingsFileName = "settings.json";
         public const string TelemetryDirectoryName = "telemetry";
 

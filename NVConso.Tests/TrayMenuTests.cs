@@ -56,7 +56,7 @@ namespace NVConso.Tests
             Assert.Equal(TrayIconMouseAction.OpenDashboard, TrayIconMouseActions.FromMouseUp(MouseButtons.Left));
             Assert.Equal(TrayIconMouseAction.ShowMenu, TrayIconMouseActions.FromMouseUp(MouseButtons.Right));
             Assert.Equal(TrayIconMouseAction.None, TrayIconMouseActions.FromMouseUp(MouseButtons.Middle));
-            Assert.Equal(TrayIconMouseAction.ToggleDashboard, TrayIconMouseActions.FromMouseDoubleClick(MouseButtons.Left));
+            Assert.Equal(TrayIconMouseAction.OpenDashboard, TrayIconMouseActions.FromMouseDoubleClick(MouseButtons.Left));
             Assert.Equal(TrayIconMouseAction.None, TrayIconMouseActions.FromMouseDoubleClick(MouseButtons.Right));
         }
 

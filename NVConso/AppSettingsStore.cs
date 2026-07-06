@@ -20,16 +20,28 @@ namespace NVConso
         public AppSettingsStore(string settingsPath)
         {
             _settingsPath = settingsPath;
+            MigrationResult = AppSettingsMigrationResult.NotNeeded(Path.GetDirectoryName(settingsPath));
         }
 
         public string SettingsPath => _settingsPath;
+        public AppSettingsMigrationResult MigrationResult { get; }
 
         public AppSettingsStore()
-            : this(Path.Combine(
+        {
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string legacyDirectory = Path.Combine(localAppData, ProductNames.LegacySettingsDirectoryName);
+            string targetDirectory = Path.Combine(localAppData, ProductNames.SettingsDirectoryName);
+
+            MigrationResult = TryMigrateLegacyDirectory(legacyDirectory, targetDirectory);
+            _settingsPath = GetDefaultSettingsPath();
+        }
+
+        public static string GetDefaultSettingsPath()
+        {
+            return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 ProductNames.SettingsDirectoryName,
-                ProductNames.SettingsFileName))
-        {
+                ProductNames.SettingsFileName);
         }
 
         public AppSettings Load()
@@ -543,6 +555,91 @@ namespace NVConso
             }
 
             File.Move(tempPath, path);
+        }
+
+        public static AppSettingsMigrationResult TryMigrateLegacyDirectory(
+            string legacyDirectory,
+            string targetDirectory)
+        {
+            string normalizedLegacyDirectory = NormalizeDirectoryPath(legacyDirectory);
+            string normalizedTargetDirectory = NormalizeDirectoryPath(targetDirectory);
+
+            if (string.IsNullOrWhiteSpace(normalizedLegacyDirectory)
+                || string.IsNullOrWhiteSpace(normalizedTargetDirectory)
+                || !Directory.Exists(normalizedLegacyDirectory)
+                || Directory.Exists(normalizedTargetDirectory))
+            {
+                return AppSettingsMigrationResult.NotNeeded(normalizedTargetDirectory);
+            }
+
+            string backupDirectory = BuildBackupDirectory(normalizedLegacyDirectory);
+
+            try
+            {
+                string targetParent = Path.GetDirectoryName(normalizedTargetDirectory);
+                if (!string.IsNullOrWhiteSpace(targetParent))
+                    Directory.CreateDirectory(targetParent);
+
+                CopyDirectory(normalizedLegacyDirectory, backupDirectory);
+                Directory.Move(normalizedLegacyDirectory, normalizedTargetDirectory);
+
+                return AppSettingsMigrationResult.Succeeded(
+                    normalizedLegacyDirectory,
+                    normalizedTargetDirectory,
+                    backupDirectory);
+            }
+            catch (Exception exception)
+            {
+                return AppSettingsMigrationResult.FailedMigration(
+                    normalizedLegacyDirectory,
+                    normalizedTargetDirectory,
+                    exception.Message);
+            }
+        }
+
+        private static string NormalizeDirectoryPath(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath))
+                return string.Empty;
+
+            return Path.GetFullPath(directoryPath.Trim());
+        }
+
+        private static string BuildBackupDirectory(string legacyDirectory)
+        {
+            string parent = Directory.GetParent(legacyDirectory)?.FullName
+                ?? Path.GetDirectoryName(legacyDirectory)
+                ?? Directory.GetCurrentDirectory();
+            string directoryName = Path.GetFileName(
+                legacyDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            string timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            string backupDirectory = Path.Combine(parent, $"{directoryName}.backup-{timestamp}");
+            int suffix = 2;
+
+            while (Directory.Exists(backupDirectory))
+            {
+                backupDirectory = Path.Combine(parent, $"{directoryName}.backup-{timestamp}-{suffix}");
+                suffix++;
+            }
+
+            return backupDirectory;
+        }
+
+        private static void CopyDirectory(string sourceDirectory, string targetDirectory)
+        {
+            Directory.CreateDirectory(targetDirectory);
+
+            foreach (string file in Directory.GetFiles(sourceDirectory))
+            {
+                string targetFile = Path.Combine(targetDirectory, Path.GetFileName(file));
+                File.Copy(file, targetFile, overwrite: false);
+            }
+
+            foreach (string directory in Directory.GetDirectories(sourceDirectory))
+            {
+                string targetSubdirectory = Path.Combine(targetDirectory, Path.GetFileName(directory));
+                CopyDirectory(directory, targetSubdirectory);
+            }
         }
 
         private static void TryDelete(string path)

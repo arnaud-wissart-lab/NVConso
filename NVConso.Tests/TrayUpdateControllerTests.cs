@@ -54,7 +54,7 @@ namespace NVConso.Tests
         public void RefreshPendingUpdateState_ShouldShowSingleInstallAction_WhenUpdateIsReady()
         {
             using TestContext context = CreateContext();
-            context.Updater.PendingStatus = PendingUpdateStatus.Pending("1.2.3", "NVConso-1.2.3-full.nupkg");
+            context.Updater.PendingStatus = PendingUpdateStatus.Pending("1.2.3", "WattPilot-1.2.3-full.nupkg");
 
             context.Controller.RefreshPendingUpdateState();
 
@@ -76,6 +76,24 @@ namespace NVConso.Tests
             Assert.Equal(UpdateLabels.ErrorStatus, context.UpdateStatusItem.Text);
             Assert.False(context.UpdateActionItem.Available);
             Assert.Equal("Réseau indisponible.", context.SettingsService.Current.LastUpdateError);
+        }
+
+        [Theory]
+        [InlineData(AppExecutionMode.PortableZip, UpdateLabels.PortableManualStatus)]
+        [InlineData(AppExecutionMode.DeveloperBuild, UpdateLabels.DeveloperUnavailableStatus)]
+        public async Task CheckForUpdatesAsync_ShouldHideUpdateAction_WhenModeCannotAutoUpdate(
+            AppExecutionMode mode,
+            string expectedStatus)
+        {
+            using TestContext context = CreateContext();
+            context.Updater.ExecutionMode = new AppExecutionModeInfo(mode);
+
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: false);
+
+            Assert.Equal(expectedStatus, context.UpdateStatusItem.Text);
+            Assert.False(context.UpdateActionItem.Available);
+            Assert.Null(context.SettingsService.Current.LastUpdateError);
+            Assert.Contains(ProductNames.LatestReleaseUrl, context.Notifications.LastStatus);
         }
 
         [Fact]
@@ -143,7 +161,7 @@ namespace NVConso.Tests
                 version,
                 "Notes de version.",
                 isDowngrade: false,
-                fileName: $"NVConso-{version}-full.nupkg");
+                fileName: $"WattPilot-{version}-full.nupkg");
         }
 
         private sealed class TestContext : IDisposable
@@ -218,6 +236,7 @@ namespace NVConso.Tests
                 AppUpdateOperationResult.Succeeded(AppUpdateStatus.PendingRestart, "Installation lancée.");
 
             public PendingUpdateStatus PendingStatus { get; set; } = PendingUpdateStatus.None();
+            public AppExecutionModeInfo ExecutionMode { get; set; } = AppExecutionModeInfo.InstalledVelopack();
 
             public string LastChannel { get; private set; }
             public bool LastIncludePrerelease { get; private set; }
@@ -263,6 +282,11 @@ namespace NVConso.Tests
             public PendingUpdateStatus GetPendingUpdateStatus(string channel, bool includePrerelease)
             {
                 return PendingStatus;
+            }
+
+            public AppExecutionModeInfo GetExecutionMode()
+            {
+                return ExecutionMode;
             }
         }
     }

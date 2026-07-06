@@ -6,6 +6,7 @@ namespace NVConso
         UpdateAvailable,
         Downloaded,
         PendingRestart,
+        UpdateUnavailable,
         NotInstalled,
         ChecksumFailed,
         UpdateInProgress,

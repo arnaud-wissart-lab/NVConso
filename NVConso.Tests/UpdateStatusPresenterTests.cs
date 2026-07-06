@@ -55,7 +55,7 @@ namespace NVConso.Tests
 
             UpdateUiState state = UpdateStatusPresenter.FromStoredState(
                 settings,
-                PendingUpdateStatus.Pending("1.1.0", "NVConso-1.1.0-full.nupkg"));
+                PendingUpdateStatus.Pending("1.1.0", "WattPilot-1.1.0-full.nupkg"));
 
             Assert.Equal(UpdateUiStatus.ReadyToInstall, state.Status);
             Assert.Equal("1.1.0", state.LatestVersion);
@@ -65,7 +65,7 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void FromCheckResult_ShouldReturnPortableNotInstalledError()
+        public void FromCheckResult_ShouldReturnPortableUnavailableState()
         {
             var settings = new AppSettings
             {
@@ -75,14 +75,53 @@ namespace NVConso.Tests
 
             UpdateUiState state = UpdateStatusPresenter.FromCheckResult(
                 settings,
-                AppUpdateOperationResult.Failed(AppUpdateStatus.NotInstalled, VelopackAppUpdater.NotInstalledMessage));
+                AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.UpdateUnavailable,
+                    UpdateLabels.FormatExecutionModeDetail(AppExecutionMode.PortableZip)),
+                AppExecutionModeInfo.PortableZip());
 
-            Assert.Equal(UpdateUiStatus.Error, state.Status);
-            Assert.Equal("Mise à jour : erreur", state.Message);
+            Assert.Equal(UpdateUiStatus.Unavailable, state.Status);
+            Assert.Equal(UpdateLabels.PortableManualStatus, state.Message);
             Assert.False(state.CanRunPrimaryAction);
-            Assert.Contains(ProductNames.DisplayName, state.DetailMessage);
-            Assert.Contains(ProductNames.LegacyTechnicalName, state.DetailMessage);
             Assert.Contains(ProductNames.LatestReleaseUrl, state.DetailMessage);
+            Assert.Contains("portable ZIP", state.ExecutionModeLabel);
+        }
+
+        [Fact]
+        public void FromStoredState_ShouldReturnDeveloperUnavailableWithoutErrorAction()
+        {
+            var settings = new AppSettings
+            {
+                LastUpdateError = "Ancienne erreur Velopack."
+            };
+
+            UpdateUiState state = UpdateStatusPresenter.FromStoredState(
+                settings,
+                PendingUpdateStatus.None(),
+                AppExecutionModeInfo.DeveloperBuild());
+
+            Assert.Equal(UpdateUiStatus.Unavailable, state.Status);
+            Assert.Equal(UpdateLabels.DeveloperUnavailableStatus, state.Message);
+            Assert.False(state.CanRunPrimaryAction);
+            Assert.Equal(string.Empty, state.PrimaryActionLabel);
+            Assert.Contains("build développeur", state.ExecutionModeLabel);
+            Assert.Contains(ProductNames.LatestReleaseUrl, state.DetailMessage);
+        }
+
+        [Fact]
+        public void FromCheckResult_ShouldKeepUpdateActionAbsentForPortableMode()
+        {
+            UpdateUiState state = UpdateStatusPresenter.FromCheckResult(
+                new AppSettings(),
+                AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.UpdateAvailable,
+                    "Mise à jour disponible : 1.2.3",
+                    CreateUpdate("1.2.3")),
+                AppExecutionModeInfo.PortableZip());
+
+            Assert.Equal(UpdateUiStatus.Unavailable, state.Status);
+            Assert.False(state.CanRunPrimaryAction);
+            Assert.Equal(ProductNames.LatestReleaseUrl, state.ReleaseUrl);
         }
 
         [Fact]
@@ -126,7 +165,7 @@ namespace NVConso.Tests
                 version,
                 "Notes de version.",
                 isDowngrade: false,
-                fileName: $"NVConso-{version}-full.nupkg");
+                fileName: $"WattPilot-{version}-full.nupkg");
         }
     }
 }

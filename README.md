@@ -2,7 +2,7 @@
 
 Utilitaire Windows WinForms pour piloter prudemment la limite de puissance d'un GPU NVIDIA via NVML, suivre la télémétrie et appliquer des profils d'usage sobres.
 
-WattPilot est le nom produit. Certains identifiants techniques restent `NVConso` pour préserver la compatibilité des installations et mises à jour existantes : dépôt GitHub, PackId Velopack, exécutable, tâche planifiée et dossier de préférences.
+WattPilot est le nom public du produit. `NVConso` était l'ancien nom technique ; il peut encore apparaître dans le dépôt GitHub, le dossier projet et les namespaces C#, mais les artefacts distribués utilisent désormais le nom WattPilot.
 
 [![CI](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/arnaud-wissart-lab/NVConso)](./LICENSE)
@@ -11,32 +11,36 @@ WattPilot est le nom produit. Certains identifiants techniques restent `NVConso`
 
 ## Télécharger
 
-- Dernière version : [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest).
-- Installation avec mises à jour : artefacts Velopack `stable` pour `win-x64`.
-- Version portable : `NVConso-win-x64.zip`, publiée en self-contained. Elle embarque le runtime .NET et ne demande pas d'installer le runtime sur la machine.
-- Alias portable : `WattPilot-win-x64.zip`, contenu identique au ZIP `NVConso`, ajouté pour rendre le nom produit visible sans casser les chemins existants.
+[**Télécharger WattPilot**](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
+
+- Installateur : recommandé pour bénéficier de l'auto-update Velopack.
+- ZIP portable : `WattPilot-win-x64.zip`, mise à jour manuelle depuis GitHub Releases. Il embarque le runtime .NET et ne demande pas d'installer le runtime sur la machine.
 - Vérification manuelle : `SHA256SUMS.txt` est publié avec les artefacts de release.
 
 Chaque tag Git `vX.Y.Z` déclenche le workflow de release et produit une nouvelle version téléchargeable dans GitHub Releases. Le tag reste la source de vérité pour la version publiée, la version Velopack et les métadonnées d'assembly.
 
 ## Mise à jour
 
-WattPilot vérifie les mises à jour au lancement si `AutoCheckUpdates` est activé. La vérification est planifiée après un court délai afin de ne pas bloquer l'ouverture du dashboard.
+WattPilot détecte le mode d'exécution et adapte l'interface de mise à jour :
 
-Si une version existe, une seule action est proposée : `Mettre à jour vers vX.Y.Z...`. WattPilot enchaîne alors confirmation, téléchargement, application Velopack et redémarrage avec `--tray`. Si la mise à jour est déjà téléchargée, l'action devient `Installer et redémarrer...`.
+- `Mode : installé via Velopack` : vérification au lancement si `AutoCheckUpdates` est activé, téléchargement et application automatique possibles ;
+- `Mode : portable ZIP — mise à jour manuelle` : lien vers GitHub Releases, sans action `Installer et redémarrer` ;
+- `Mode : build développeur — auto-update indisponible` : aucune erreur rouge, lien GitHub Releases et diagnostic disponibles.
 
-L'auto-update est disponible uniquement pour les installations Velopack compatibles. Le PackId Velopack reste `NVConso` afin de préserver la continuité des installations existantes. WattPilot utilise encore l'identifiant technique `NVConso` pour préserver la compatibilité des mises à jour.
+Si une version existe pour une installation Velopack, une seule action est proposée : `Mettre à jour vers vX.Y.Z...`. WattPilot enchaîne alors confirmation, téléchargement, application Velopack et redémarrage avec `--tray`. Si la mise à jour est déjà téléchargée, l'action devient `Installer et redémarrer...`.
 
-Depuis le ZIP portable ou une exécution développeur, la mise à jour reste manuelle. L'interface affiche un message clair et renvoie vers [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest). Aucun fichier arbitraire n'est exécuté.
+L'auto-update est disponible uniquement pour les installations Velopack compatibles. À partir de `v2.0.0`, le PackId Velopack et l'exécutable utilisent `WattPilot`. Les installations `NVConso` `<= 1.1.1` peuvent nécessiter une réinstallation manuelle depuis GitHub Releases.
+
+Depuis le ZIP portable ou une exécution développeur `bin\Debug` / `bin\Release`, la mise à jour reste manuelle. L'interface affiche un message clair et renvoie vers [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest). Aucun fichier arbitraire n'est exécuté.
 
 ## Fonctionnalités
 
 - Profils GPU `Canicule`, `VideoSurf`, `Indie2D`, `Stock`, `Max` et `Custom`.
 - Tableau de bord WinForms avec temps réel, historique persisté, résumé journalier et état Canicule Guard.
-- Préférences centralisées : profils, démarrage Windows, mises à jour, historique, affichage, thème et options avancées.
+- Préférences WinForms centralisées : profils, démarrage Windows, mises à jour, historique, affichage, thème et options avancées.
 - Démarrage avec Windows via tâche planifiée utilisateur, sans service Windows et sans mot de passe stocké.
 - Mises à jour via Velopack pour les installations compatibles.
-- Historisation GPU persistante en CSV/JSON sous `%LOCALAPPDATA%\NVConso\telemetry\`.
+- Historisation GPU persistante en CSV/JSON sous `%LOCALAPPDATA%\WattPilot\telemetry\`.
 - Profils écran optionnels, désactivés par défaut, limités au refresh rate supporté.
 - Canicule Guard : alertes puissance/température avec seuils adaptés au profil actif, sans changement automatique de profil.
 
@@ -74,33 +78,33 @@ Il affiche seulement :
 
 Les métriques détaillées, les graphes, les jauges, les options de démarrage, les options d'affichage, les réglages Canicule Guard et les détails de mise à jour sont dans le dashboard ou les préférences.
 
-Clic gauche sur l'icône : ouvrir ou afficher le dashboard. Clic droit : afficher le menu compact. Double-clic gauche : ouvrir ou masquer le dashboard.
+Clic gauche sur l'icône : ouvrir ou afficher le dashboard. Clic droit : afficher le menu compact. Double-clic gauche : ouvrir le dashboard.
 
 ## Dashboard
 
-Le dashboard est le cockpit graphique de WattPilot. Quand il faut comprendre ce que fait la carte, c'est cette fenêtre qu'il faut ouvrir plutôt que le menu tray.
+Le dashboard WinForms est le cockpit graphique actuel de WattPilot. Quand il faut comprendre ce que fait la carte, c'est cette fenêtre qu'il faut ouvrir plutôt que le menu tray.
 
 WattPilot démarre dans la zone de notification ; le dashboard s'ouvre par clic gauche sur l'icône tray, par double-clic gauche ou depuis le menu compact. Fermer la fenêtre masque le dashboard sans arrêter l'application. L'arrêt réel passe par `Quitter` dans le tray.
 
 Il contient :
 
-- un en-tête avec GPU actif, profil actif, version WattPilot, statut de mise à jour court et état Canicule Guard ;
+- un en-tête compact avec GPU actif, profil actif, version WattPilot, statut de mise à jour court et état Canicule Guard ;
 - un onglet `Temps réel`, alimenté par le buffer mémoire `GpuTelemetryHistory` ;
 - un onglet `Historique`, alimenté par les fichiers CSV/JSON persistés ;
 - les métriques GPU principales : puissance, limite, température, utilisation, décodeur, fréquences et ventilateur quand NVML les expose ;
 - les jauges puissance/limite, température/seuil, utilisation GPU et décodeur vidéo ;
 - les graphes puissance, température et utilisation GPU/décodeur ;
-- une carte `Écrans` avec fréquence courante, fréquence maximale connue, HDR et VRR/G-Sync quand l'information est disponible ;
+- un résumé affichage avec fréquence courante, fréquence maximale connue, HDR et VRR/G-Sync quand l'information est disponible ;
 - les maxima du jour et le nombre de pics enregistrés ;
 - l'état de Canicule Guard.
 
 Les graphes temps réel affichent la durée réelle configurée par `TelemetryHistorySeconds`. Ils ne promettent pas de survivre à un redémarrage. L'historique persisté est relu depuis le disque, uniquement pour la journée sélectionnée.
 
-TODO produit : étudier un mode dashboard `Compact` avec 4 cartes, 2 jauges, 1 graphe principal et un bouton `Détails`.
+La structure WPF `DashboardWindow` / `PreferencesWindow` reste dans le dépôt pour la migration progressive, mais le tray ouvre actuellement `DashboardForm` et `SettingsForm`.
 
 ## Préférences
 
-La fenêtre `Préférences` regroupe les réglages qui ne doivent pas rester uniquement dans le menu tray :
+La fenêtre WinForms `Préférences` regroupe les réglages qui ne doivent pas rester uniquement dans le menu tray :
 
 - profil de démarrage et restauration `Stock` à la fermeture ;
 - démarrage Windows ;
@@ -111,7 +115,7 @@ La fenêtre `Préférences` regroupe les réglages qui ne doivent pas rester uni
 - profils écran ;
 - export diagnostic et réinitialisation locale.
 
-Les valeurs numériques sont bornées avant sauvegarde. Les préférences sont stockées dans `%LOCALAPPDATA%\NVConso\settings.json`.
+Les valeurs numériques sont bornées avant sauvegarde. Les préférences sont stockées dans `%LOCALAPPDATA%\WattPilot\settings.json`. Au premier lancement compatible, WattPilot migre automatiquement `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` si le nouveau dossier n'existe pas encore, avec une sauvegarde horodatée.
 
 ## Historisation persistante
 
@@ -120,7 +124,7 @@ L'enregistrement est activé par défaut. Les fichiers sont écrits de manière 
 Arborescence :
 
 ```text
-%LOCALAPPDATA%\NVConso\telemetry\
+%LOCALAPPDATA%\WattPilot\telemetry\
   snapshots\yyyy-MM-dd.csv
   peaks\yyyy-MM-dd.jsonl
   summaries\yyyy-MM.json
@@ -159,7 +163,7 @@ Un délai avant alerte et un cooldown évitent le spam. Les alertes peuvent auss
 
 ## Démarrage Windows
 
-WattPilot utilise une tâche planifiée utilisateur déclenchée à l'ouverture de session. La tâche conserve le nom technique `NVConso`, pointe vers `NVConso.exe`, utilise `--tray` et demande le niveau d'exécution le plus élevé disponible.
+WattPilot utilise une tâche planifiée utilisateur déclenchée à l'ouverture de session. La tâche s'appelle `WattPilot`, pointe vers `WattPilot.exe`, utilise `--tray` et demande le niveau d'exécution le plus élevé disponible. Une ancienne tâche `NVConso` est détectée puis remplacée lors de la réparation ou de l'activation du démarrage Windows.
 
 Cette tâche ne stocke pas de mot de passe. Elle ne remplace pas l'UAC. Elle peut devoir être réparée si l'exécutable a été déplacé.
 
@@ -169,12 +173,22 @@ Velopack est utilisé pour les installations mises à jour automatiquement. Le Z
 
 Le workflow de release publie :
 
-- `NVConso-win-x64.zip` ;
-- `WattPilot-win-x64.zip`, alias portable équivalent ;
-- les artefacts Velopack `stable` pour `win-x64` ;
+- `WattPilot-win-x64.zip` ;
+- l'installeur Velopack WattPilot ;
+- les paquets Velopack `stable` pour `win-x64` ;
+- le feed Velopack `releases.*` ;
 - `SHA256SUMS.txt`.
 
 Voir [docs/release.md](./docs/release.md) pour le processus de release et les commandes locales de packaging.
+
+Procédure après merge :
+
+```powershell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Attendre le workflow `Release`, vérifier les assets publiés, télécharger l'installateur, installer WattPilot, tester le lancement puis contrôler le statut de mise à jour dans le dashboard ou les préférences.
 
 ## Sécurité
 
@@ -200,7 +214,7 @@ Voir [docs/troubleshooting.md](./docs/troubleshooting.md) pour les diagnostics c
 
 ## Captures
 
-Aucune fausse capture n'est fournie. Les captures seront faites manuellement sur une machine Windows avec GPU NVIDIA, pilote installé et télémétrie NVML disponible.
+Aucune fausse capture n'est fournie. Les captures WinForms rafraîchies sont à refaire manuellement sur une machine Windows avec GPU NVIDIA, pilote installé et télémétrie NVML disponible.
 
 Chemins prévus :
 

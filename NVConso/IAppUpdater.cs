@@ -19,5 +19,7 @@ namespace NVConso
             string[] restartArgs = null);
 
         PendingUpdateStatus GetPendingUpdateStatus(string channel, bool includePrerelease);
+
+        AppExecutionModeInfo GetExecutionMode();
     }
 }

@@ -5,15 +5,18 @@ namespace NVConso
     public sealed class WindowsTaskSchedulerStartupManager : IStartupManager
     {
         public const string TaskName = ProductNames.StartupTaskName;
+        public const string LegacyTaskName = ProductNames.LegacyStartupTaskName;
 
         private readonly IStartupTaskScheduler _taskScheduler;
         private readonly StartupApplicationInfo _applicationInfo;
         private readonly ILogger<WindowsTaskSchedulerStartupManager> _logger;
+        private readonly WindowsIdentityComparer _identityComparer;
 
         public WindowsTaskSchedulerStartupManager()
             : this(
                 new WindowsTaskSchedulerClient(),
                 StartupApplicationInfo.Create(Application.ExecutablePath),
+                null,
                 null)
         {
         }
@@ -21,18 +24,20 @@ namespace NVConso
         public WindowsTaskSchedulerStartupManager(
             IStartupTaskScheduler taskScheduler,
             StartupApplicationInfo applicationInfo,
-            ILogger<WindowsTaskSchedulerStartupManager> logger = null)
+            ILogger<WindowsTaskSchedulerStartupManager> logger = null,
+            WindowsIdentityComparer identityComparer = null)
         {
             _taskScheduler = taskScheduler;
             _applicationInfo = applicationInfo;
             _logger = logger;
+            _identityComparer = identityComparer ?? new WindowsIdentityComparer();
         }
 
         public StartupTaskStatus GetStatus()
         {
             try
             {
-                StartupTaskInfo task = _taskScheduler.Find(TaskName);
+                StartupTaskInfo task = FindStartupTask();
                 if (task == null)
                     return StartupTaskStatus.Disabled();
 
@@ -53,6 +58,7 @@ namespace NVConso
             try
             {
                 _taskScheduler.RegisterOrUpdate(desiredTask);
+                DeleteLegacyTask();
             }
             catch (Exception exception)
             {
@@ -80,6 +86,7 @@ namespace NVConso
             try
             {
                 _taskScheduler.Delete(TaskName);
+                DeleteLegacyTask();
             }
             catch (Exception exception)
             {
@@ -104,11 +111,15 @@ namespace NVConso
 
         private StartupTaskStatus BuildStatus(StartupTaskInfo task)
         {
-            if (!UserIdsEqual(task.UserId, _applicationInfo.UserId))
+            WindowsIdentityComparison principalComparison = _identityComparer.Compare(
+                task.UserId,
+                _applicationInfo.UserId);
+
+            if (!principalComparison.AreEquivalent)
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée {TaskName} existe mais appartient à un autre utilisateur : {task.UserId}");
+                    $"La tâche planifiée existe pour un autre compte Windows : {FormatAccountForMessage(task.UserId)}. Compte courant : {FormatAccountForMessage(_applicationInfo.UserId)}.");
             }
 
             if (!PathsEqual(task.ExecutablePath, _applicationInfo.ExecutablePath))
@@ -139,11 +150,15 @@ namespace NVConso
                     $"La tâche planifiée {TaskName} existe mais n'a pas de déclencheur à l'ouverture de session.");
             }
 
-            if (!UserIdsEqual(task.LogonTriggerUserId, _applicationInfo.UserId))
+            WindowsIdentityComparison triggerComparison = _identityComparer.Compare(
+                task.LogonTriggerUserId,
+                _applicationInfo.UserId);
+
+            if (!triggerComparison.AreEquivalent)
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée {TaskName} existe mais son déclencheur cible un autre utilisateur : {task.LogonTriggerUserId}");
+                    $"La tâche planifiée {task.TaskName} existe mais son déclencheur cible un autre compte Windows : {FormatAccountForMessage(task.LogonTriggerUserId)}. Compte courant : {FormatAccountForMessage(_applicationInfo.UserId)}.");
             }
 
             if (!task.RunWithHighestPrivileges)
@@ -151,6 +166,13 @@ namespace NVConso
                 return StartupTaskStatus.NeedsUpdate(
                     task,
                     $"La tâche planifiée {TaskName} existe mais n'est pas configurée avec les privilèges les plus élevés.");
+            }
+
+            if (IsLegacyTask(task))
+            {
+                return StartupTaskStatus.NeedsUpdate(
+                    task,
+                    $"Ancienne tâche planifiée {LegacyTaskName} détectée. Utilisez Réparer tâche pour la migrer vers {TaskName}.");
             }
 
             return StartupTaskStatus.Enabled(task);
@@ -169,11 +191,41 @@ namespace NVConso
                 logonTriggerUserId: _applicationInfo.UserId);
         }
 
-        private static bool UserIdsEqual(string left, string right)
+        private StartupTaskInfo FindStartupTask()
         {
-            return !string.IsNullOrWhiteSpace(left)
-                && !string.IsNullOrWhiteSpace(right)
-                && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
+            StartupTaskInfo currentTask = _taskScheduler.Find(TaskName);
+            if (currentTask != null)
+                return currentTask;
+
+            if (ShouldHandleLegacyTaskName())
+                return _taskScheduler.Find(LegacyTaskName);
+
+            return null;
+        }
+
+        private void DeleteLegacyTask()
+        {
+            if (ShouldHandleLegacyTaskName())
+                _taskScheduler.Delete(LegacyTaskName);
+        }
+
+        private static bool IsLegacyTask(StartupTaskInfo task)
+        {
+            return task != null
+                && ShouldHandleLegacyTaskName()
+                && string.Equals(task.TaskName, LegacyTaskName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ShouldHandleLegacyTaskName()
+        {
+            return !string.Equals(TaskName, LegacyTaskName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string FormatAccountForMessage(string accountName)
+        {
+            return string.IsNullOrWhiteSpace(accountName)
+                ? "compte non renseigné"
+                : accountName.Trim();
         }
 
         private static bool PathsEqual(string left, string right)

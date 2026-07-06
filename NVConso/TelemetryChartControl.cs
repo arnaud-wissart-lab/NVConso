@@ -5,6 +5,7 @@ namespace NVConso
         private readonly List<TelemetryChartSeries> _series = [];
         private GpuTelemetrySnapshot[] _snapshots = [];
         private ThemePalette _palette = ThemePalette.Light();
+        private bool _isLegendVisible;
 
         public TelemetryChartControl(string title, double? fixedMaximumY = null)
         {
@@ -12,12 +13,13 @@ namespace NVConso
             FixedMaximumY = fixedMaximumY;
             TimeRangeLabel = "historique";
             DoubleBuffered = true;
-            MinimumSize = new Size(260, 180);
+            MinimumSize = new Size(240, 160);
         }
 
         public string Title { get; }
         public double? FixedMaximumY { get; }
         public string TimeRangeLabel { get; private set; }
+        public bool IsLegendVisible => _isLegendVisible;
 
         public void AddSeries(string name, Color color, Func<GpuTelemetrySnapshot, double?> valueAccessor)
         {
@@ -49,7 +51,9 @@ namespace NVConso
             Graphics graphics = e.Graphics;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            Rectangle plotArea = new Rectangle(46, 42, Width - 66, Height - 74);
+            bool drawLegend = ShouldDrawLegend(Width, Height, _series.Count);
+            _isLegendVisible = drawLegend;
+            Rectangle plotArea = ResolvePlotArea(drawLegend);
             if (plotArea.Width <= 20 || plotArea.Height <= 20)
                 return;
 
@@ -60,7 +64,8 @@ namespace NVConso
 
             using Font titleFont = DashboardFonts.SectionTitle();
             graphics.DrawString(Title, titleFont, titleBrush, new PointF(16, 14));
-            DrawLegend(graphics, mutedBrush);
+            if (drawLegend)
+                DrawLegend(graphics, mutedBrush, plotArea);
 
             DrawGrid(graphics, plotArea, gridPen, axisPen);
 
@@ -80,10 +85,7 @@ namespace NVConso
                 ? maximumY.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
                 : maximumY.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
 
-            graphics.DrawString(maxLabel, Font, mutedBrush, 8, plotArea.Top - 6);
-            graphics.DrawString("0", Font, mutedBrush, 24, plotArea.Bottom - 12);
-            graphics.DrawString(TimeRangeLabel, Font, mutedBrush, plotArea.Left, plotArea.Bottom + 8);
-            graphics.DrawString("maintenant", Font, mutedBrush, plotArea.Right - 68, plotArea.Bottom + 8);
+            DrawAxisLabels(graphics, plotArea, mutedBrush, maxLabel);
         }
 
         public static string FormatDurationLabel(int seconds)
@@ -100,18 +102,61 @@ namespace NVConso
                 : $"{hours:0.#} h";
         }
 
-        private void DrawLegend(Graphics graphics, Brush mutedBrush)
+        public static bool ShouldDrawLegend(int width, int height, int seriesCount)
         {
-            int x = 16;
-            int y = Height - 24;
+            return seriesCount > 0 && width >= 340 && height >= 205;
+        }
+
+        private Rectangle ResolvePlotArea(bool drawLegend)
+        {
+            int left = 56;
+            int top = drawLegend ? 58 : 46;
+            int rightPadding = 18;
+            int bottomPadding = 42;
+            return new Rectangle(
+                left,
+                top,
+                Math.Max(0, Width - left - rightPadding),
+                Math.Max(0, Height - top - bottomPadding));
+        }
+
+        private void DrawLegend(Graphics graphics, Brush mutedBrush, Rectangle plotArea)
+        {
+            int x = plotArea.Left;
+            int y = 36;
+            int availableRight = plotArea.Right;
 
             foreach (TelemetryChartSeries series in _series)
             {
+                Size textSize = TextRenderer.MeasureText(series.Name, Font);
+                int itemWidth = 26 + textSize.Width + 14;
+                if (x + itemWidth > availableRight)
+                    return;
+
                 using var pen = new Pen(series.Color, 3);
                 graphics.DrawLine(pen, x, y + 7, x + 18, y + 7);
                 graphics.DrawString(series.Name, Font, mutedBrush, x + 24, y);
-                x += 100;
+                x += itemWidth;
             }
+        }
+
+        private void DrawAxisLabels(Graphics graphics, Rectangle plotArea, Brush mutedBrush, string maxLabel)
+        {
+            DrawStringLeft(graphics, maxLabel, mutedBrush, 8, plotArea.Top - 8);
+            DrawStringLeft(graphics, "0", mutedBrush, 24, plotArea.Bottom - 12);
+            DrawStringLeft(graphics, TimeRangeLabel, mutedBrush, plotArea.Left, plotArea.Bottom + 8);
+            DrawStringRight(graphics, "maintenant", mutedBrush, plotArea.Right, plotArea.Bottom + 8);
+        }
+
+        private void DrawStringLeft(Graphics graphics, string text, Brush brush, int x, int y)
+        {
+            graphics.DrawString(text, Font, brush, x, y);
+        }
+
+        private void DrawStringRight(Graphics graphics, string text, Brush brush, int right, int y)
+        {
+            SizeF size = graphics.MeasureString(text, Font);
+            graphics.DrawString(text, Font, brush, right - size.Width, y);
         }
 
         private static void DrawGrid(Graphics graphics, Rectangle plotArea, Pen gridPen, Pen axisPen)

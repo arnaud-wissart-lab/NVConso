@@ -13,6 +13,16 @@ namespace NVConso
             AppSettings settings,
             CancellationToken cancellationToken = default)
         {
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+            if (!executionMode.CanAutoUpdate)
+            {
+                settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;
+                settings.LastUpdateError = null;
+                return AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.UpdateUnavailable,
+                    executionMode.DetailMessage);
+            }
+
             AppUpdateOperationResult result = await _appUpdater
                 .CheckForUpdatesAsync(
                     ResolveChannel(settings),
@@ -30,6 +40,15 @@ namespace NVConso
             IProgress<int> progress = null,
             CancellationToken cancellationToken = default)
         {
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+            if (!executionMode.CanAutoUpdate)
+            {
+                settings.LastUpdateError = null;
+                return AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.UpdateUnavailable,
+                    executionMode.DetailMessage);
+            }
+
             AppUpdateOperationResult result = await _appUpdater
                 .DownloadUpdateAsync(
                     ResolveChannel(settings),
@@ -46,6 +65,15 @@ namespace NVConso
             AppSettings settings,
             string[] restartArgs = null)
         {
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+            if (!executionMode.CanAutoUpdate)
+            {
+                settings.LastUpdateError = null;
+                return AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.UpdateUnavailable,
+                    executionMode.DetailMessage);
+            }
+
             AppUpdateOperationResult result = await _appUpdater
                 .ApplyUpdateAndRestartAsync(
                     ResolveChannel(settings),
@@ -59,9 +87,18 @@ namespace NVConso
 
         public PendingUpdateStatus GetPendingUpdateStatus(AppSettings settings)
         {
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+            if (!executionMode.CanAutoUpdate)
+                return PendingUpdateStatus.None(executionMode.DetailMessage);
+
             return _appUpdater.GetPendingUpdateStatus(
                 ResolveChannel(settings),
                 settings.IncludePrereleaseUpdates);
+        }
+
+        public AppExecutionModeInfo GetExecutionMode()
+        {
+            return _appUpdater.GetExecutionMode() ?? AppExecutionModeInfo.Unknown();
         }
 
         private static string ResolveChannel(AppSettings settings)

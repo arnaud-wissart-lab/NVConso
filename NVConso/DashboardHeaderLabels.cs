@@ -7,8 +7,19 @@ namespace NVConso
             return $"{ProductNames.DisplayName} {ProductNames.DisplayVersion}";
         }
 
-        public static string FormatUpdateStatus(AppSettings settings)
+        public static string FormatExecutionMode(AppExecutionModeInfo executionMode)
         {
+            return (executionMode ?? AppExecutionModeInfo.InstalledVelopack()).ModeLabel;
+        }
+
+        public static string FormatUpdateStatus(
+            AppSettings settings,
+            AppExecutionModeInfo executionMode = null)
+        {
+            executionMode ??= AppExecutionModeInfo.InstalledVelopack();
+            if (!executionMode.CanAutoUpdate)
+                return executionMode.UpdateStatusMessage;
+
             if (!string.IsNullOrWhiteSpace(settings?.LastUpdateError))
                 return "Mise à jour : erreur";
 

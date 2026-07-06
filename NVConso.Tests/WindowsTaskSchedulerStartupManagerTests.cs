@@ -2,9 +2,10 @@ namespace NVConso.Tests
 {
     public class WindowsTaskSchedulerStartupManagerTests
     {
-        private const string CurrentExecutablePath = @"C:\Program Files\NVConso\NVConso.exe";
-        private const string CurrentWorkingDirectory = @"C:\Program Files\NVConso";
+        private const string CurrentExecutablePath = @"C:\Program Files\WattPilot\WattPilot.exe";
+        private const string CurrentWorkingDirectory = @"C:\Program Files\WattPilot";
         private const string UserId = @"TEST\arnaud";
+        private const string ShortUserId = "arnaud";
 
         [Fact]
         public void Enable_ShouldCreateTask_ForCurrentUserWithHighestPrivileges()
@@ -52,7 +53,8 @@ namespace NVConso.Tests
             Assert.True(result.Success);
             Assert.Null(scheduler.Task);
             Assert.False(result.Status.Exists);
-            Assert.Equal(1, scheduler.DeleteCallCount);
+            Assert.Contains(WindowsTaskSchedulerStartupManager.TaskName, scheduler.DeletedTaskNames);
+            Assert.Contains(WindowsTaskSchedulerStartupManager.LegacyTaskName, scheduler.DeletedTaskNames);
         }
 
         [Fact]
@@ -114,6 +116,144 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void GetStatus_ShouldAcceptShortPrincipalUserForCurrentLocalAccount()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    ShortUserId,
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: UserId)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(
+                scheduler,
+                userId: UserId,
+                localMachineName: "TEST");
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.True(status.IsEnabledForCurrentExecutable);
+        }
+
+        [Fact]
+        public void GetStatus_ShouldAcceptShortTriggerUserForCurrentLocalAccount()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    UserId,
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: ShortUserId)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(
+                scheduler,
+                userId: UserId,
+                localMachineName: "TEST");
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.True(status.IsEnabledForCurrentExecutable);
+        }
+
+        [Fact]
+        public void GetStatus_ShouldReportDifferentWindowsAccount_WhenPrincipalSidDiffers()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    @"TEST\autre",
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: UserId)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.False(status.IsEnabledForCurrentExecutable);
+            Assert.Contains(
+                "existe pour un autre compte Windows",
+                status.Message);
+            Assert.Contains(@"TEST\autre", status.Message);
+            Assert.Contains(UserId, status.Message);
+        }
+
+        [Fact]
+        public void Enable_ShouldSucceed_WhenSchedulerReturnsShortCurrentUserName()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                RegisteredTaskTransform = task => new StartupTaskInfo(
+                    task.TaskName,
+                    task.ExecutablePath,
+                    task.Arguments,
+                    task.WorkingDirectory,
+                    ShortUserId,
+                    task.RunWithHighestPrivileges,
+                    task.HasLogonTrigger,
+                    ShortUserId)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(
+                scheduler,
+                userId: UserId,
+                localMachineName: "TEST");
+
+            StartupOperationResult result = manager.Enable(startMinimized: true);
+
+            Assert.True(result.Success);
+            Assert.True(result.Status.IsEnabledForCurrentExecutable);
+        }
+
+        [Fact]
+        public void GetStatus_ShouldRequireUpdate_WhenOnlyLegacyNvconsoTaskExists()
+        {
+            var scheduler = new FakeStartupTaskScheduler
+            {
+                Task = CreateCurrentTask(
+                    StartupLaunchOptions.TrayArgument,
+                    WindowsTaskSchedulerStartupManager.LegacyTaskName)
+            };
+            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
+
+            StartupTaskStatus status = manager.GetStatus();
+
+            Assert.True(status.Exists);
+            Assert.False(status.IsEnabledForCurrentExecutable);
+            Assert.Contains("Ancienne tâche planifiée NVConso", status.Message);
+        }
+
+        [Fact]
+        public void Enable_ShouldMigrateLegacyNvconsoTaskToWattPilot()
+        {
+            var scheduler = new FakeStartupTaskScheduler();
+            scheduler.Add(CreateCurrentTask(
+                StartupLaunchOptions.TrayArgument,
+                WindowsTaskSchedulerStartupManager.LegacyTaskName));
+            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
+
+            StartupOperationResult result = manager.Enable(startMinimized: true);
+
+            Assert.True(result.Success);
+            Assert.NotNull(scheduler.Find(WindowsTaskSchedulerStartupManager.TaskName));
+            Assert.Null(scheduler.Find(WindowsTaskSchedulerStartupManager.LegacyTaskName));
+            Assert.Contains(WindowsTaskSchedulerStartupManager.LegacyTaskName, scheduler.DeletedTaskNames);
+        }
+
+        [Fact]
         public void Enable_ShouldReturnFailure_WhenCreationFails()
         {
             var scheduler = new FakeStartupTaskScheduler
@@ -152,7 +292,7 @@ namespace NVConso.Tests
 
             string commandLine = task.CommandLine;
 
-            Assert.Equal("\"C:\\Program Files\\NVConso\\NVConso.exe\" --tray", commandLine);
+            Assert.Equal("\"C:\\Program Files\\WattPilot\\WattPilot.exe\" --tray", commandLine);
         }
 
         [Fact]
@@ -187,20 +327,28 @@ namespace NVConso.Tests
             Assert.False(options.StartInTray);
         }
 
-        private static WindowsTaskSchedulerStartupManager CreateManager(FakeStartupTaskScheduler scheduler)
+        private static WindowsTaskSchedulerStartupManager CreateManager(
+            FakeStartupTaskScheduler scheduler,
+            string userId = UserId,
+            string localMachineName = "MACHINE")
         {
             var applicationInfo = new StartupApplicationInfo(
                 CurrentExecutablePath,
                 CurrentWorkingDirectory,
-                UserId);
+                userId);
 
-            return new WindowsTaskSchedulerStartupManager(scheduler, applicationInfo);
+            return new WindowsTaskSchedulerStartupManager(
+                scheduler,
+                applicationInfo,
+                identityComparer: new WindowsIdentityComparer(localMachineName: localMachineName));
         }
 
-        private static StartupTaskInfo CreateCurrentTask(string arguments)
+        private static StartupTaskInfo CreateCurrentTask(
+            string arguments,
+            string taskName = null)
         {
             return new StartupTaskInfo(
-                WindowsTaskSchedulerStartupManager.TaskName,
+                taskName ?? WindowsTaskSchedulerStartupManager.TaskName,
                 CurrentExecutablePath,
                 arguments,
                 CurrentWorkingDirectory,
@@ -241,7 +389,7 @@ namespace NVConso.Tests
                     runWithHighestPrivileges: true,
                     hasLogonTrigger: true,
                     logonTriggerUserId: UserId),
-                "autre utilisateur"
+                "autre compte Windows"
             ];
 
             yield return
@@ -255,25 +403,45 @@ namespace NVConso.Tests
                     runWithHighestPrivileges: true,
                     hasLogonTrigger: true,
                     logonTriggerUserId: @"TEST\autre"),
-                "déclencheur cible un autre utilisateur"
+                "déclencheur cible un autre compte Windows"
             ];
         }
 
         private sealed class FakeStartupTaskScheduler : IStartupTaskScheduler
         {
-            public StartupTaskInfo Task { get; set; }
+            private readonly Dictionary<string, StartupTaskInfo> _tasks = new(StringComparer.OrdinalIgnoreCase);
+
+            public StartupTaskInfo Task
+            {
+                get => _tasks.TryGetValue(WindowsTaskSchedulerStartupManager.TaskName, out StartupTaskInfo currentTask)
+                    ? currentTask
+                    : _tasks.Values.FirstOrDefault();
+                set
+                {
+                    _tasks.Clear();
+                    if (value != null)
+                        _tasks[value.TaskName] = value;
+                }
+            }
+
             public Exception FindException { get; set; }
             public Exception RegisterException { get; set; }
             public Exception DeleteException { get; set; }
-            public int DeleteCallCount { get; private set; }
+            public List<string> DeletedTaskNames { get; } = new();
+            public Func<StartupTaskInfo, StartupTaskInfo> RegisteredTaskTransform { get; set; }
+
+            public void Add(StartupTaskInfo task)
+            {
+                _tasks[task.TaskName] = task;
+            }
 
             public StartupTaskInfo Find(string taskName)
             {
                 if (FindException != null)
                     throw FindException;
 
-                return Task != null && Task.TaskName == taskName
-                    ? Task
+                return _tasks.TryGetValue(taskName, out StartupTaskInfo task)
+                    ? task
                     : null;
             }
 
@@ -282,7 +450,10 @@ namespace NVConso.Tests
                 if (RegisterException != null)
                     throw RegisterException;
 
-                Task = task;
+                if (RegisteredTaskTransform != null)
+                    task = RegisteredTaskTransform(task);
+
+                _tasks[task.TaskName] = task;
             }
 
             public void Delete(string taskName)
@@ -290,10 +461,9 @@ namespace NVConso.Tests
                 if (DeleteException != null)
                     throw DeleteException;
 
-                DeleteCallCount++;
+                DeletedTaskNames.Add(taskName);
 
-                if (Task != null && Task.TaskName == taskName)
-                    Task = null;
+                _tasks.Remove(taskName);
             }
         }
     }

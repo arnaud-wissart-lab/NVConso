@@ -10,12 +10,13 @@ namespace NVConso
         public const string StableChannel = "stable";
         public static string RepositoryUrl => ProductNames.RepositoryUrl;
         public static string TechnicalIdentityCompatibilityMessage =>
-            $"{ProductNames.DisplayName} utilise encore l'identifiant technique {ProductNames.LegacyTechnicalName} pour préserver la compatibilité des mises à jour.";
+            $"{ProductNames.LegacyTechnicalName} était l'ancien nom technique. {ProductNames.DisplayName} utilise désormais l'identité produit {ProductNames.VelopackPackId}.";
         public static string NotInstalledMessage =>
-            $"Application non installée via Velopack : l'auto-update complet nécessite l'installation {ProductNames.DisplayName}/{ProductNames.LegacyTechnicalName} via Velopack. {TechnicalIdentityCompatibilityMessage} Téléchargements : {ProductNames.LatestReleaseUrl}";
+            $"Application non installée via Velopack : l'auto-update complet nécessite l'installation {ProductNames.DisplayName} via Velopack. Les installations {ProductNames.LegacyTechnicalName} <= 1.1.1 peuvent nécessiter une réinstallation manuelle. Téléchargements : {ProductNames.LatestReleaseUrl}";
 
         private readonly ILogger<VelopackAppUpdater> _logger;
         private readonly Func<string, bool, UpdateManager> _updateManagerFactory;
+        private readonly Func<string> _executablePathProvider;
         private UpdateInfo _lastUpdate;
         private string _lastChannel = StableChannel;
         private bool _lastIncludePrerelease;
@@ -27,10 +28,12 @@ namespace NVConso
 
         public VelopackAppUpdater(
             Func<string, bool, UpdateManager> updateManagerFactory,
-            ILogger<VelopackAppUpdater> logger = null)
+            ILogger<VelopackAppUpdater> logger = null,
+            Func<string> executablePathProvider = null)
         {
             _updateManagerFactory = updateManagerFactory;
             _logger = logger;
+            _executablePathProvider = executablePathProvider;
         }
 
         public async Task<AppUpdateOperationResult> CheckForUpdatesAsync(
@@ -41,6 +44,12 @@ namespace NVConso
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                AppExecutionModeInfo executionMode = GetExecutionMode();
+                if (!executionMode.CanAutoUpdate)
+                    return AppUpdateOperationResult.Succeeded(
+                        AppUpdateStatus.UpdateUnavailable,
+                        executionMode.DetailMessage);
+
                 string resolvedChannel = NormalizeChannel(channel);
                 UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
                 _lastChannel = resolvedChannel;
@@ -73,6 +82,12 @@ namespace NVConso
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                AppExecutionModeInfo executionMode = GetExecutionMode();
+                if (!executionMode.CanAutoUpdate)
+                    return AppUpdateOperationResult.Succeeded(
+                        AppUpdateStatus.UpdateUnavailable,
+                        executionMode.DetailMessage);
+
                 string resolvedChannel = NormalizeChannel(channel);
                 UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
                 _lastChannel = resolvedChannel;
@@ -111,6 +126,12 @@ namespace NVConso
         {
             try
             {
+                AppExecutionModeInfo executionMode = GetExecutionMode();
+                if (!executionMode.CanAutoUpdate)
+                    return Task.FromResult(AppUpdateOperationResult.Succeeded(
+                        AppUpdateStatus.UpdateUnavailable,
+                        executionMode.DetailMessage));
+
                 string resolvedChannel = NormalizeChannel(channel);
                 UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
                 AppUpdateOperationResult installedCheck = EnsureInstalled(manager);
@@ -146,6 +167,10 @@ namespace NVConso
         {
             try
             {
+                AppExecutionModeInfo executionMode = GetExecutionMode();
+                if (!executionMode.CanAutoUpdate)
+                    return PendingUpdateStatus.None(executionMode.DetailMessage);
+
                 UpdateManager manager = CreateManager(channel, includePrerelease);
                 if (!manager.IsInstalled || manager.IsPortable)
                     return PendingUpdateStatus.None(NotInstalledMessage);
@@ -160,6 +185,13 @@ namespace NVConso
                 _logger?.LogWarning(exception, "Impossible de lire le statut de mise à jour Velopack.");
                 return PendingUpdateStatus.None($"Statut de mise à jour indisponible : {exception.Message}");
             }
+        }
+
+        public AppExecutionModeInfo GetExecutionMode()
+        {
+            return AppExecutionModeDetector.Detect(
+                () => CreateManager(StableChannel, includePrerelease: false),
+                _executablePathProvider);
         }
 
         private static UpdateManager CreateUpdateManager(string channel, bool includePrerelease)

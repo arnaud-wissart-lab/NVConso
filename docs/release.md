@@ -10,7 +10,7 @@ Ce document décrit le processus de publication actuel de WattPilot.
 - GitHub Actions activé.
 - Tag au format strict `vX.Y.Z`.
 
-Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v1.1.0`.
+Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.0.0`.
 
 ## Commandes locales avant tag
 
@@ -24,8 +24,8 @@ dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained tru
 ## Déclencher une release
 
 ```powershell
-git tag v1.1.0
-git push origin v1.1.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 Le workflow [../.github/workflows/release.yml](../.github/workflows/release.yml) dérive la version depuis le tag. Il échoue si le tag ne respecte pas `vX.Y.Z`.
@@ -45,55 +45,75 @@ Le workflow exécute :
 7. installation de `vpk` ;
 8. récupération éventuelle du feed Velopack précédent ;
 9. packaging Velopack `stable` ;
-10. calcul de `SHA256SUMS.txt` ;
-11. publication des assets dans GitHub Releases.
+10. validation des assets attendus ;
+11. calcul de `SHA256SUMS.txt` ;
+12. publication des assets dans GitHub Releases.
 
 ## Artefacts attendus
 
-- `NVConso-win-x64.zip` : version portable self-contained conservée pour compatibilité.
-- `WattPilot-win-x64.zip` : alias portable au nom produit visible, contenu identique au ZIP `NVConso`.
-- Artefacts Velopack `stable` pour `win-x64`, dont l'installeur et les paquets nécessaires à la mise à jour automatique.
+- `WattPilot-win-x64.zip` : version portable self-contained.
+- Installeur Velopack WattPilot.
+- Paquets Velopack `stable` nécessaires à la mise à jour automatique.
+- Feed Velopack `releases.stable.json` ou fichier `releases.*` équivalent.
 - `SHA256SUMS.txt` : checksums SHA-256 de tous les fichiers publiés.
 
 Le ZIP portable n'a pas besoin d'installation du runtime .NET. Il ne bénéficie pas de la mise à jour automatique Velopack complète.
 
+Les assets principaux publiés ne doivent plus utiliser le nom `NVConso`. Ce nom reste acceptable uniquement pour le chemin du projet dans le dépôt, les namespaces C# et les éléments de migration depuis l'ancien nom technique.
+
+Le workflow échoue si :
+
+- `WattPilot-win-x64.zip` est absent ;
+- `SHA256SUMS.txt` est absent ou incomplet ;
+- aucun installeur Velopack WattPilot n'est présent ;
+- aucun paquet Velopack `.nupkg` n'est présent ;
+- aucun feed `releases.*` n'est présent ;
+- un ZIP portable `win-x64` inattendu est présent.
+
+## Identité produit
+
+WattPilot est le nom public du produit. `NVConso` était l'ancien nom technique.
+
+À partir de `v2.0.0`, l'identité distribuée devient :
+
+- PackId Velopack : `WattPilot` ;
+- exécutable principal : `WattPilot.exe` ;
+- ZIP portable : `WattPilot-win-x64.zip` ;
+- titre de release GitHub : `WattPilot vX.Y.Z` ;
+- dossier de préférences : `%LOCALAPPDATA%\WattPilot` ;
+- tâche planifiée : `WattPilot`.
+
+Le dépôt GitHub reste `arnaud-wissart-lab/NVConso` dans cette passe. Ce nom est une contrainte technique de dépôt, pas le nom produit affiché.
+
+## Migration depuis NVConso
+
+Le changement de PackId et d'exécutable crée une rupture contrôlée avec les installations `NVConso` existantes. Il ne faut pas republier `v1.1.1`. La version recommandée pour ce renommage est `v2.0.0`.
+
+Impact attendu :
+
+- les installations `NVConso` `<= 1.1.1` peuvent nécessiter une réinstallation manuelle depuis GitHub Releases ;
+- le feed Velopack `WattPilot` est distinct de l'ancien feed `NVConso` ;
+- les raccourcis ou entrées système créés par une ancienne installation peuvent devoir être supprimés par l'utilisateur si l'ancien programme reste installé.
+
+Migration locale intégrée :
+
+- si `%LOCALAPPDATA%\NVConso` existe et `%LOCALAPPDATA%\WattPilot` n'existe pas, WattPilot déplace le dossier vers `%LOCALAPPDATA%\WattPilot` ;
+- une sauvegarde horodatée `NVConso.backup-YYYYMMDD-HHMMSS` est créée avant déplacement ;
+- les préférences `settings.json` et la télémétrie sous `telemetry` suivent le dossier migré ;
+- l'interface tray affiche discrètement `Migration NVConso -> WattPilot effectuée.` ;
+- une ancienne tâche planifiée `NVConso` est supprimée après création ou réparation de la tâche `WattPilot`.
+
 ## Velopack
 
-Velopack est utilisé uniquement pour les installations compatibles. Une exécution depuis `bin\Debug`, `bin\Release` ou une archive ZIP portable renvoie une erreur propre du type `Application non installée via Velopack`.
+Velopack est utilisé uniquement pour les installations compatibles. L'application distingue explicitement trois modes attendus :
+
+- `Mode : installé via Velopack` : auto-update complet disponible ;
+- `Mode : portable ZIP — mise à jour manuelle` : lien GitHub Releases, pas d'installation automatique ;
+- `Mode : build développeur — auto-update indisponible` : pas d'erreur rouge, diagnostic et lien GitHub Releases uniquement.
 
 Le canal par défaut est `stable`.
 
-Le nom produit affiché est `WattPilot`, mais le PackId Velopack reste `NVConso`. WattPilot utilise encore l'identifiant technique `NVConso` pour préserver la compatibilité des mises à jour.
-
-Le message affiché hors installation Velopack doit rester explicite : l'auto-update complet nécessite l'installation WattPilot/NVConso via Velopack, et la version ZIP portable doit être mise à jour depuis GitHub Releases.
-
-Identifiants conservés dans cette phase :
-
-- PackId Velopack : `NVConso` ;
-- exécutable principal : `NVConso.exe` ;
-- ZIP portable historique : `NVConso-win-x64.zip` ;
-- alias ZIP portable : `WattPilot-win-x64.zip` ;
-- dépôt GitHub : `arnaud-wissart-lab/NVConso`.
-
-### Pourquoi le PackId reste NVConso
-
-Velopack utilise le PackId comme identité d'application pour résoudre le feed, les paquets installés, les deltas et les mises à jour en attente. Garder `NVConso` permet aux installations déjà présentes de voir les nouvelles releases `stable` sans migration intermédiaire.
-
-### Risques d'un changement immédiat de PackId
-
-Changer directement le PackId en `WattPilot` créerait une identité Velopack distincte. Les installations existantes pourraient ne plus détecter les mises à jour, conserver des raccourcis ou entrées système liés à l'ancien produit, ou nécessiter une réinstallation manuelle. Le risque principal est de laisser des utilisateurs sur un feed `NVConso` qui ne reçoit plus de paquets compatibles.
-
-### Migration future du PackId
-
-Une migration complète devra être planifiée comme une release dédiée. Elle devra au minimum :
-
-- publier une dernière version `NVConso` capable d'expliquer ou d'orchestrer la transition ;
-- vérifier la compatibilité entre l'ancien feed et le nouveau feed ;
-- décider quoi faire du dossier `%LOCALAPPDATA%\NVConso`, de la tâche planifiée `NVConso`, de `NVConso.exe` et des raccourcis ;
-- documenter une procédure de rollback ou de réinstallation propre ;
-- tester une installation existante avant et après migration.
-
-Une phase future pourra étudier une migration complète du PackId, du dossier AppData, de la tâche planifiée, du nom de dépôt et de la compatibilité de mise à jour entre l'ancien et le nouveau produit.
+Le message affiché hors installation Velopack doit rester explicite sans être présenté comme une erreur : l'auto-update complet nécessite l'installation WattPilot via Velopack, la version ZIP portable doit être mise à jour depuis GitHub Releases, et un build développeur `bin\Debug` ou `bin\Release` ne s'auto-update pas.
 
 ## Packaging local Velopack
 
@@ -107,32 +127,67 @@ dotnet publish NVConso/NVConso.csproj `
   -o artifacts/publish/win-x64 `
   -p:PublishSingleFile=true `
   -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:Version=1.1.0
+  -p:Version=2.0.0
 
 dotnet tool install --global vpk --version 1.2.0
 
 vpk pack `
-  --packId NVConso `
-  --packVersion 1.1.0 `
+  --packId WattPilot `
+  --packVersion 2.0.0 `
   --packDir artifacts/publish/win-x64 `
-  --mainExe NVConso.exe `
+  --mainExe WattPilot.exe `
   --channel stable `
   --runtime win-x64 `
   --packAuthors "Arnaud Wissart" `
   --packTitle WattPilot `
-  --icon NVConso/Assets/NVConso.ico `
+  --icon NVConso/Assets/WattPilot.ico `
   --outputDir artifacts/velopack/win-x64
 ```
 
-Pour tester la mise à jour de bout en bout, installez une version plus ancienne via Velopack, publiez une version supérieure, puis vérifiez depuis le tray que WattPilot détecte, télécharge et marque la mise à jour comme prête avant l'action d'installation.
+## Tester l'auto-update chez soi
+
+Procédure attendue pour valider une mise à jour réelle :
+
+1. Publier une release GitHub `vX.Y.Z` avec les artefacts Velopack.
+2. Télécharger l'installeur Velopack depuis GitHub Releases.
+3. Installer WattPilot avec cet installeur.
+4. Lancer WattPilot depuis l'installation, pas depuis `bin\Debug`, `bin\Release` ou le ZIP portable.
+5. Vérifier dans le dashboard ou les préférences que le mode affiché est `Mode : installé via Velopack`.
+6. Publier une version supérieure.
+7. Relancer WattPilot installé ou attendre la vérification automatique.
+8. Vérifier que l'action unique `Mettre à jour vers vX.Y.Z...` apparaît.
+9. Lancer l'action et vérifier que le téléchargement, l'installation et le redémarrage passent par Velopack.
+
+Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise à jour reste manuelle. Un build développeur sert à valider le code local ; il doit afficher `Mise à jour : indisponible en mode développeur`.
+
+## Procédure après merge
+
+Pour publier une version standard après merge, créer puis pousser le tag cible :
+
+```powershell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Remplacer `v1.2.0` par la version décidée pour la release. Pour le changement de PackId et d'exécutable lié au renommage complet, `v2.0.0` reste la version recommandée.
+
+Après le push :
+
+1. attendre la fin du workflow `Release` ;
+2. vérifier que GitHub Releases contient `WattPilot-win-x64.zip`, l'installateur Velopack WattPilot, les paquets Velopack, le feed `releases.*` et `SHA256SUMS.txt` ;
+3. télécharger l'installateur ;
+4. installer WattPilot ;
+5. tester le lancement ;
+6. vérifier le statut de mise à jour dans le dashboard ou les préférences.
 
 ## Vérification manuelle
 
 Après publication :
 
-- télécharger le ZIP portable et lancer `NVConso.exe` sur une machine Windows ;
+- télécharger le ZIP portable `WattPilot-win-x64.zip` et lancer `WattPilot.exe` sur une machine Windows ;
 - vérifier que le runtime .NET n'est pas requis séparément pour le ZIP ;
-- vérifier que les artefacts Velopack sont présents dans la release ;
+- vérifier que les artefacts Velopack WattPilot sont présents dans la release ;
 - vérifier `SHA256SUMS.txt` ;
 - vérifier que la mise à jour automatique est indisponible proprement depuis le ZIP ;
-- vérifier la mise à jour automatique depuis une installation Velopack quand un feed de test est disponible.
+- vérifier la mise à jour automatique depuis une installation Velopack quand un feed de test est disponible ;
+- vérifier qu'aucun asset principal nommé `NVConso-win-x64.zip` n'est publié.

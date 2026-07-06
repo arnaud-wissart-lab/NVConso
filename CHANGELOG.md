@@ -6,9 +6,11 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
-### À faire
+### Modifié
 
-- Déplacer ici les changements destinés à la prochaine version après `v1.1.1`.
+- Prépare le renommage public complet vers WattPilot : exécutable `WattPilot.exe`, PackId Velopack `WattPilot`, ZIP portable `WattPilot-win-x64.zip` et tâche planifiée `WattPilot`.
+- Ajoute la migration locale depuis `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` avec sauvegarde horodatée.
+- Documente l'impact de migration : les installations `NVConso` `<= 1.1.1` peuvent nécessiter une réinstallation manuelle.
 
 ## [1.1.1] - 2026-07-06
 

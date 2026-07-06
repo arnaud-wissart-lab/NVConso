@@ -21,6 +21,63 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void TelemetryChart_ShouldHideLegend_WhenAreaIsCompact()
+        {
+            Assert.False(TelemetryChartControl.ShouldDrawLegend(width: 260, height: 160, seriesCount: 2));
+            Assert.True(TelemetryChartControl.ShouldDrawLegend(width: 420, height: 240, seriesCount: 2));
+        }
+
+        [Fact]
+        public void MetricCard_ShouldKeepReadableLongValues()
+        {
+            using var card = new MetricCardControl("Fréquence mémoire")
+            {
+                Size = new Size(160, 88)
+            };
+
+            card.SetValue("10701 MHz");
+            card.PerformLayout();
+
+            Label valueLabel = card.Controls
+                .OfType<Label>()
+                .Single(label => label.Text == "10701 MHz");
+
+            Assert.True(valueLabel.AutoEllipsis);
+            Assert.InRange(valueLabel.Font.Size, 12F, 15F);
+            Assert.True(card.MinimumSize.Height >= 86);
+        }
+
+        [Fact]
+        public void DashboardDisplaySummary_ShouldUseStructuredLines()
+        {
+            DisplayRuntimeState state = DisplayRuntimeState.Available(
+            [
+                new DisplayDeviceInfo
+                {
+                    DeviceName = @"\\.\DISPLAY1",
+                    FriendlyName = "Écran principal",
+                    IsPrimary = true,
+                    Width = 2560,
+                    Height = 1440,
+                    CurrentRefreshRateHz = 120,
+                    MaxRefreshRateHz = 144,
+                    HdrState = DisplayHdrState.Sdr,
+                    VrrDetection = VrrDetectionResult.Unknown(@"\\.\DISPLAY1")
+                }
+            ]);
+
+            string summary = DashboardForm.FormatDisplaySummary(state, enabled: true);
+            string daily = DashboardForm.FormatDailySummary(null, recordingEnabled: true);
+
+            Assert.Contains("Écran principal : Écran principal", summary);
+            Assert.Contains("Refresh rate : 120 Hz (144 Hz max)", summary);
+            Assert.Contains("HDR :", summary);
+            Assert.Contains("VRR/G-Sync :", summary);
+            Assert.Contains(Environment.NewLine, summary);
+            Assert.StartsWith("Historique -", daily);
+        }
+
+        [Fact]
         public void DashboardHeader_ShouldFormatUpdateStatus()
         {
             var settings = new AppSettings
@@ -42,6 +99,23 @@ namespace NVConso.Tests
             };
 
             Assert.Equal("Mise à jour : erreur", DashboardHeaderLabels.FormatUpdateStatus(settings));
+        }
+
+        [Fact]
+        public void DashboardHeader_ShouldFormatDeveloperModeWithoutError()
+        {
+            var settings = new AppSettings
+            {
+                LastUpdateError = "Application non installée via Velopack."
+            };
+            AppExecutionModeInfo executionMode = AppExecutionModeInfo.DeveloperBuild();
+
+            Assert.Equal(
+                "Mode : build développeur — auto-update indisponible",
+                DashboardHeaderLabels.FormatExecutionMode(executionMode));
+            Assert.Equal(
+                UpdateLabels.DeveloperUnavailableStatus,
+                DashboardHeaderLabels.FormatUpdateStatus(settings, executionMode));
         }
 
         [Fact]

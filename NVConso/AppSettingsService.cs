@@ -12,6 +12,10 @@ namespace NVConso
 
         public AppSettings Current { get; private set; }
         public string SettingsPath => _store.SettingsPath;
+        public AppSettingsMigrationResult MigrationResult => _store.MigrationResult;
+        public string StartupNotice => MigrationResult?.Migrated == true
+            ? MigrationResult.Message
+            : string.Empty;
 
         public event EventHandler<AppSettings> SettingsChanged;
 

@@ -9,6 +9,7 @@ namespace NVConso
         Downloading,
         ReadyToInstall,
         Installing,
+        Unavailable,
         Error
     }
 }

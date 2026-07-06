@@ -64,9 +64,9 @@ Symptôme :
 
 Explication :
 
-Le ZIP portable est self-contained, mais il n'est pas une installation Velopack. La mise à jour automatique complète est donc désactivée. L'auto-update complet nécessite l'installation WattPilot/NVConso via Velopack.
+Le ZIP portable est self-contained, mais il n'est pas une installation Velopack. La mise à jour automatique complète est donc désactivée. L'auto-update complet nécessite l'installation WattPilot via Velopack.
 
-WattPilot utilise encore l'identifiant technique `NVConso` pour préserver la compatibilité des mises à jour.
+À partir de `v2.0.0`, l'identité Velopack distribuée est `WattPilot`. Une installation `NVConso` `<= 1.1.1` peut nécessiter une réinstallation manuelle depuis GitHub Releases.
 
 Actions :
 
@@ -85,10 +85,11 @@ Actions :
 
 - ouvrir `Préférences` ;
 - désactiver puis réactiver `Démarrer avec Windows` ;
-- vérifier que le chemin de `NVConso.exe` n'a pas changé ;
+- vérifier que le chemin de `WattPilot.exe` n'a pas changé ;
 - éviter de déplacer manuellement le dossier d'installation Velopack.
 
 WattPilot utilise l'argument canonique `--tray`. L'ancien alias `--minimized` reste accepté au lancement.
+Une ancienne tâche planifiée `NVConso` est remplacée par la tâche `WattPilot` lors de la réparation.
 
 ## Dashboard sans données
 
@@ -103,7 +104,7 @@ Vérifications :
 - NVML est-il disponible ?
 - un GPU est-il sélectionné ?
 - l'historisation persistante est-elle activée ?
-- le fichier du jour existe-t-il dans `%LOCALAPPDATA%\NVConso\telemetry\snapshots` ?
+- le fichier du jour existe-t-il dans `%LOCALAPPDATA%\WattPilot\telemetry\snapshots` ?
 - l'application a-t-elle eu le temps de collecter au moins un snapshot ?
 
 L'onglet `Temps réel` dépend du buffer mémoire. Il est vide après un redémarrage jusqu'à la prochaine collecte. L'onglet `Historique` dépend des fichiers persistés.
@@ -115,7 +116,7 @@ Actions :
 - réduire `TelemetryRetentionDays` ;
 - augmenter `RecordingIntervalSeconds` ;
 - désactiver temporairement `RecordingEnabled` ;
-- supprimer manuellement d'anciens fichiers sous `%LOCALAPPDATA%\NVConso\telemetry` si l'application est arrêtée.
+- supprimer manuellement d'anciens fichiers sous `%LOCALAPPDATA%\WattPilot\telemetry` si l'application est arrêtée.
 
 La rétention automatique ne touche pas `settings.json` et ne supprime pas les logs hors du dossier `telemetry`.
 
@@ -168,7 +169,7 @@ WattPilot n'applique pas de mode non supporté et ne change pas la résolution p
 
 ## Fichiers utiles
 
-- Préférences : `%LOCALAPPDATA%\NVConso\settings.json`
-- Télémétrie : `%LOCALAPPDATA%\NVConso\telemetry\`
+- Préférences : `%LOCALAPPDATA%\WattPilot\settings.json`
+- Télémétrie : `%LOCALAPPDATA%\WattPilot\telemetry\`
 - Documentation télémétrie : [telemetry.md](./telemetry.md)
 - Documentation profils écran : [display-profiles.md](./display-profiles.md)

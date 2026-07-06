@@ -19,7 +19,7 @@ namespace NVConso
 
         public static Font CardValue()
         {
-            return new Font("Segoe UI Semibold", 18F, FontStyle.Bold);
+            return new Font("Segoe UI Semibold", 15F, FontStyle.Bold);
         }
 
         public static Font SectionTitle()

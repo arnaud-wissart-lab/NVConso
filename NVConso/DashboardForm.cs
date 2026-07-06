@@ -14,6 +14,7 @@ namespace NVConso
         private readonly ICaniculeGuard _caniculeGuard;
         private readonly ThemeService _themeService;
         private readonly AppSettingsService _settingsService;
+        private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly Action<GpuPowerMode> _applyProfile;
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
@@ -30,6 +31,7 @@ namespace NVConso
         private readonly Label _gpuNameLabel;
         private readonly Label _profileLabel;
         private readonly Label _versionLabel;
+        private readonly Label _executionModeLabel;
         private readonly Label _updateSummaryLabel;
         private readonly Label _headerCaniculeGuardLabel;
         private readonly Label _displaySummaryLabel;
@@ -72,7 +74,8 @@ namespace NVConso
             Action restoreStock,
             Action showCustomPowerLimit,
             Action openPreferences,
-            Microsoft.Extensions.Logging.ILogger logger = null)
+            Microsoft.Extensions.Logging.ILogger logger = null,
+            AppUpdateWorkflow updateWorkflow = null)
         {
             _telemetryService = telemetryService;
             _displayManager = displayManager ?? new WindowsDisplayManager();
@@ -81,6 +84,7 @@ namespace NVConso
             _caniculeGuard = caniculeGuard ?? new CaniculeGuardService(telemetryRecorder: _telemetryRecorder);
             _themeService = themeService ?? new ThemeService();
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
+            _updateWorkflow = updateWorkflow;
             _settings = _settingsService.Current;
             _applyProfile = applyProfile;
             _restoreStock = restoreStock;
@@ -116,31 +120,43 @@ namespace NVConso
             };
             _dashboardTabs.TabPages.Add(realTimeTab);
 
-            var root = new TableLayoutPanel
+            var realTimeViewport = new Panel
             {
                 Dock = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor = _palette.Background
+            };
+            realTimeTab.Controls.Add(realTimeViewport);
+
+            var root = new TableLayoutPanel
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 ColumnCount = 1,
                 RowCount = 5,
                 Padding = new Padding(UiSpacing.Large),
                 BackColor = _palette.Background
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 230));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 208));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 156));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            realTimeTab.Controls.Add(root);
+            realTimeViewport.Controls.Add(root);
+            realTimeViewport.Resize += (_, _) => ResizeScrollableContent(realTimeViewport, root, minimumHeight: 770);
+            ResizeScrollableContent(realTimeViewport, root, minimumHeight: 770);
 
             DashboardCard header = CreateHeaderCard(
                 out Label gpuNameLabel,
                 out Label profileLabel,
                 out Label versionLabel,
+                out Label executionModeLabel,
                 out Label updateSummaryLabel,
                 out Label headerCaniculeGuardLabel,
                 out StatusPillControl statusPill);
             _gpuNameLabel = gpuNameLabel;
             _profileLabel = profileLabel;
             _versionLabel = versionLabel;
+            _executionModeLabel = executionModeLabel;
             _updateSummaryLabel = updateSummaryLabel;
             _headerCaniculeGuardLabel = headerCaniculeGuardLabel;
             _statusPill = statusPill;
@@ -233,6 +249,7 @@ namespace NVConso
             out Label gpuNameLabel,
             out Label profileLabel,
             out Label versionLabel,
+            out Label executionModeLabel,
             out Label updateSummaryLabel,
             out Label headerCaniculeGuardLabel,
             out StatusPillControl statusPill)
@@ -256,27 +273,31 @@ namespace NVConso
             var labels = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                RowCount = 5,
+                RowCount = 6,
                 ColumnCount = 1,
                 BackColor = _palette.Surface
             };
-            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
+            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
+            labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
             labels.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.Controls.Add(labels, 0, 0);
 
             gpuNameLabel = CreateHeaderLabel("GPU non sélectionné", 18F, FontStyle.Bold);
             profileLabel = CreateHeaderLabel("Profil : --", 10F, FontStyle.Regular);
             versionLabel = CreateHeaderLabel(DashboardHeaderLabels.FormatProductVersion(), 9F, FontStyle.Regular);
-            updateSummaryLabel = CreateHeaderLabel(DashboardHeaderLabels.FormatUpdateStatus(_settings), 9F, FontStyle.Regular);
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+            executionModeLabel = CreateHeaderLabel(DashboardHeaderLabels.FormatExecutionMode(executionMode), 9F, FontStyle.Regular);
+            updateSummaryLabel = CreateHeaderLabel(DashboardHeaderLabels.FormatUpdateStatus(_settings, executionMode), 9F, FontStyle.Regular);
             headerCaniculeGuardLabel = CreateHeaderLabel(DashboardHeaderLabels.FormatCaniculeGuardStatus(_caniculeGuard.State), 9F, FontStyle.Regular);
             labels.Controls.Add(gpuNameLabel, 0, 0);
             labels.Controls.Add(profileLabel, 0, 1);
             labels.Controls.Add(versionLabel, 0, 2);
-            labels.Controls.Add(updateSummaryLabel, 0, 3);
-            labels.Controls.Add(headerCaniculeGuardLabel, 0, 4);
+            labels.Controls.Add(executionModeLabel, 0, 3);
+            labels.Controls.Add(updateSummaryLabel, 0, 4);
+            labels.Controls.Add(headerCaniculeGuardLabel, 0, 5);
 
             var actions = new TableLayoutPanel
             {
@@ -392,7 +413,7 @@ namespace NVConso
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
+                WrapContents = true,
                 BackColor = _palette.Surface
             };
             card.Controls.Add(flow);
@@ -404,7 +425,7 @@ namespace NVConso
             AddProfileButton(flow, GpuPowerMode.Max);
 
             ProfileButtonControl customButton = CreateActionButton("Custom");
-            customButton.Width = 120;
+            customButton.Width = 104;
             customButton.Click += (_, _) => _showCustomPowerLimit();
             flow.Controls.Add(customButton);
 
@@ -428,22 +449,22 @@ namespace NVConso
                 RowCount = 4,
                 BackColor = ThemePalette.Light().Surface
             };
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
             card.Controls.Add(layout);
 
             Label titleLabel = CreateHeaderLabel("Affichage", 11F, FontStyle.Bold);
             layout.Controls.Add(titleLabel, 0, 0);
 
-            summaryLabel = CreateHeaderLabel("Profils écran désactivés.", 10F, FontStyle.Regular);
+            summaryLabel = CreateWrappedLabel("Profils écran désactivés.", 9F, FontStyle.Regular);
             layout.Controls.Add(summaryLabel, 0, 1);
 
-            dailySummaryLabel = CreateHeaderLabel("Historique du jour : --", 10F, FontStyle.Regular);
+            dailySummaryLabel = CreateWrappedLabel("Historique : --", 9F, FontStyle.Regular);
             layout.Controls.Add(dailySummaryLabel, 0, 2);
 
-            caniculeGuardSummaryLabel = CreateHeaderLabel("Canicule Guard : désactivé.", 10F, FontStyle.Regular);
+            caniculeGuardSummaryLabel = CreateWrappedLabel("Canicule Guard : désactivé.", 9F, FontStyle.Regular);
             layout.Controls.Add(caniculeGuardSummaryLabel, 0, 3);
 
             return card;
@@ -640,7 +661,22 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 Text = text,
                 Font = size >= 18F ? DashboardFonts.Header() : new Font("Segoe UI", size, style),
-                TextAlign = ContentAlignment.MiddleLeft
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = true
+            };
+        }
+
+        private static Label CreateWrappedLabel(string text, float size, FontStyle style)
+        {
+            return new Label
+            {
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                Text = text,
+                Font = new Font("Segoe UI", size, style),
+                TextAlign = ContentAlignment.TopLeft,
+                Padding = new Padding(0, 1, 0, 0),
+                AutoEllipsis = false
             };
         }
 
@@ -668,7 +704,8 @@ namespace NVConso
         private void AddProfileButton(FlowLayoutPanel flow, GpuPowerMode mode)
         {
             ProfileButtonControl button = CreateActionButton(ProfileLabels.GetDisplayName(mode));
-            button.Width = 120;
+            button.Width = 104;
+            button.IsWarning = mode == GpuPowerMode.Max;
             button.Click += (_, _) => _applyProfile(mode);
             flow.Controls.Add(button);
         }
@@ -679,6 +716,18 @@ namespace NVConso
             {
                 Text = text
             };
+        }
+
+        private static void ResizeScrollableContent(Panel viewport, Control content, int minimumHeight)
+        {
+            if (viewport is null || content is null)
+                return;
+
+            int verticalScrollbarReserve = viewport.VerticalScroll.Visible
+                ? SystemInformation.VerticalScrollBarWidth
+                : 0;
+            content.Width = Math.Max(0, viewport.ClientSize.Width - verticalScrollbarReserve);
+            content.Height = Math.Max(minimumHeight, viewport.ClientSize.Height);
         }
 
         private void OnSnapshotUpdated(object sender, GpuTelemetrySnapshot snapshot)
@@ -860,14 +909,24 @@ namespace NVConso
 
         private void RefreshHeaderStatus()
         {
+            AppExecutionModeInfo executionMode = GetExecutionMode();
+
             if (_versionLabel is not null)
                 _versionLabel.Text = DashboardHeaderLabels.FormatProductVersion();
 
+            if (_executionModeLabel is not null)
+                _executionModeLabel.Text = DashboardHeaderLabels.FormatExecutionMode(executionMode);
+
             if (_updateSummaryLabel is not null)
-                _updateSummaryLabel.Text = DashboardHeaderLabels.FormatUpdateStatus(_settings);
+                _updateSummaryLabel.Text = DashboardHeaderLabels.FormatUpdateStatus(_settings, executionMode);
 
             if (_headerCaniculeGuardLabel is not null)
                 _headerCaniculeGuardLabel.Text = DashboardHeaderLabels.FormatCaniculeGuardStatus(_caniculeGuard.State);
+        }
+
+        private AppExecutionModeInfo GetExecutionMode()
+        {
+            return _updateWorkflow?.GetExecutionMode() ?? AppExecutionModeInfo.InstalledVelopack();
         }
 
         private void RequestHistoryReload()
@@ -1060,7 +1119,7 @@ namespace NVConso
             }
         }
 
-        private static string FormatDisplaySummary(DisplayRuntimeState state, bool enabled)
+        public static string FormatDisplaySummary(DisplayRuntimeState state, bool enabled)
         {
             string prefix = enabled ? "Profils écran activés" : "Profils écran désactivés";
             if (state?.Devices?.Count > 0)
@@ -1069,10 +1128,22 @@ namespace NVConso
                 string maximum = display.MaxRefreshRateHz > 0 ? $"{display.MaxRefreshRateHz} Hz max" : "max inconnu";
                 DisplayAdvancedColorSummary hdrSummary = DisplayAdvancedColorSummary.FromState(state);
                 DisplayVrrSummary vrrSummary = DisplayVrrSummary.FromState(state);
-                return $"{prefix} - principal : {display.DisplayName}, {display.Width}x{display.Height} à {display.CurrentRefreshRateHz} Hz ({maximum}) - HDR actif : {FormatHdrState(display.HdrState)} - {hdrSummary.FormatTrayStatus()} - VRR/G-Sync : {vrrSummary.FormatCompactStatus()}.";
+                return string.Join(
+                    Environment.NewLine,
+                    prefix,
+                    $"Écran principal : {display.DisplayName}",
+                    $"Refresh rate : {display.CurrentRefreshRateHz} Hz ({maximum})",
+                    $"HDR : {FormatHdrState(display.HdrState)} - {hdrSummary.FormatTrayStatus()}",
+                    $"VRR/G-Sync : {vrrSummary.FormatCompactStatus()}");
             }
 
-            return $"{prefix} - {state?.Message ?? "État écran inconnu."}";
+            return string.Join(
+                Environment.NewLine,
+                prefix,
+                "Écran principal : --",
+                "Refresh rate : --",
+                "HDR : inconnu",
+                $"VRR/G-Sync : {state?.Message ?? "État écran inconnu."}");
         }
 
         private static string FormatHdrState(DisplayHdrState state)
@@ -1085,9 +1156,9 @@ namespace NVConso
             };
         }
 
-        private static string FormatDailySummary(TelemetryDailySummary summary, bool recordingEnabled)
+        public static string FormatDailySummary(TelemetryDailySummary summary, bool recordingEnabled)
         {
-            string prefix = recordingEnabled ? "Historique aujourd'hui" : "Historique désactivé";
+            string prefix = recordingEnabled ? "Historique" : "Historique désactivé";
             if (summary is null || summary.SampleCount == 0)
                 return $"{prefix} - max puissance --, max température --, pics 0.";
 

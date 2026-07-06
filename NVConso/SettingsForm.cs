@@ -95,6 +95,7 @@ namespace NVConso
         private readonly CheckBox _autoCheckUpdatesCheck = new() { Text = "Vérifier automatiquement les mises à jour", AutoSize = true };
         private readonly CheckBox _autoDownloadUpdatesCheck = new() { Text = "Télécharger automatiquement après détection", AutoSize = true };
         private readonly CheckBox _includePrereleaseUpdatesCheck = new() { Text = "Inclure les préversions", AutoSize = true };
+        private readonly Label _executionModeLabel = CreateValueLabel("--");
         private readonly Label _lastUpdateCheckLabel = CreateValueLabel("--");
         private readonly Label _lastUpdateStatusLabel = CreateValueLabel("--");
         private readonly LinkLabel _latestReleaseLink = new() { Text = ProductNames.LatestReleaseUrl, AutoSize = true };
@@ -201,20 +202,55 @@ namespace NVConso
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
             Controls.Add(root);
 
-            var tabs = new TabControl
+            var body = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1
             };
-            tabs.TabPages.Add(CreateGeneralTab());
-            tabs.TabPages.Add(CreateProfilesTab());
-            tabs.TabPages.Add(CreateCaniculeGuardTab());
-            tabs.TabPages.Add(CreateDisplayTab());
-            tabs.TabPages.Add(CreateHistoryTab());
-            tabs.TabPages.Add(CreateStartupTab());
-            tabs.TabPages.Add(CreateUpdatesTab());
-            tabs.TabPages.Add(CreateAppearanceTab());
-            tabs.TabPages.Add(CreateAdvancedTab());
-            root.Controls.Add(tabs, 0, 0);
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 168));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.Controls.Add(body, 0, 0);
+
+            var navigation = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                IntegralHeight = false,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            body.Controls.Add(navigation, 0, 0);
+
+            var contentHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(UiSpacing.Medium, 0, 0, 0)
+            };
+            body.Controls.Add(contentHost, 1, 0);
+
+            var sections = new List<SettingsSection>
+            {
+                SettingsSection.FromTab("Général", CreateGeneralTab()),
+                SettingsSection.FromTab("GPU", CreateProfilesTab()),
+                SettingsSection.FromTab("Canicule", CreateCaniculeGuardTab()),
+                SettingsSection.FromTab("Affichage", CreateDisplayTab()),
+                SettingsSection.FromTab("Historique", CreateHistoryTab()),
+                SettingsSection.FromTab("Démarrage", CreateStartupTab()),
+                SettingsSection.FromTab("Mises à jour", CreateUpdatesTab()),
+                SettingsSection.FromTab("Apparence", CreateAppearanceTab()),
+                SettingsSection.FromTab("Avancé", CreateAdvancedTab())
+            };
+
+            foreach (SettingsSection section in sections)
+                navigation.Items.Add(section);
+
+            navigation.SelectedIndexChanged += (_, _) =>
+            {
+                if (navigation.SelectedItem is SettingsSection section)
+                    ShowSettingsSection(contentHost, section);
+            };
+
+            if (navigation.Items.Count > 0)
+                navigation.SelectedIndex = 0;
 
             _statusLabel.ForeColor = Color.FromArgb(95, 109, 126);
             root.Controls.Add(_statusLabel, 0, 1);
@@ -384,6 +420,7 @@ namespace NVConso
             AddCheckBox(panel, _autoCheckUpdatesCheck);
             AddCheckBox(panel, _autoDownloadUpdatesCheck);
             AddCheckBox(panel, _includePrereleaseUpdatesCheck);
+            AddRow(panel, "Mode", _executionModeLabel);
             AddRow(panel, "Dernière vérification", _lastUpdateCheckLabel);
             AddRow(panel, "Dernier état", _lastUpdateStatusLabel);
             AddFullRow(panel, CreateMutedLabel($"{VelopackAppUpdater.TechnicalIdentityCompatibilityMessage} L'auto-update complet nécessite l'installation {ProductNames.DisplayName}/{ProductNames.LegacyTechnicalName} via Velopack."), 64);
@@ -391,7 +428,22 @@ namespace NVConso
 
             Button checkButton = CreateButton("Vérifier maintenant");
             checkButton.Click += async (_, _) => await CheckForUpdatesNowAsync(checkButton);
-            AddFullRow(panel, checkButton);
+            Button openReleasesButton = CreateButton("Ouvrir GitHub Releases");
+            openReleasesButton.Click += (_, _) => OpenGitHubReleases();
+            Button copyDiagnosticButton = CreateButton("Copier diagnostic update");
+            copyDiagnosticButton.Click += (_, _) => CopyUpdateDiagnostic();
+
+            var buttons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                WrapContents = true,
+                FlowDirection = FlowDirection.LeftToRight
+            };
+            buttons.Controls.Add(checkButton);
+            buttons.Controls.Add(openReleasesButton);
+            buttons.Controls.Add(copyDiagnosticButton);
+            AddFullRow(panel, buttons, 58);
             AddFill(panel);
             return CreateTab("Mises à jour", panel);
         }
@@ -638,12 +690,16 @@ namespace NVConso
                 AppUpdateOperationResult result = await _updateWorkflow.CheckForUpdatesAsync(settings);
                 _settingsService.TrySave(settings, out _);
                 RefreshUpdateStatus();
-                _lastUpdateStatusLabel.Text = result.Message;
+                AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+                UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
+                _lastUpdateStatusLabel.Text = string.IsNullOrWhiteSpace(state.DetailMessage)
+                    ? state.Message
+                    : state.DetailMessage;
 
                 if (result.HasUpdate)
                     ShowInfo($"Nouvelle version disponible : {result.Update.Version}");
                 else
-                    ShowInfo(result.Message);
+                    ShowInfo(state.DetailMessage.Length > 0 ? state.DetailMessage : state.Message);
             }
             catch (Exception exception)
             {
@@ -665,10 +721,43 @@ namespace NVConso
         private void RefreshUpdateStatus()
         {
             AppSettings settings = _settingsService.Current;
+            AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+            UpdateUiState state = new UpdateStatusPresenter(_updateWorkflow).GetStoredState(settings);
+            _executionModeLabel.Text = executionMode.ModeLabel;
             _lastUpdateCheckLabel.Text = GpuTelemetryFormatter.FormatRelativeDate(settings.LastUpdateCheckUtc);
-            _lastUpdateStatusLabel.Text = string.IsNullOrWhiteSpace(settings.LastUpdateError)
-                ? "Aucune erreur enregistrée."
-                : settings.LastUpdateError;
+            _lastUpdateStatusLabel.Text = string.IsNullOrWhiteSpace(state.DetailMessage)
+                ? state.Message
+                : state.DetailMessage;
+        }
+
+        private void OpenGitHubReleases()
+        {
+            try
+            {
+                OpenExternal(ProductNames.LatestReleaseUrl);
+            }
+            catch (Exception exception)
+            {
+                ShowError($"Ouverture de GitHub Releases impossible : {exception.Message}");
+            }
+        }
+
+        private void CopyUpdateDiagnostic()
+        {
+            try
+            {
+                AppSettings settings = _settingsService.Current;
+                UpdateUiState state = new UpdateStatusPresenter(_updateWorkflow).GetStoredState(settings);
+                Clipboard.SetText(UpdateDiagnosticBuilder.Build(
+                    _updateWorkflow.GetExecutionMode(),
+                    settings,
+                    state));
+                ShowInfo("Diagnostic update copié.");
+            }
+            catch (Exception exception)
+            {
+                ShowError($"Copie du diagnostic update impossible : {exception.Message}");
+            }
         }
 
         private void RefreshDisplayStatus()
@@ -915,6 +1004,13 @@ namespace NVConso
             _statusLabel.Text = message;
         }
 
+        private static void ShowSettingsSection(Panel contentHost, SettingsSection section)
+        {
+            contentHost.Controls.Clear();
+            section.Content.Dock = DockStyle.Fill;
+            contentHost.Controls.Add(section.Content);
+        }
+
         private static TabPage CreateTab(string title, Control content)
         {
             var tab = new TabPage(title)
@@ -1099,6 +1195,32 @@ namespace NVConso
             {
                 UseShellExecute = true
             });
+        }
+
+        private sealed class SettingsSection
+        {
+            private SettingsSection(string label, Control content)
+            {
+                Label = label;
+                Content = content;
+            }
+
+            public string Label { get; }
+            public Control Content { get; }
+
+            public static SettingsSection FromTab(string label, TabPage tab)
+            {
+                Control content = tab.Controls.Count > 0
+                    ? tab.Controls[0]
+                    : new Panel { Dock = DockStyle.Fill };
+                tab.Controls.Remove(content);
+                return new SettingsSection(label, content);
+            }
+
+            public override string ToString()
+            {
+                return Label;
+            }
         }
 
         private sealed class ComboOption<T>

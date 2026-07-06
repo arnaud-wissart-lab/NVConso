@@ -4,7 +4,7 @@ namespace NVConso
     {
         public static Icon Load()
         {
-            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "NVConso.ico");
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "WattPilot.ico");
             return File.Exists(iconPath)
                 ? new Icon(iconPath)
                 : SystemIcons.Application;

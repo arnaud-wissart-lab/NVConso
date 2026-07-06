@@ -95,5 +95,33 @@ namespace NVConso.Tests
             Assert.Equal("35 %", model.FanSpeed);
             Assert.Equal(DashboardMetricState.Normal, model.TemperatureState);
         }
+
+        [Fact]
+        public void FromSnapshot_ShouldKeepLongMetricValuesUnchanged()
+        {
+            var snapshot = new GpuTelemetrySnapshot(
+                DateTimeOffset.UtcNow,
+                isAvailable: true,
+                "NVML prêt.",
+                selectedGpuIndex: 0,
+                selectedGpuName: "Mock GPU",
+                minimumPowerLimitMilliwatt: 90000,
+                defaultPowerLimitMilliwatt: 180000,
+                maximumPowerLimitMilliwatt: 300000,
+                activePowerMode: GpuPowerMode.Stock,
+                isCustomPowerLimit: false,
+                new GpuTelemetry
+                {
+                    CurrentPowerUsageMilliwatt = 62700,
+                    GpuUtilizationPercent = 100,
+                    MemoryClockMHz = 10701
+                });
+
+            DashboardTelemetryViewModel model = DashboardTelemetryViewModel.FromSnapshot(snapshot);
+
+            Assert.Equal("62.7 W", model.PowerUsage);
+            Assert.Equal("100 %", model.GpuUsage);
+            Assert.Equal("10701 MHz", model.MemoryClock);
+        }
     }
 }

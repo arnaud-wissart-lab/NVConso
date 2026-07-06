@@ -12,7 +12,7 @@ L'historique mémoire est remis à zéro au redémarrage. L'historique disque es
 Chemin par défaut :
 
 ```text
-%LOCALAPPDATA%\NVConso\telemetry\
+%LOCALAPPDATA%\WattPilot\telemetry\
 ```
 
 Arborescence :
@@ -24,6 +24,8 @@ summaries\yyyy-MM.json
 ```
 
 La rétention ne supprime que les fichiers de ces sous-dossiers.
+
+Lors d'une migration depuis l'ancien nom technique, WattPilot déplace `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` si le nouveau dossier n'existe pas encore. Une sauvegarde horodatée est conservée avant déplacement.
 
 ## Activation et fréquence
 

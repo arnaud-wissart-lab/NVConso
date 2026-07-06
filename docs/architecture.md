@@ -1,6 +1,6 @@
 # Architecture WattPilot
 
-Ce document décrit l'architecture réelle de WattPilot. L'application reste une application Windows WinForms, centrée sur la zone de notification.
+Ce document décrit l'architecture réelle de WattPilot. L'application reste centrée sur la zone de notification WinForms, avec un dashboard et des préférences WinForms pendant la stabilisation de la migration WPF.
 
 ## Vue d'ensemble
 
@@ -15,7 +15,7 @@ flowchart LR
   Tray --> Telemetry["GpuTelemetryService"]
   Telemetry --> History["GpuTelemetryHistory"]
   Telemetry --> Recorder["ITelemetryRecorder / CsvTelemetryRecorder"]
-  Recorder --> TelemetryFiles["%LOCALAPPDATA%/NVConso/telemetry"]
+  Recorder --> TelemetryFiles["%LOCALAPPDATA%/WattPilot/telemetry"]
   Dashboard --> Reader["ITelemetryLogReader / CsvTelemetryLogReader"]
   Reader --> TelemetryFiles
   Tray --> DisplayProfiles["DisplayProfileController"]
@@ -33,9 +33,9 @@ flowchart LR
 
 ## Entrée applicative
 
-[Program.cs](../NVConso/Program.cs) initialise l'application WinForms, prépare les services et lance [TrayApplicationContext.cs](../NVConso/TrayApplicationContext.cs). L'application demande l'élévation administrateur, car l'écriture du power limit via NVML peut être refusée sans droits élevés.
+[Program.cs](../NVConso/Program.cs) initialise l'application WinForms pour le tray, prépare les services et lance [TrayApplicationContext.cs](../NVConso/TrayApplicationContext.cs). L'application demande l'élévation administrateur, car l'écriture du power limit via NVML peut être refusée sans droits élevés.
 
-WattPilot n'a pas de fenêtre principale obligatoire. Le menu tray est le point d'entrée principal. Le dashboard et les préférences sont des fenêtres WinForms optionnelles.
+WattPilot n'a pas de fenêtre principale obligatoire. Le menu tray est le point d'entrée principal. Le dashboard et les préférences sont actuellement des fenêtres WinForms optionnelles.
 
 ## Profils GPU
 
@@ -99,16 +99,16 @@ Les préférences sont représentées par [AppSettings.cs](../NVConso/AppSetting
 Chemin :
 
 ```text
-%LOCALAPPDATA%\NVConso\settings.json
+%LOCALAPPDATA%\WattPilot\settings.json
 ```
 
-Le store écrit via un fichier temporaire avant remplacement. Les valeurs inconnues ou invalides sont normalisées quand c'est possible.
+Le store écrit via un fichier temporaire avant remplacement. Les valeurs inconnues ou invalides sont normalisées quand c'est possible. Au lancement réel, il migre `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` si l'ancien dossier existe et que le nouveau n'existe pas encore.
 
 ## Démarrage Windows
 
-[WindowsTaskSchedulerStartupManager.cs](../NVConso/WindowsTaskSchedulerStartupManager.cs) crée ou met à jour une tâche planifiée utilisateur. La tâche utilise l'argument canonique `--tray`.
+[WindowsTaskSchedulerStartupManager.cs](../NVConso/WindowsTaskSchedulerStartupManager.cs) crée ou met à jour une tâche planifiée utilisateur nommée `WattPilot`. La tâche utilise l'argument canonique `--tray`.
 
-L'ancien alias `--minimized` reste reconnu au lancement pour compatibilité, mais les nouvelles tâches utilisent `--tray`.
+L'ancien alias `--minimized` reste reconnu au lancement pour compatibilité, mais les nouvelles tâches utilisent `--tray`. Une ancienne tâche `NVConso` est détectée puis supprimée après création de la tâche `WattPilot`.
 
 ## Mises à jour
 
@@ -118,8 +118,9 @@ L'installation d'une mise à jour demande une action explicite. WattPilot ne rem
 
 ## Choix de conception
 
-- WinForms est conservé pour rester léger et cohérent avec le produit.
+- WinForms est conservé pour `NotifyIcon`, le menu tray compact, le dashboard et les préférences actuels.
 - Les graphes utilisent des contrôles internes, sans dépendance graphique lourde.
 - Les I/O persistantes passent par des services dédiés.
 - Les intégrations externes utilisent des interfaces pour rester testables.
 - Les actions risquées sont désactivées par défaut ou limitées à des changements réversibles.
+- La structure WPF reste dans le dépôt pour la migration progressive, sans remplacer le chemin WinForms actuel.

@@ -12,7 +12,7 @@ namespace NVConso
         public TelemetryLogChartControl()
         {
             DoubleBuffered = true;
-            MinimumSize = new Size(520, 260);
+            MinimumSize = new Size(420, 220);
         }
 
         public void SetData(
@@ -39,7 +39,7 @@ namespace NVConso
             Graphics graphics = e.Graphics;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            Rectangle plotArea = new Rectangle(56, 48, Width - 82, Height - 92);
+            Rectangle plotArea = new Rectangle(62, 50, Width - 84, Height - 94);
             if (plotArea.Width <= 20 || plotArea.Height <= 20)
                 return;
 
@@ -123,10 +123,27 @@ namespace NVConso
                 : unit;
 
             graphics.DrawString(maximumLabel, Font, mutedBrush, 8, plotArea.Top - 6);
-            graphics.DrawString("0", Font, mutedBrush, 28, plotArea.Bottom - 12);
-            graphics.DrawString("00:00", Font, mutedBrush, plotArea.Left, plotArea.Bottom + 8);
-            graphics.DrawString("12:00", Font, mutedBrush, plotArea.Left + (plotArea.Width / 2) - 18, plotArea.Bottom + 8);
-            graphics.DrawString("23:59", Font, mutedBrush, plotArea.Right - 38, plotArea.Bottom + 8);
+            graphics.DrawString("0", Font, mutedBrush, 30, plotArea.Bottom - 12);
+            DrawStringLeft(graphics, "00:00", mutedBrush, plotArea.Left, plotArea.Bottom + 8);
+            DrawStringCentered(graphics, "12:00", mutedBrush, plotArea.Left + (plotArea.Width / 2), plotArea.Bottom + 8);
+            DrawStringRight(graphics, "23:59", mutedBrush, plotArea.Right, plotArea.Bottom + 8);
+        }
+
+        private void DrawStringLeft(Graphics graphics, string text, Brush brush, int x, int y)
+        {
+            graphics.DrawString(text, Font, brush, x, y);
+        }
+
+        private void DrawStringCentered(Graphics graphics, string text, Brush brush, int centerX, int y)
+        {
+            SizeF size = graphics.MeasureString(text, Font);
+            graphics.DrawString(text, Font, brush, centerX - (size.Width / 2), y);
+        }
+
+        private void DrawStringRight(Graphics graphics, string text, Brush brush, int right, int y)
+        {
+            SizeF size = graphics.MeasureString(text, Font);
+            graphics.DrawString(text, Font, brush, right - size.Width, y);
         }
 
         private double ResolveMaximumY()

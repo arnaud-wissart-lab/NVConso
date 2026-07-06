@@ -123,7 +123,7 @@ namespace NVConso
             _customPowerLimitItem.Click += (_, _) => ShowCustomPowerLimitDialog();
             _openDashboardItem.Click += (_, _) => OpenDashboard();
             _preferencesItem.Click += (_, _) => OpenPreferences();
-            trayMenuView.QuitItem.Click += (_, _) => Application.Exit();
+            trayMenuView.QuitItem.Click += (_, _) => System.Windows.Forms.Application.Exit();
 
             _icon = new NotifyIcon
             {
@@ -147,6 +147,7 @@ namespace NVConso
             };
 
             _notifications = new TrayNotificationService(_icon, _statusItem);
+            ShowSettingsMigrationNoticeIfNeeded();
             _updateController = new TrayUpdateController(
                 _settingsService,
                 _updateWorkflow,
@@ -161,6 +162,15 @@ namespace NVConso
 
             if (_settings.ShowDashboardOnStartup)
                 OpenDashboard();
+        }
+
+        private void ShowSettingsMigrationNoticeIfNeeded()
+        {
+            string message = _settingsService.StartupNotice;
+            if (string.IsNullOrWhiteSpace(message))
+                return;
+
+            _notifications.SetStatus(message);
         }
 
         private void SetProfileItemsEnabled(bool enabled)
@@ -211,7 +221,8 @@ namespace NVConso
                 () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
                 ShowCustomPowerLimitDialog,
                 OpenPreferences,
-                _logger);
+                _logger,
+                _updateWorkflow);
 
             return _dashboardForm;
         }
@@ -536,11 +547,11 @@ namespace NVConso
 
         private void OnIconMouseDoubleClick(object sender, MouseEventArgs e)
         {
-            if (TrayIconMouseActions.FromMouseDoubleClick(e.Button) != TrayIconMouseAction.ToggleDashboard)
+            if (TrayIconMouseActions.FromMouseDoubleClick(e.Button) != TrayIconMouseAction.OpenDashboard)
                 return;
 
             _trayClickTimer.Stop();
-            ToggleDashboard();
+            OpenDashboard();
         }
 
         private void OnTelemetrySnapshotUpdated(object sender, GpuTelemetrySnapshot snapshot)
