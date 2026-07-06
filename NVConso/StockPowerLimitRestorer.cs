@@ -22,15 +22,26 @@ namespace NVConso
                 return false;
             }
 
-            bool success = nvml.SetPowerLimit(nvml.DefaultPowerLimit);
-            if (!success)
+            try
+            {
+                bool success = nvml.SetPowerLimit(nvml.DefaultPowerLimit);
+                if (!success)
+                {
+                    logger?.LogWarning(
+                        "[NVML] Échec restauration Stock à la fermeture ({DefaultPowerLimit} mW).",
+                        nvml.DefaultPowerLimit);
+                }
+
+                return success;
+            }
+            catch (Exception exception)
             {
                 logger?.LogWarning(
-                    "[NVML] Échec restauration Stock à la fermeture ({DefaultPowerLimit} mW).",
+                    exception,
+                    "[NVML] Exception ignorée pendant la restauration Stock à la fermeture ({DefaultPowerLimit} mW).",
                     nvml.DefaultPowerLimit);
+                return false;
             }
-
-            return success;
         }
     }
 }

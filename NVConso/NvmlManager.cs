@@ -221,28 +221,43 @@ namespace NVConso
                 return false;
             }
 
-            int result = nvmlDeviceGetHandleByIndex(gpuIndex, out IntPtr device);
-            if (result != NvmlSuccess)
+            try
             {
-                message = $"GPU index {gpuIndex} introuvable: {GetNvmlError(result)}";
+                int result = nvmlDeviceGetHandleByIndex(gpuIndex, out IntPtr device);
+                if (result != NvmlSuccess)
+                {
+                    message = $"GPU index {gpuIndex} introuvable: {GetNvmlError(result)}";
+                    return false;
+                }
+
+                result = nvmlDeviceGetPowerManagementLimitConstraints(device, out uint minLimit, out uint maxLimit);
+                if (result != NvmlSuccess)
+                {
+                    message = "Ce GPU ne prend pas en charge la modification du Power Limit.";
+                    return false;
+                }
+
+                _device = device;
+                _minLimit = minLimit;
+                _defaultLimit = ResolveDefaultPowerLimit(device, minLimit, maxLimit, out bool isDefaultPowerLimitAvailable);
+                _maxLimit = maxLimit;
+                _isDefaultPowerLimitAvailable = isDefaultPowerLimitAvailable;
+                SelectedGpuIndex = gpuIndex;
+                SelectedGpuName = ResolveGpuName(device, gpuIndex);
+                return true;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] nvml.dll introuvable pendant la sélection GPU.");
+                message = "NVML indisponible.";
                 return false;
             }
-
-            result = nvmlDeviceGetPowerManagementLimitConstraints(device, out uint minLimit, out uint maxLimit);
-            if (result != NvmlSuccess)
+            catch (EntryPointNotFoundException ex)
             {
-                message = "Ce GPU ne prend pas en charge la modification du Power Limit.";
+                logger.LogWarning(ex, "[NVML] Sélection GPU non disponible dans cette version de NVML.");
+                message = "Version NVML incompatible avec la sélection GPU.";
                 return false;
             }
-
-            _device = device;
-            _minLimit = minLimit;
-            _defaultLimit = ResolveDefaultPowerLimit(device, minLimit, maxLimit, out bool isDefaultPowerLimitAvailable);
-            _maxLimit = maxLimit;
-            _isDefaultPowerLimitAvailable = isDefaultPowerLimitAvailable;
-            SelectedGpuIndex = gpuIndex;
-            SelectedGpuName = ResolveGpuName(device, gpuIndex);
-            return true;
         }
 
         public uint GetCurrentPowerLimit()
@@ -257,6 +272,11 @@ namespace NVConso
                     return currentLimit;
 
                 logger.LogWarning("[NVML] Lecture limite impossible: {Error} (code {Code})", GetNvmlError(result), result);
+                return 0;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] Lecture limite active impossible: nvml.dll introuvable.");
                 return 0;
             }
             catch (EntryPointNotFoundException ex)
@@ -283,6 +303,11 @@ namespace NVConso
                 }
 
                 logger.LogWarning("[NVML] Lecture consommation impossible: {Error} (code {Code})", GetNvmlError(result), result);
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] Lecture consommation impossible: nvml.dll introuvable.");
                 return false;
             }
             catch (EntryPointNotFoundException ex)
@@ -491,6 +516,11 @@ namespace NVConso
                 logger.LogInformation("[NVML] Limite fixée à {TargetMilliwatt} mW sur GPU #{GpuIndex}", targetMilliwatt, SelectedGpuIndex);
                 return true;
             }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] Écriture limite impossible: nvml.dll introuvable.");
+                return false;
+            }
             catch (EntryPointNotFoundException ex)
             {
                 logger.LogWarning(ex, "[NVML] Écriture limite non disponible dans cette version de NVML.");
@@ -596,8 +626,8 @@ namespace NVConso
             }
 
             logger.LogWarning(
-                "[NVML] Utilisation de la limite maximale comme limite stock de secours ({MaximumLimit} mW).",
-                maxLimit);
+                "[NVML] Limite stock et limite active indisponibles; utilisation de la limite minimale comme secours conservateur ({MinimumLimit} mW).",
+                minLimit);
 
             isDefaultPowerLimitAvailable = false;
             return GpuPowerLimitCalculator.ResolveDefaultPowerLimit(minLimit, maxLimit, null, null);
@@ -618,6 +648,11 @@ namespace NVConso
                     GetNvmlError(result),
                     result);
 
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] Lecture limite stock impossible: nvml.dll introuvable.");
                 return false;
             }
             catch (EntryPointNotFoundException ex)
@@ -642,6 +677,11 @@ namespace NVConso
                     GetNvmlError(result),
                     result);
 
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                logger.LogWarning(ex, "[NVML] Lecture limite active impossible pour calculer la limite stock de secours: nvml.dll introuvable.");
                 return false;
             }
             catch (EntryPointNotFoundException ex)
@@ -670,49 +710,73 @@ namespace NVConso
             message = string.Empty;
             _availableGpus.Clear();
 
-            int result = nvmlDeviceGetCount(out int deviceCount);
-            if (result != NvmlSuccess)
+            try
             {
-                message = $"Énumération GPU impossible: {GetNvmlError(result)}";
-                return false;
-            }
-
-            if (deviceCount <= 0)
-            {
-                message = "Aucun GPU NVIDIA détecté.";
-                return false;
-            }
-
-            for (int index = 0; index < deviceCount; index++)
-            {
-                result = nvmlDeviceGetHandleByIndex(index, out IntPtr device);
+                int result = nvmlDeviceGetCount(out int deviceCount);
                 if (result != NvmlSuccess)
-                    continue;
+                {
+                    message = $"Énumération GPU impossible: {GetNvmlError(result)}";
+                    return false;
+                }
 
-                string name = ResolveGpuName(device, index);
-                _availableGpus.Add(new GpuDeviceInfo(index, name));
+                if (deviceCount <= 0)
+                {
+                    message = "Aucun GPU NVIDIA détecté.";
+                    return false;
+                }
+
+                for (int index = 0; index < deviceCount; index++)
+                {
+                    result = nvmlDeviceGetHandleByIndex(index, out IntPtr device);
+                    if (result != NvmlSuccess)
+                        continue;
+
+                    string name = ResolveGpuName(device, index);
+                    _availableGpus.Add(new GpuDeviceInfo(index, name));
+                }
+
+                if (_availableGpus.Count == 0)
+                {
+                    message = "Aucun GPU NVIDIA accessible.";
+                    return false;
+                }
+
+                return true;
             }
-
-            if (_availableGpus.Count == 0)
+            catch (DllNotFoundException)
             {
-                message = "Aucun GPU NVIDIA accessible.";
+                message = "nvml.dll introuvable. Vérifiez l'installation du pilote NVIDIA.";
                 return false;
             }
-
-            return true;
+            catch (EntryPointNotFoundException)
+            {
+                message = "Version NVML incompatible avec l'énumération GPU.";
+                return false;
+            }
         }
 
         private static string ResolveGpuName(IntPtr device, int gpuIndex)
         {
-            byte[] buffer = new byte[NvmlNameBufferLength];
-            int result = nvmlDeviceGetName(device, buffer, (uint)buffer.Length);
-            if (result != NvmlSuccess)
-                return $"GPU #{gpuIndex}";
+            try
+            {
+                byte[] buffer = new byte[NvmlNameBufferLength];
+                int result = nvmlDeviceGetName(device, buffer, (uint)buffer.Length);
+                if (result != NvmlSuccess)
+                    return $"GPU #{gpuIndex}";
 
-            int nulIndex = Array.IndexOf(buffer, (byte)0);
-            int length = nulIndex >= 0 ? nulIndex : buffer.Length;
-            string name = Encoding.ASCII.GetString(buffer, 0, length).Trim();
-            return string.IsNullOrWhiteSpace(name) ? $"GPU #{gpuIndex}" : name;
+                int nulIndex = Array.IndexOf(buffer, (byte)0);
+                int length = nulIndex >= 0 ? nulIndex : buffer.Length;
+                string name = Encoding.ASCII.GetString(buffer, 0, length).Trim();
+                return string.IsNullOrWhiteSpace(name) ? $"GPU #{gpuIndex}" : name;
+            }
+            catch (DllNotFoundException)
+            {
+                return $"GPU #{gpuIndex}";
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return $"GPU #{gpuIndex}";
+            }
         }
     }
 }

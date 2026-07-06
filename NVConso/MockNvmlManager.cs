@@ -10,7 +10,7 @@ namespace NVConso
         private uint _currentLimit;
 
         public MockNvmlManager(uint minLimit, uint maxLimit)
-            : this(minLimit, maxLimit, maxLimit)
+            : this(minLimit, minLimit, maxLimit)
         {
         }
 
@@ -41,6 +41,8 @@ namespace NVConso
         public int SetPowerLimitCallCount { get; private set; }
 
         public bool SetPowerLimitResult { get; set; } = true;
+
+        public Exception SetPowerLimitException { get; set; }
 
         public GpuTelemetry Telemetry { get; set; } = new()
         {
@@ -119,6 +121,9 @@ namespace NVConso
         {
             LastSetPowerLimit = targetMilliwatt;
             SetPowerLimitCallCount++;
+
+            if (SetPowerLimitException is not null)
+                throw SetPowerLimitException;
 
             if (!SetPowerLimitResult)
                 return false;

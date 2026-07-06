@@ -104,5 +104,27 @@ namespace NVConso.Tests
             Assert.Equal(mock.DefaultPowerLimit, mock.LastSetPowerLimit);
             Assert.Equal(450000u, mock.GetCurrentPowerLimit());
         }
+
+        [Fact]
+        public void TryRestoreStockOnExit_ShouldNotThrow_WhenWriteThrows()
+        {
+            var mock = new MockNvmlManager(150000, 450000, 600000)
+            {
+                SetPowerLimitException = new InvalidOperationException("Écriture NVML refusée.")
+            };
+            var settings = new AppSettings
+            {
+                RestoreStockOnExit = true
+            };
+
+            bool success = StockPowerLimitRestorer.TryRestoreStockOnExit(
+                mock,
+                settings,
+                nvmlReady: true);
+
+            Assert.False(success);
+            Assert.Equal(1, mock.SetPowerLimitCallCount);
+            Assert.Equal(mock.DefaultPowerLimit, mock.LastSetPowerLimit);
+        }
     }
 }

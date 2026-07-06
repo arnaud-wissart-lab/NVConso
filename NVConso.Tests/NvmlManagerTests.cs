@@ -155,7 +155,7 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void ResolveDefaultPowerLimit_ShouldUse_MaximumLimit_WhenDefaultAndCurrentAreUnavailable()
+        public void ResolveDefaultPowerLimit_ShouldUse_MinimumLimit_WhenDefaultAndCurrentAreUnavailable()
         {
             uint resolvedLimit = GpuPowerLimitCalculator.ResolveDefaultPowerLimit(
                 MinimumPowerLimit,
@@ -163,7 +163,7 @@ namespace NVConso.Tests
                 defaultPowerLimit: null,
                 currentPowerLimit: null);
 
-            Assert.Equal(MaximumPowerLimit, resolvedLimit);
+            Assert.Equal(MinimumPowerLimit, resolvedLimit);
         }
 
         [Fact]

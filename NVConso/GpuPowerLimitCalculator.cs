@@ -37,7 +37,7 @@ namespace NVConso
         {
             uint fallbackLimit = defaultPowerLimit
                 ?? currentPowerLimit
-                ?? maximumPowerLimit;
+                ?? minimumPowerLimit;
 
             return Clamp(fallbackLimit, minimumPowerLimit, maximumPowerLimit);
         }
