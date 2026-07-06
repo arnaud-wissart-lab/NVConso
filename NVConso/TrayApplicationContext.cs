@@ -210,7 +210,8 @@ namespace NVConso
                 mode => ApplyProfile(mode, persistSelection: true, showBalloon: true),
                 () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
                 ShowCustomPowerLimitDialog,
-                OpenPreferences);
+                OpenPreferences,
+                _logger);
 
             return _dashboardForm;
         }

@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using System.Drawing;
 
 namespace NVConso.Tests
 {
@@ -61,6 +62,239 @@ namespace NVConso.Tests
             Assert.True(DashboardCloseBehavior.ShouldHideInsteadOfClose(CloseReason.UserClosing));
             Assert.False(DashboardCloseBehavior.ShouldHideInsteadOfClose(CloseReason.ApplicationExitCall));
             Assert.False(DashboardCloseBehavior.ShouldHideInsteadOfClose(CloseReason.WindowsShutDown));
+        }
+
+        public static TheoryData<ThemePalette> DashboardPalettes()
+        {
+            return new TheoryData<ThemePalette>
+            {
+                ThemePalette.Light(),
+                ThemePalette.Dark(),
+                new ThemeService().GetPalette(UiTheme.System)
+            };
+        }
+
+        [Theory]
+        [MemberData(nameof(DashboardPalettes))]
+        public void StatusPillControl_ApplyPalette_ShouldNotThrow(ThemePalette palette)
+        {
+            using var statusPill = new StatusPillControl();
+
+            Exception exception = Record.Exception(() => statusPill.ApplyPalette(palette));
+
+            Assert.Null(exception);
+            Assert.NotEqual(Color.Transparent, statusPill.BackColor);
+            Assert.NotEqual(0, statusPill.BackColor.A);
+            Assert.Equal(palette.PrimaryText, statusPill.ForeColor);
+        }
+
+        [Theory]
+        [InlineData(UiTheme.Light)]
+        [InlineData(UiTheme.Dark)]
+        [InlineData(UiTheme.System)]
+        public void DashboardForm_ApplyPalette_ShouldNotThrow(UiTheme theme)
+        {
+            Exception exception = Record.Exception(() =>
+            {
+                using DashboardForm form = CreateDashboardForm(theme);
+                form.ApplySettings(new AppSettings
+                {
+                    DashboardTheme = theme
+                });
+            });
+
+            Assert.Null(exception);
+        }
+
+        private static DashboardForm CreateDashboardForm(UiTheme theme)
+        {
+            string settingsPath = Path.Combine(
+                Path.GetTempPath(),
+                "NVConso-tests",
+                Guid.NewGuid().ToString("N"),
+                "settings.json");
+            var settingsService = new AppSettingsService(new AppSettingsStore(settingsPath));
+            settingsService.Current.DashboardTheme = theme;
+
+            return new DashboardForm(
+                new FakeGpuTelemetryService(),
+                new FakeDisplayManager(),
+                new FakeTelemetryRecorder(),
+                new FakeTelemetryLogReader(),
+                new FakeCaniculeGuard(),
+                new ThemeService(),
+                settingsService,
+                _ => { },
+                () => { },
+                () => { },
+                () => { });
+        }
+
+        private sealed class FakeGpuTelemetryService : IGpuTelemetryService
+        {
+            public event EventHandler<GpuTelemetrySnapshot> SnapshotUpdated;
+
+            public GpuTelemetrySnapshot CurrentSnapshot { get; } = GpuTelemetrySnapshot.Unavailable("NVML indisponible.");
+            public GpuTelemetryHistory History { get; } = new();
+            public bool IsRunning => false;
+
+            public void SetNvmlState(bool isReady, string statusMessage)
+            {
+            }
+
+            public void SetHistoryCapacitySeconds(int seconds)
+            {
+                History.SetCapacity(seconds);
+            }
+
+            public void Start()
+            {
+            }
+
+            public void StopPolling()
+            {
+            }
+
+            public void RefreshNow()
+            {
+                SnapshotUpdated?.Invoke(this, CurrentSnapshot);
+            }
+        }
+
+        private sealed class FakeDisplayManager : IDisplayManager
+        {
+            public DisplayRuntimeState GetRuntimeState()
+            {
+                return DisplayRuntimeState.Available(
+                [
+                    new DisplayDeviceInfo
+                    {
+                        DeviceName = @"\\.\DISPLAY1",
+                        FriendlyName = "Écran de test",
+                        IsPrimary = true,
+                        Width = 2560,
+                        Height = 1440,
+                        CurrentRefreshRateHz = 120,
+                        MaxRefreshRateHz = 144,
+                        HdrState = DisplayHdrState.Sdr,
+                        VrrDetection = VrrDetectionResult.Unknown(@"\\.\DISPLAY1")
+                    }
+                ]);
+            }
+
+            public DisplayProfileSnapshot CaptureSnapshot()
+            {
+                return DisplayProfileSnapshot.FromRuntimeState(GetRuntimeState());
+            }
+
+            public bool TryApplyRefreshRate(DisplayDeviceInfo display, int refreshRateHz, out string message)
+            {
+                message = "Non utilisé par ce test.";
+                return false;
+            }
+
+            public bool TryRestoreSnapshot(DisplayProfileSnapshot snapshot, out string message)
+            {
+                message = "Non utilisé par ce test.";
+                return true;
+            }
+
+            public void OpenHdrSettings()
+            {
+            }
+
+            public void OpenGraphicsSettings()
+            {
+            }
+
+            public void OpenNvidiaSettings()
+            {
+            }
+        }
+
+        private sealed class FakeTelemetryRecorder : ITelemetryRecorder
+        {
+            public event EventHandler<string> WarningRaised;
+
+            public string TelemetryRootPath { get; } = Path.Combine(Path.GetTempPath(), "NVConso-tests", "telemetry");
+            public TelemetryDailySummary CurrentDailySummary { get; } = TelemetryDailySummary.Create(DateOnly.FromDateTime(DateTime.Today));
+            public bool IsTemporarilyDisabled => false;
+
+            public void ApplySettings(TelemetryLoggingSettings settings)
+            {
+            }
+
+            public void Enqueue(GpuTelemetrySnapshot snapshot)
+            {
+            }
+
+            public void EnqueuePeakEvent(TelemetryPeakEvent peakEvent)
+            {
+            }
+
+            public Task FlushAsync(TimeSpan timeout)
+            {
+                return Task.CompletedTask;
+            }
+
+            public void RunRetentionCleanup()
+            {
+            }
+
+            public bool TryExportCurrentSession(string destinationZipPath, out string message)
+            {
+                message = "Non utilisé par ce test.";
+                return false;
+            }
+
+            public void Dispose()
+            {
+                WarningRaised?.Invoke(this, string.Empty);
+            }
+        }
+
+        private sealed class FakeTelemetryLogReader : ITelemetryLogReader
+        {
+            public string TelemetryRootPath { get; } = Path.Combine(Path.GetTempPath(), "NVConso-tests", "telemetry");
+
+            public Task<TelemetryLogReadResult> ReadDayAsync(
+                DateOnly selectedDate,
+                TelemetryLogReadOptions options,
+                CancellationToken cancellationToken = default)
+            {
+                return Task.FromResult(TelemetryLogReadResult.Missing(
+                    selectedDate,
+                    options?.Metric ?? TelemetryHistoryMetric.PowerUsageW,
+                    "Fichier absent."));
+            }
+        }
+
+        private sealed class FakeCaniculeGuard : ICaniculeGuard
+        {
+            public event EventHandler<CaniculeGuardAlert> AlertRaised;
+
+            public CaniculeGuardState State { get; } = new();
+
+            public CaniculeGuardEvaluationResult Evaluate(
+                GpuTelemetrySnapshot snapshot,
+                AppSettings settings,
+                GpuPowerMode? activeProfile)
+            {
+                return new CaniculeGuardEvaluationResult
+                {
+                    State = State
+                };
+            }
+
+            public void Reset()
+            {
+                AlertRaised?.Invoke(this, new CaniculeGuardAlert
+                {
+                    Type = CaniculeGuardAlertType.PowerHigh,
+                    TimestampUtc = DateTimeOffset.UtcNow,
+                    Message = "Réinitialisation de test."
+                });
+            }
         }
     }
 }

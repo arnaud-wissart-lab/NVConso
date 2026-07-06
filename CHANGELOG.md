@@ -8,9 +8,16 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ### À faire
 
-- Déplacer ici les changements destinés à la prochaine version après `v1.1.0`.
+- Déplacer ici les changements destinés à la prochaine version après `v1.1.1`.
 
-## [1.1.0] - À publier
+## [1.1.1] - 2026-07-06
+
+### Corrigé
+
+- Empêche le crash à l'ouverture du dashboard quand un contrôle WinForms refuse un `BackColor` transparent.
+- Sécurise l'application du thème du dashboard avec une couleur de fond opaque et un fallback clair journalisé.
+
+## [1.1.0] - 2026-07-06
 
 ### Ajouté
 

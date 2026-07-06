@@ -16,13 +16,13 @@ namespace NVConso
         public void ApplyPalette(ThemePalette palette)
         {
             _palette = palette ?? ThemePalette.Light();
-            BackColor = _palette.Surface;
+            UiBackColor.Set(this, _palette.Surface);
             ForeColor = _palette.PrimaryText;
             Invalidate();
 
             foreach (Control child in Controls)
             {
-                child.BackColor = _palette.Surface;
+                UiBackColor.Set(child, _palette.Surface);
                 child.ForeColor = _palette.PrimaryText;
             }
         }

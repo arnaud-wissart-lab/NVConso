@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -17,6 +18,7 @@ namespace NVConso
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
         private readonly Action _openPreferences;
+        private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly Dictionary<string, MetricCardControl> _metrics = [];
         private readonly GaugeControl _powerGauge;
         private readonly GaugeControl _temperatureGauge;
@@ -69,7 +71,8 @@ namespace NVConso
             Action<GpuPowerMode> applyProfile,
             Action restoreStock,
             Action showCustomPowerLimit,
-            Action openPreferences)
+            Action openPreferences,
+            Microsoft.Extensions.Logging.ILogger logger = null)
         {
             _telemetryService = telemetryService;
             _displayManager = displayManager ?? new WindowsDisplayManager();
@@ -83,6 +86,7 @@ namespace NVConso
             _restoreStock = restoreStock;
             _showCustomPowerLimit = showCustomPowerLimit;
             _openPreferences = openPreferences;
+            _logger = logger;
             _palette = _themeService.GetPalette(_settings.DashboardTheme);
 
             Text = $"{ProductNames.DisplayName} - Tableau de bord";
@@ -243,7 +247,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
@@ -254,7 +258,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 RowCount = 5,
                 ColumnCount = 1,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             labels.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
@@ -279,7 +283,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 RowCount = 3,
                 ColumnCount = 1,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             actions.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
             actions.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
@@ -318,7 +322,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 ColumnCount = 4,
                 RowCount = 2,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
 
             for (int index = 0; index < 4; index++)
@@ -356,7 +360,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 4,
-                BackColor = Color.Transparent
+                BackColor = ThemePalette.Light().Surface
             };
 
             for (int index = 0; index < 4; index++)
@@ -389,7 +393,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             card.Controls.Add(flow);
 
@@ -422,7 +426,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 4,
-                BackColor = Color.Transparent
+                BackColor = ThemePalette.Light().Surface
             };
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
@@ -512,7 +516,7 @@ namespace NVConso
                 ColumnCount = 1,
                 RowCount = 2,
                 Margin = new Padding(0, UiSpacing.Medium, 0, 0),
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             summaryPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
             summaryPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
@@ -539,7 +543,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             card.Controls.Add(flow);
 
@@ -576,7 +580,7 @@ namespace NVConso
                 RowCount = 2,
                 ColumnCount = 1,
                 Margin = new Padding(0, 0, UiSpacing.Small, 0),
-                BackColor = Color.Transparent
+                BackColor = ThemePalette.Light().Surface
             };
             panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
             panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -617,7 +621,7 @@ namespace NVConso
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 2,
-                BackColor = Color.Transparent
+                BackColor = _palette.Surface
             };
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -723,8 +727,22 @@ namespace NVConso
 
         private void ApplyPalette()
         {
-            _palette = _themeService.GetPalette(_settings.DashboardTheme);
-            BackColor = _palette.Background;
+            ThemePalette requestedPalette = _themeService.GetPalette(_settings.DashboardTheme);
+            try
+            {
+                ApplyPaletteCore(requestedPalette);
+            }
+            catch (Exception exception) when (IsThemeApplicationException(exception))
+            {
+                _logger?.LogWarning(exception, "Application du thème impossible. Le dashboard utilise le thème clair de secours.");
+                ApplyPaletteCore(ThemePalette.Light());
+            }
+        }
+
+        private void ApplyPaletteCore(ThemePalette palette)
+        {
+            _palette = palette ?? ThemePalette.Light();
+            UiBackColor.Set(this, _palette.Background, _palette.Background);
             ForeColor = _palette.PrimaryText;
 
             foreach (Control control in EnumerateControls(this))
@@ -753,7 +771,7 @@ namespace NVConso
                         profileButton.ApplyPalette(_palette);
                         break;
                     case ListView listView:
-                        listView.BackColor = _palette.Surface;
+                        UiBackColor.Set(listView, _palette.Surface, _palette.Surface);
                         listView.ForeColor = _palette.PrimaryText;
                         break;
                     case TabControl:
@@ -761,19 +779,24 @@ namespace NVConso
                     case ComboBox:
                     case DateTimePicker:
                     case Button:
-                        control.BackColor = _palette.Surface;
+                        UiBackColor.Set(control, _palette.Surface, _palette.Surface);
                         control.ForeColor = _palette.PrimaryText;
                         break;
                     case Label label:
-                        label.BackColor = Color.Transparent;
+                        UiBackColor.Set(label, Color.Transparent, _palette.Surface);
                         label.ForeColor = _palette.PrimaryText;
                         break;
                     case TableLayoutPanel:
                     case FlowLayoutPanel:
-                        control.BackColor = Color.Transparent;
+                        UiBackColor.Set(control, Color.Transparent, _palette.Surface);
                         break;
                 }
             }
+        }
+
+        private static bool IsThemeApplicationException(Exception exception)
+        {
+            return exception is ArgumentException or InvalidOperationException;
         }
 
         private static IEnumerable<Control> EnumerateControls(Control root)

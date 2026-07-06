@@ -29,7 +29,7 @@ namespace NVConso
         public void ApplyPalette(ThemePalette palette)
         {
             _palette = palette ?? ThemePalette.Light();
-            BackColor = Color.Transparent;
+            UiBackColor.Set(this, _palette.Surface);
             ForeColor = _palette.PrimaryText;
             Invalidate();
         }
@@ -37,7 +37,7 @@ namespace NVConso
         protected override void OnPaint(PaintEventArgs e)
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            e.Graphics.Clear(BackColor);
+            e.Graphics.Clear(UiBackColor.ResolvePaintColor(BackColor, _palette.Surface));
 
             Color stateColor = _palette.ResolveStateColor(_state);
             Color background = Color.FromArgb(_palette.IsDark ? 48 : 24, stateColor);
