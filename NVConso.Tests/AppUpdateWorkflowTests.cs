@@ -9,7 +9,7 @@ namespace NVConso.Tests
             {
                 CheckResult = AppUpdateOperationResult.Succeeded(
                     AppUpdateStatus.NoUpdate,
-                    "NVConso est à jour.")
+                    $"{ProductNames.DisplayName} est à jour.")
             };
             var settings = new AppSettings();
             var workflow = new AppUpdateWorkflow(updater);
@@ -99,6 +99,8 @@ namespace NVConso.Tests
             Assert.True(result.Success);
             Assert.Equal(AppUpdateStatus.Downloaded, result.Status);
             Assert.Equal(75, progress.LastValue);
+            Assert.Equal("stable", updater.LastDownloadChannel);
+            Assert.False(updater.LastDownloadIncludePrerelease);
             Assert.Null(settings.LastUpdateError);
         }
 
@@ -130,7 +132,7 @@ namespace NVConso.Tests
             {
                 CheckResult = AppUpdateOperationResult.Failed(
                     AppUpdateStatus.NotInstalled,
-                    "Application non installée via Velopack.")
+                    VelopackAppUpdater.NotInstalledMessage)
             };
             var settings = new AppSettings();
             var workflow = new AppUpdateWorkflow(updater);
@@ -142,7 +144,31 @@ namespace NVConso.Tests
             Assert.False(result.Success);
             Assert.Equal(AppUpdateStatus.NotInstalled, result.Status);
             Assert.NotNull(settings.LastUpdateCheckUtc);
-            Assert.Equal("Application non installée via Velopack.", settings.LastUpdateError);
+            Assert.Equal(VelopackAppUpdater.NotInstalledMessage, settings.LastUpdateError);
+            Assert.Contains(ProductNames.DisplayName, settings.LastUpdateError);
+            Assert.Contains(ProductNames.LegacyTechnicalName, settings.LastUpdateError);
+            Assert.Contains(ProductNames.LatestReleaseUrl, settings.LastUpdateError);
+        }
+
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldStoreNetworkError()
+        {
+            var updater = new FakeAppUpdater
+            {
+                CheckResult = AppUpdateOperationResult.Failed(
+                    AppUpdateStatus.NetworkUnavailable,
+                    "Réseau indisponible pendant la vérification de mise à jour.")
+            };
+            var settings = new AppSettings();
+            var workflow = new AppUpdateWorkflow(updater);
+
+            AppUpdateOperationResult result = await workflow.CheckForUpdatesAsync(
+                settings,
+                TestContext.Current.CancellationToken);
+
+            Assert.False(result.Success);
+            Assert.Equal(AppUpdateStatus.NetworkUnavailable, result.Status);
+            Assert.Equal("Réseau indisponible pendant la vérification de mise à jour.", settings.LastUpdateError);
         }
 
         [Fact]
@@ -152,14 +178,44 @@ namespace NVConso.Tests
             {
                 PendingStatus = PendingUpdateStatus.Pending("1.2.3", "NVConso-1.2.3-full.nupkg")
             };
+            var settings = new AppSettings
+            {
+                UpdateChannel = "beta",
+                IncludePrereleaseUpdates = true
+            };
             var workflow = new AppUpdateWorkflow(updater);
 
-            PendingUpdateStatus status = workflow.GetPendingUpdateStatus();
+            PendingUpdateStatus status = workflow.GetPendingUpdateStatus(settings);
 
             Assert.True(status.IsPendingRestart);
             Assert.Equal("1.2.3", status.Version);
             Assert.Equal("NVConso-1.2.3-full.nupkg", status.FileName);
             Assert.Contains("Mise à jour prête", status.Message);
+            Assert.Equal("beta", updater.LastPendingChannel);
+            Assert.True(updater.LastPendingIncludePrerelease);
+        }
+
+        [Fact]
+        public async Task ApplyUpdateAndRestartAsync_ShouldUseConfiguredChannelAndTrayArgument()
+        {
+            var updater = new FakeAppUpdater();
+            var settings = new AppSettings
+            {
+                UpdateChannel = "preview",
+                IncludePrereleaseUpdates = true
+            };
+            var workflow = new AppUpdateWorkflow(updater);
+
+            AppUpdateOperationResult result = await workflow.ApplyUpdateAndRestartAsync(
+                settings,
+            [
+                StartupLaunchOptions.TrayArgument
+            ]);
+
+            Assert.True(result.Success);
+            Assert.Equal("preview", updater.LastApplyChannel);
+            Assert.True(updater.LastApplyIncludePrerelease);
+            Assert.Equal(new[] { StartupLaunchOptions.TrayArgument }, updater.LastRestartArgs);
         }
 
         private static AppUpdateInfo CreateUpdate(string version)
@@ -174,7 +230,7 @@ namespace NVConso.Tests
         private sealed class FakeAppUpdater : IAppUpdater
         {
             public AppUpdateOperationResult CheckResult { get; set; } =
-                AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "NVConso est à jour.");
+                AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, $"{ProductNames.DisplayName} est à jour.");
 
             public AppUpdateOperationResult DownloadResult { get; set; } =
                 AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "Aucune mise à jour.");
@@ -186,6 +242,13 @@ namespace NVConso.Tests
 
             public string LastChannel { get; private set; }
             public bool LastIncludePrerelease { get; private set; }
+            public string LastDownloadChannel { get; private set; }
+            public bool LastDownloadIncludePrerelease { get; private set; }
+            public string LastApplyChannel { get; private set; }
+            public bool LastApplyIncludePrerelease { get; private set; }
+            public string[] LastRestartArgs { get; private set; }
+            public string LastPendingChannel { get; private set; }
+            public bool LastPendingIncludePrerelease { get; private set; }
             public int ProgressValue { get; set; }
 
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(
@@ -199,20 +262,32 @@ namespace NVConso.Tests
             }
 
             public Task<AppUpdateOperationResult> DownloadUpdateAsync(
+                string channel,
+                bool includePrerelease,
                 IProgress<int> progress = null,
                 CancellationToken cancellationToken = default)
             {
+                LastDownloadChannel = channel;
+                LastDownloadIncludePrerelease = includePrerelease;
                 progress?.Report(ProgressValue);
                 return Task.FromResult(DownloadResult);
             }
 
-            public Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(string[] restartArgs = null)
+            public Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(
+                string channel,
+                bool includePrerelease,
+                string[] restartArgs = null)
             {
+                LastApplyChannel = channel;
+                LastApplyIncludePrerelease = includePrerelease;
+                LastRestartArgs = restartArgs?.ToArray();
                 return Task.FromResult(ApplyResult);
             }
 
-            public PendingUpdateStatus GetPendingUpdateStatus()
+            public PendingUpdateStatus GetPendingUpdateStatus(string channel, bool includePrerelease)
             {
+                LastPendingChannel = channel;
+                LastPendingIncludePrerelease = includePrerelease;
                 return PendingStatus;
             }
         }

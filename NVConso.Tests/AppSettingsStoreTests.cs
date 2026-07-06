@@ -34,6 +34,19 @@ namespace NVConso.Tests
                 Assert.Equal(CaniculeGuardDefaults.TemperatureThresholdCelsius, settings.CaniculeGuardTemperatureThresholdCelsius);
                 Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, settings.CaniculeGuardAlertDelaySeconds);
                 Assert.Equal(CaniculeGuardDefaults.CooldownSeconds, settings.CaniculeGuardCooldownSeconds);
+                Assert.True(settings.RecordingEnabled);
+                Assert.Equal(1, settings.RecordingIntervalSeconds);
+                Assert.Equal(30, settings.TelemetryRetentionDays);
+                Assert.Equal(100, settings.PeakPowerThresholdWatts);
+                Assert.Equal(70, settings.PeakTemperatureThresholdCelsius);
+                Assert.False(settings.EnableDisplayProfiles);
+                Assert.True(settings.RestoreDisplayStateOnStock);
+                Assert.True(settings.RestoreDisplayStateOnExit);
+                Assert.Equal(60, settings.CaniculeTargetRefreshRateHz);
+                Assert.Equal(120, settings.VideoSurfTargetRefreshRateHz);
+                Assert.Equal(120, settings.Indie2DTargetRefreshRateHz);
+                Assert.False(settings.AllowExperimentalHdrChanges);
+                Assert.False(settings.AllowExperimentalVrrChanges);
                 Assert.False(settings.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Stock, settings.LastSelectedMode);
             }
@@ -81,6 +94,19 @@ namespace NVConso.Tests
                     CaniculeGuardTemperatureThresholdCelsius = 79,
                     CaniculeGuardAlertDelaySeconds = 45,
                     CaniculeGuardCooldownSeconds = 420,
+                    RecordingEnabled = false,
+                    RecordingIntervalSeconds = 15,
+                    TelemetryRetentionDays = 90,
+                    PeakPowerThresholdWatts = 175,
+                    PeakTemperatureThresholdCelsius = 83,
+                    EnableDisplayProfiles = true,
+                    RestoreDisplayStateOnStock = false,
+                    RestoreDisplayStateOnExit = false,
+                    CaniculeTargetRefreshRateHz = 50,
+                    VideoSurfTargetRefreshRateHz = 100,
+                    Indie2DTargetRefreshRateHz = 144,
+                    AllowExperimentalHdrChanges = true,
+                    AllowExperimentalVrrChanges = true,
                     HasSavedMode = true,
                     LastSelectedMode = GpuPowerMode.Indie2D,
                     CustomPowerLimitMilliwatt = 225000
@@ -115,6 +141,19 @@ namespace NVConso.Tests
                 Assert.Equal(79, actual.CaniculeGuardTemperatureThresholdCelsius);
                 Assert.Equal(45, actual.CaniculeGuardAlertDelaySeconds);
                 Assert.Equal(420, actual.CaniculeGuardCooldownSeconds);
+                Assert.False(actual.RecordingEnabled);
+                Assert.Equal(15, actual.RecordingIntervalSeconds);
+                Assert.Equal(90, actual.TelemetryRetentionDays);
+                Assert.Equal(175, actual.PeakPowerThresholdWatts);
+                Assert.Equal(83, actual.PeakTemperatureThresholdCelsius);
+                Assert.True(actual.EnableDisplayProfiles);
+                Assert.False(actual.RestoreDisplayStateOnStock);
+                Assert.False(actual.RestoreDisplayStateOnExit);
+                Assert.Equal(50, actual.CaniculeTargetRefreshRateHz);
+                Assert.Equal(100, actual.VideoSurfTargetRefreshRateHz);
+                Assert.Equal(144, actual.Indie2DTargetRefreshRateHz);
+                Assert.True(actual.AllowExperimentalHdrChanges);
+                Assert.True(actual.AllowExperimentalVrrChanges);
                 Assert.True(actual.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Indie2D, actual.LastSelectedMode);
                 Assert.Equal(225000u, actual.CustomPowerLimitMilliwatt);
@@ -133,6 +172,17 @@ namespace NVConso.Tests
                 Assert.Contains("\"TelemetryHistorySeconds\": 600", rawSettings);
                 Assert.Contains("\"CaniculeGuardEnabled\": true", rawSettings);
                 Assert.Contains("\"CaniculeGuardPowerThresholdWatts\": 210", rawSettings);
+                Assert.Contains("\"RecordingEnabled\": false", rawSettings);
+                Assert.Contains("\"RecordingIntervalSeconds\": 15", rawSettings);
+                Assert.Contains("\"TelemetryRetentionDays\": 90", rawSettings);
+                Assert.Contains("\"PeakPowerThresholdWatts\": 175", rawSettings);
+                Assert.Contains("\"PeakTemperatureThresholdCelsius\": 83", rawSettings);
+                Assert.Contains("\"EnableDisplayProfiles\": true", rawSettings);
+                Assert.Contains("\"RestoreDisplayStateOnStock\": false", rawSettings);
+                Assert.Contains("\"RestoreDisplayStateOnExit\": false", rawSettings);
+                Assert.Contains("\"CaniculeTargetRefreshRateHz\": 50", rawSettings);
+                Assert.Contains("\"AllowExperimentalHdrChanges\": true", rawSettings);
+                Assert.Contains("\"AllowExperimentalVrrChanges\": true", rawSettings);
                 Assert.Contains("\"CustomPowerLimitMilliwatt\": 225000", rawSettings);
                 Assert.Contains("\"LastSelectedMode\": \"Indie2D\"", rawSettings);
             }
@@ -155,7 +205,14 @@ namespace NVConso.Tests
                       "CaniculeGuardPowerThresholdWatts": -50,
                       "CaniculeGuardTemperatureThresholdCelsius": 200,
                       "CaniculeGuardAlertDelaySeconds": 0,
-                      "CaniculeGuardCooldownSeconds": 999999
+                      "CaniculeGuardCooldownSeconds": 999999,
+                      "RecordingIntervalSeconds": 999,
+                      "TelemetryRetentionDays": 999,
+                      "PeakPowerThresholdWatts": 0,
+                      "PeakTemperatureThresholdCelsius": 999,
+                      "CaniculeTargetRefreshRateHz": 0,
+                      "VideoSurfTargetRefreshRateHz": 9999,
+                      "Indie2DTargetRefreshRateHz": -20
                     }
                     """);
 
@@ -167,6 +224,13 @@ namespace NVConso.Tests
                 Assert.Equal(AppSettingsValidator.MaximumCaniculeTemperatureThresholdCelsius, settings.CaniculeGuardTemperatureThresholdCelsius);
                 Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, settings.CaniculeGuardAlertDelaySeconds);
                 Assert.Equal(AppSettingsValidator.MaximumCaniculeCooldownSeconds, settings.CaniculeGuardCooldownSeconds);
+                Assert.Equal(AppSettingsValidator.MaximumRecordingIntervalSeconds, settings.RecordingIntervalSeconds);
+                Assert.Equal(AppSettingsValidator.MaximumTelemetryRetentionDays, settings.TelemetryRetentionDays);
+                Assert.Equal(100, settings.PeakPowerThresholdWatts);
+                Assert.Equal(AppSettingsValidator.MaximumPeakTemperatureThresholdCelsius, settings.PeakTemperatureThresholdCelsius);
+                Assert.Equal(60, settings.CaniculeTargetRefreshRateHz);
+                Assert.Equal(AppSettingsValidator.MaximumDisplayRefreshRateHz, settings.VideoSurfTargetRefreshRateHz);
+                Assert.Equal(120, settings.Indie2DTargetRefreshRateHz);
             }
             finally
             {

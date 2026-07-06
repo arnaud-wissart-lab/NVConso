@@ -4,7 +4,7 @@ namespace NVConso
 {
     public sealed class WindowsTaskSchedulerStartupManager : IStartupManager
     {
-        public const string TaskName = "NVConso";
+        public const string TaskName = ProductNames.StartupTaskName;
 
         private readonly IStartupTaskScheduler _taskScheduler;
         private readonly StartupApplicationInfo _applicationInfo;
@@ -58,7 +58,7 @@ namespace NVConso
             {
                 _logger?.LogError(exception, "Impossible de créer ou mettre à jour la tâche planifiée de démarrage.");
                 return StartupOperationResult.Failed(
-                    $"Impossible de créer la tâche planifiée NVConso : {exception.Message}",
+                    $"Impossible de créer la tâche planifiée {TaskName} : {exception.Message}",
                     StartupTaskStatus.Unavailable("Création de la tâche planifiée impossible."));
             }
 
@@ -66,12 +66,12 @@ namespace NVConso
             if (!status.IsEnabledForCurrentExecutable)
             {
                 return StartupOperationResult.Failed(
-                    "La tâche planifiée NVConso a été créée, mais sa configuration ne correspond pas au lancement courant.",
+                    $"La tâche planifiée {TaskName} a été créée, mais sa configuration ne correspond pas au lancement courant.",
                     status);
             }
 
             return StartupOperationResult.Succeeded(
-                "Démarrage Windows activé via la tâche planifiée NVConso.",
+                $"Démarrage Windows activé via la tâche planifiée {TaskName}.",
                 status);
         }
 
@@ -85,7 +85,7 @@ namespace NVConso
             {
                 _logger?.LogError(exception, "Impossible de supprimer la tâche planifiée de démarrage.");
                 return StartupOperationResult.Failed(
-                    $"Impossible de supprimer la tâche planifiée NVConso : {exception.Message}",
+                    $"Impossible de supprimer la tâche planifiée {TaskName} : {exception.Message}",
                     StartupTaskStatus.Unavailable("Suppression de la tâche planifiée impossible."));
             }
 
@@ -93,7 +93,7 @@ namespace NVConso
             if (status.Exists)
             {
                 return StartupOperationResult.Failed(
-                    "La tâche planifiée NVConso existe encore après la demande de suppression.",
+                    $"La tâche planifiée {TaskName} existe encore après la demande de suppression.",
                     status);
             }
 
@@ -108,42 +108,49 @@ namespace NVConso
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée NVConso existe mais appartient à un autre utilisateur : {task.UserId}");
+                    $"La tâche planifiée {TaskName} existe mais appartient à un autre utilisateur : {task.UserId}");
             }
 
             if (!PathsEqual(task.ExecutablePath, _applicationInfo.ExecutablePath))
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée NVConso existe mais pointe vers un ancien chemin : {task.ExecutablePath}");
+                    $"La tâche planifiée {TaskName} existe mais pointe vers un ancien chemin : {task.ExecutablePath}");
             }
 
             if (!PathsEqual(task.WorkingDirectory, _applicationInfo.WorkingDirectory))
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée NVConso existe mais utilise un dossier de travail inattendu : {task.WorkingDirectory}");
+                    $"La tâche planifiée {TaskName} existe mais utilise un dossier de travail inattendu : {task.WorkingDirectory}");
+            }
+
+            if (!StartupLaunchOptions.IsTrayLaunchArguments(task.Arguments))
+            {
+                return StartupTaskStatus.NeedsUpdate(
+                    task,
+                    $"La tâche planifiée {TaskName} existe mais utilise un argument de lancement inattendu : {task.Arguments}");
             }
 
             if (!task.HasLogonTrigger)
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    "La tâche planifiée NVConso existe mais n'a pas de déclencheur à l'ouverture de session.");
+                    $"La tâche planifiée {TaskName} existe mais n'a pas de déclencheur à l'ouverture de session.");
             }
 
             if (!UserIdsEqual(task.LogonTriggerUserId, _applicationInfo.UserId))
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée NVConso existe mais son déclencheur cible un autre utilisateur : {task.LogonTriggerUserId}");
+                    $"La tâche planifiée {TaskName} existe mais son déclencheur cible un autre utilisateur : {task.LogonTriggerUserId}");
             }
 
             if (!task.RunWithHighestPrivileges)
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    "La tâche planifiée NVConso existe mais n'est pas configurée avec les privilèges les plus élevés.");
+                    $"La tâche planifiée {TaskName} existe mais n'est pas configurée avec les privilèges les plus élevés.");
             }
 
             return StartupTaskStatus.Enabled(task);
@@ -151,14 +158,10 @@ namespace NVConso
 
         private StartupTaskInfo BuildDesiredTask(bool startMinimized)
         {
-            string arguments = startMinimized
-                ? StartupLaunchOptions.TrayArgument
-                : StartupLaunchOptions.MinimizedArgument;
-
             return new StartupTaskInfo(
                 TaskName,
                 _applicationInfo.ExecutablePath,
-                arguments,
+                StartupLaunchOptions.TrayArgument,
                 _applicationInfo.WorkingDirectory,
                 _applicationInfo.UserId,
                 runWithHighestPrivileges: true,

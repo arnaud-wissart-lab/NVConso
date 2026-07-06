@@ -49,7 +49,7 @@ namespace NVConso
             dynamic taskDefinition = service.NewTask(0);
 
             taskDefinition.RegistrationInfo.Description =
-                "Démarre NVConso à l'ouverture de session de l'utilisateur courant.";
+                $"Démarre {ProductNames.DisplayName} à l'ouverture de session de l'utilisateur courant.";
             taskDefinition.RegistrationInfo.Author = task.UserId;
 
             taskDefinition.Principal.UserId = task.UserId;

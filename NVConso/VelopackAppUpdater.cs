@@ -7,13 +7,18 @@ namespace NVConso
 {
     public sealed class VelopackAppUpdater : IAppUpdater
     {
-        public const string RepositoryUrl = "https://github.com/arnaud-wissart-lab/NVConso";
         public const string StableChannel = "stable";
+        public static string RepositoryUrl => ProductNames.RepositoryUrl;
+        public static string TechnicalIdentityCompatibilityMessage =>
+            $"{ProductNames.DisplayName} utilise encore l'identifiant technique {ProductNames.LegacyTechnicalName} pour préserver la compatibilité des mises à jour.";
+        public static string NotInstalledMessage =>
+            $"Application non installée via Velopack : l'auto-update complet nécessite l'installation {ProductNames.DisplayName}/{ProductNames.LegacyTechnicalName} via Velopack. {TechnicalIdentityCompatibilityMessage} Téléchargements : {ProductNames.LatestReleaseUrl}";
 
         private readonly ILogger<VelopackAppUpdater> _logger;
         private readonly Func<string, bool, UpdateManager> _updateManagerFactory;
         private UpdateInfo _lastUpdate;
         private string _lastChannel = StableChannel;
+        private bool _lastIncludePrerelease;
 
         public VelopackAppUpdater(ILogger<VelopackAppUpdater> logger = null)
             : this(CreateUpdateManager, logger)
@@ -36,15 +41,17 @@ namespace NVConso
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                UpdateManager manager = CreateManager(channel, includePrerelease);
-                _lastChannel = NormalizeChannel(channel);
+                string resolvedChannel = NormalizeChannel(channel);
+                UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
+                _lastChannel = resolvedChannel;
+                _lastIncludePrerelease = includePrerelease;
                 AppUpdateOperationResult installedCheck = EnsureInstalled(manager);
                 if (installedCheck is not null)
                     return installedCheck;
 
                 _lastUpdate = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
                 if (_lastUpdate is null)
-                    return AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "NVConso est à jour.");
+                    return AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, $"{ProductNames.DisplayName} est à jour.");
 
                 return AppUpdateOperationResult.Succeeded(
                     AppUpdateStatus.UpdateAvailable,
@@ -58,18 +65,26 @@ namespace NVConso
         }
 
         public async Task<AppUpdateOperationResult> DownloadUpdateAsync(
+            string channel,
+            bool includePrerelease,
             IProgress<int> progress = null,
             CancellationToken cancellationToken = default)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                UpdateManager manager = CreateManager(_lastChannel);
+                string resolvedChannel = NormalizeChannel(channel);
+                UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
+                _lastChannel = resolvedChannel;
+                _lastIncludePrerelease = includePrerelease;
                 AppUpdateOperationResult installedCheck = EnsureInstalled(manager);
                 if (installedCheck is not null)
                     return installedCheck;
 
-                UpdateInfo update = _lastUpdate ?? await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+                UpdateInfo update = IsCachedUpdateFor(resolvedChannel, includePrerelease)
+                    ? _lastUpdate
+                    : await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+
                 if (update is null)
                     return AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "Aucune mise à jour à télécharger.");
 
@@ -89,24 +104,32 @@ namespace NVConso
             }
         }
 
-        public Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(string[] restartArgs = null)
+        public Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(
+            string channel,
+            bool includePrerelease,
+            string[] restartArgs = null)
         {
             try
             {
-                UpdateManager manager = CreateManager(StableChannel);
+                string resolvedChannel = NormalizeChannel(channel);
+                UpdateManager manager = CreateManager(resolvedChannel, includePrerelease);
                 AppUpdateOperationResult installedCheck = EnsureInstalled(manager);
                 if (installedCheck is not null)
                     return Task.FromResult(installedCheck);
 
                 VelopackAsset pendingUpdate = manager.UpdatePendingRestart;
-                if (pendingUpdate is null && _lastUpdate is null)
+                UpdateInfo cachedUpdate = IsCachedUpdateFor(resolvedChannel, includePrerelease)
+                    ? _lastUpdate
+                    : null;
+
+                if (pendingUpdate is null && cachedUpdate is null)
                 {
                     return Task.FromResult(AppUpdateOperationResult.Failed(
                         AppUpdateStatus.Failed,
                         "Aucune mise à jour téléchargée n'est prête à installer."));
                 }
 
-                VelopackAsset updateToApply = pendingUpdate ?? _lastUpdate.TargetFullRelease;
+                VelopackAsset updateToApply = pendingUpdate ?? cachedUpdate.TargetFullRelease;
                 manager.ApplyUpdatesAndRestart(updateToApply, restartArgs);
 
                 return Task.FromResult(AppUpdateOperationResult.Succeeded(
@@ -119,13 +142,13 @@ namespace NVConso
             }
         }
 
-        public PendingUpdateStatus GetPendingUpdateStatus()
+        public PendingUpdateStatus GetPendingUpdateStatus(string channel, bool includePrerelease)
         {
             try
             {
-                UpdateManager manager = CreateManager(StableChannel);
+                UpdateManager manager = CreateManager(channel, includePrerelease);
                 if (!manager.IsInstalled || manager.IsPortable)
-                    return PendingUpdateStatus.None("Application non installée via Velopack.");
+                    return PendingUpdateStatus.None(NotInstalledMessage);
 
                 VelopackAsset pendingUpdate = manager.UpdatePendingRestart;
                 return pendingUpdate is null
@@ -155,14 +178,16 @@ namespace NVConso
                 });
         }
 
-        private UpdateManager CreateManager(string channel)
-        {
-            return _updateManagerFactory(NormalizeChannel(channel), false);
-        }
-
         private UpdateManager CreateManager(string channel, bool includePrerelease)
         {
             return _updateManagerFactory(NormalizeChannel(channel), includePrerelease);
+        }
+
+        private bool IsCachedUpdateFor(string channel, bool includePrerelease)
+        {
+            return _lastUpdate is not null
+                && string.Equals(_lastChannel, NormalizeChannel(channel), StringComparison.OrdinalIgnoreCase)
+                && _lastIncludePrerelease == includePrerelease;
         }
 
         private static AppUpdateOperationResult EnsureInstalled(UpdateManager manager)
@@ -172,7 +197,7 @@ namespace NVConso
 
             return AppUpdateOperationResult.Failed(
                 AppUpdateStatus.NotInstalled,
-                "Application non installée via Velopack : l'auto-update est indisponible pour une exécution Debug/bin ou un ZIP portable.");
+                NotInstalledMessage);
         }
 
         private static string NormalizeChannel(string channel)
@@ -190,7 +215,7 @@ namespace NVConso
                     _logger?.LogWarning(exception, "Velopack indisponible : application non installée.");
                     return AppUpdateOperationResult.Failed(
                         AppUpdateStatus.NotInstalled,
-                        "Application non installée via Velopack : l'auto-update est indisponible pour une exécution Debug/bin ou un ZIP portable.");
+                        NotInstalledMessage);
 
                 case ChecksumFailedException:
                     _logger?.LogError(exception, "Checksum Velopack invalide pendant {Operation}.", operation);

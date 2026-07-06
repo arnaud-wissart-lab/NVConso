@@ -27,7 +27,7 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void Enable_ShouldUseMinimizedArgument_WhenStartMinimizedIsDisabled()
+        public void Enable_ShouldUseTrayArgument_WhenStartMinimizedIsDisabled()
         {
             var scheduler = new FakeStartupTaskScheduler();
             WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
@@ -35,7 +35,7 @@ namespace NVConso.Tests
             StartupOperationResult result = manager.Enable(startMinimized: false);
 
             Assert.True(result.Success);
-            Assert.Equal(StartupLaunchOptions.MinimizedArgument, scheduler.Task.Arguments);
+            Assert.Equal(StartupLaunchOptions.TrayArgument, scheduler.Task.Arguments);
         }
 
         [Fact]
@@ -72,19 +72,13 @@ namespace NVConso.Tests
             Assert.Contains("activé", status.Message);
         }
 
-        [Fact]
-        public void GetStatus_ShouldRequireUpdate_WhenTaskUsesOldPath()
+        [Theory]
+        [MemberData(nameof(TaskStatusUpdateCases))]
+        public void GetStatus_ShouldRequireUpdate_ForMismatchingTask(StartupTaskInfo task, string expectedMessageFragment)
         {
             var scheduler = new FakeStartupTaskScheduler
             {
-                Task = new StartupTaskInfo(
-                    WindowsTaskSchedulerStartupManager.TaskName,
-                    @"D:\Ancien dossier\NVConso.exe",
-                    StartupLaunchOptions.TrayArgument,
-                    CurrentWorkingDirectory,
-                    UserId,
-                    runWithHighestPrivileges: true,
-                    hasLogonTrigger: true)
+                Task = task
             };
             WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
 
@@ -92,55 +86,7 @@ namespace NVConso.Tests
 
             Assert.True(status.Exists);
             Assert.False(status.IsEnabledForCurrentExecutable);
-            Assert.Contains("ancien chemin", status.Message);
-        }
-
-        [Fact]
-        public void GetStatus_ShouldRequireUpdate_WhenTaskBelongsToAnotherUser()
-        {
-            var scheduler = new FakeStartupTaskScheduler
-            {
-                Task = new StartupTaskInfo(
-                    WindowsTaskSchedulerStartupManager.TaskName,
-                    CurrentExecutablePath,
-                    StartupLaunchOptions.TrayArgument,
-                    CurrentWorkingDirectory,
-                    @"TEST\autre",
-                    runWithHighestPrivileges: true,
-                    hasLogonTrigger: true,
-                    logonTriggerUserId: UserId)
-            };
-            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
-
-            StartupTaskStatus status = manager.GetStatus();
-
-            Assert.True(status.Exists);
-            Assert.False(status.IsEnabledForCurrentExecutable);
-            Assert.Contains("autre utilisateur", status.Message);
-        }
-
-        [Fact]
-        public void GetStatus_ShouldRequireUpdate_WhenLogonTriggerTargetsAnotherUser()
-        {
-            var scheduler = new FakeStartupTaskScheduler
-            {
-                Task = new StartupTaskInfo(
-                    WindowsTaskSchedulerStartupManager.TaskName,
-                    CurrentExecutablePath,
-                    StartupLaunchOptions.TrayArgument,
-                    CurrentWorkingDirectory,
-                    UserId,
-                    runWithHighestPrivileges: true,
-                    hasLogonTrigger: true,
-                    logonTriggerUserId: @"TEST\autre")
-            };
-            WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
-
-            StartupTaskStatus status = manager.GetStatus();
-
-            Assert.True(status.Exists);
-            Assert.False(status.IsEnabledForCurrentExecutable);
-            Assert.Contains("déclencheur cible un autre utilisateur", status.Message);
+            Assert.Contains(expectedMessageFragment, status.Message);
         }
 
         [Fact]
@@ -261,6 +207,56 @@ namespace NVConso.Tests
                 UserId,
                 runWithHighestPrivileges: true,
                 hasLogonTrigger: true);
+        }
+
+        public static IEnumerable<object[]> TaskStatusUpdateCases()
+        {
+            yield return
+            [
+                new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    @"D:\Ancien dossier\NVConso.exe",
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    UserId,
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true),
+                "ancien chemin"
+            ];
+
+            yield return
+            [
+                CreateCurrentTask("--other"),
+                "argument de lancement inattendu"
+            ];
+
+            yield return
+            [
+                new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    @"TEST\autre",
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: UserId),
+                "autre utilisateur"
+            ];
+
+            yield return
+            [
+                new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    UserId,
+                    runWithHighestPrivileges: true,
+                    hasLogonTrigger: true,
+                    logonTriggerUserId: @"TEST\autre"),
+                "déclencheur cible un autre utilisateur"
+            ];
         }
 
         private sealed class FakeStartupTaskScheduler : IStartupTaskScheduler

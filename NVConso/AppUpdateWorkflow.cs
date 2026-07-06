@@ -31,7 +31,11 @@ namespace NVConso
             CancellationToken cancellationToken = default)
         {
             AppUpdateOperationResult result = await _appUpdater
-                .DownloadUpdateAsync(progress, cancellationToken)
+                .DownloadUpdateAsync(
+                    ResolveChannel(settings),
+                    settings.IncludePrereleaseUpdates,
+                    progress,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             settings.LastUpdateError = result.Success ? null : result.Message;
@@ -43,16 +47,21 @@ namespace NVConso
             string[] restartArgs = null)
         {
             AppUpdateOperationResult result = await _appUpdater
-                .ApplyUpdateAndRestartAsync(restartArgs)
+                .ApplyUpdateAndRestartAsync(
+                    ResolveChannel(settings),
+                    settings.IncludePrereleaseUpdates,
+                    restartArgs)
                 .ConfigureAwait(false);
 
             settings.LastUpdateError = result.Success ? null : result.Message;
             return result;
         }
 
-        public PendingUpdateStatus GetPendingUpdateStatus()
+        public PendingUpdateStatus GetPendingUpdateStatus(AppSettings settings)
         {
-            return _appUpdater.GetPendingUpdateStatus();
+            return _appUpdater.GetPendingUpdateStatus(
+                ResolveChannel(settings),
+                settings.IncludePrereleaseUpdates);
         }
 
         private static string ResolveChannel(AppSettings settings)

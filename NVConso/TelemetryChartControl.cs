@@ -10,12 +10,14 @@ namespace NVConso
         {
             Title = title;
             FixedMaximumY = fixedMaximumY;
+            TimeRangeLabel = "historique";
             DoubleBuffered = true;
             MinimumSize = new Size(260, 180);
         }
 
         public string Title { get; }
         public double? FixedMaximumY { get; }
+        public string TimeRangeLabel { get; private set; }
 
         public void AddSeries(string name, Color color, Func<GpuTelemetrySnapshot, double?> valueAccessor)
         {
@@ -25,6 +27,12 @@ namespace NVConso
         public void SetData(GpuTelemetrySnapshot[] snapshots)
         {
             _snapshots = snapshots ?? [];
+            Invalidate();
+        }
+
+        public void SetTimeRangeSeconds(int seconds)
+        {
+            TimeRangeLabel = FormatDurationLabel(seconds);
             Invalidate();
         }
 
@@ -74,8 +82,22 @@ namespace NVConso
 
             graphics.DrawString(maxLabel, Font, mutedBrush, 8, plotArea.Top - 6);
             graphics.DrawString("0", Font, mutedBrush, 24, plotArea.Bottom - 12);
-            graphics.DrawString("5 min", Font, mutedBrush, plotArea.Left, plotArea.Bottom + 8);
+            graphics.DrawString(TimeRangeLabel, Font, mutedBrush, plotArea.Left, plotArea.Bottom + 8);
             graphics.DrawString("maintenant", Font, mutedBrush, plotArea.Right - 68, plotArea.Bottom + 8);
+        }
+
+        public static string FormatDurationLabel(int seconds)
+        {
+            if (seconds < 60)
+                return $"{Math.Max(1, seconds)} s";
+
+            if (seconds < 3600)
+                return $"{Math.Max(1, seconds / 60)} min";
+
+            double hours = seconds / 3600.0;
+            return hours >= 10
+                ? $"{hours:0} h"
+                : $"{hours:0.#} h";
         }
 
         private void DrawLegend(Graphics graphics, Brush mutedBrush)

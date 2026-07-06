@@ -8,11 +8,16 @@ namespace NVConso
             CancellationToken cancellationToken = default);
 
         Task<AppUpdateOperationResult> DownloadUpdateAsync(
+            string channel,
+            bool includePrerelease,
             IProgress<int> progress = null,
             CancellationToken cancellationToken = default);
 
-        Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(string[] restartArgs = null);
+        Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(
+            string channel,
+            bool includePrerelease,
+            string[] restartArgs = null);
 
-        PendingUpdateStatus GetPendingUpdateStatus();
+        PendingUpdateStatus GetPendingUpdateStatus(string channel, bool includePrerelease);
     }
 }

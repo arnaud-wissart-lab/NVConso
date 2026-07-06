@@ -2,27 +2,20 @@ namespace NVConso.Tests
 {
     public class ThemeServiceTests
     {
-        [Fact]
-        public void GetPalette_ShouldReturnLightPalette_ForLightTheme()
+        [Theory]
+        [InlineData(UiTheme.Light, false)]
+        [InlineData(UiTheme.Dark, true)]
+        public void GetPalette_ShouldReturnExpectedPalette_ForConcreteTheme(UiTheme theme, bool expectedDark)
         {
             var service = new ThemeService();
 
-            ThemePalette palette = service.GetPalette(UiTheme.Light);
+            ThemePalette palette = service.GetPalette(theme);
+            ThemePalette expectedPalette = expectedDark
+                ? ThemePalette.Dark()
+                : ThemePalette.Light();
 
-            Assert.False(palette.IsDark);
-            Assert.Equal(ThemePalette.Light().Background, palette.Background);
-            Assert.NotEqual(palette.Background, palette.Surface);
-        }
-
-        [Fact]
-        public void GetPalette_ShouldReturnDarkPalette_ForDarkTheme()
-        {
-            var service = new ThemeService();
-
-            ThemePalette palette = service.GetPalette(UiTheme.Dark);
-
-            Assert.True(palette.IsDark);
-            Assert.Equal(ThemePalette.Dark().Background, palette.Background);
+            Assert.Equal(expectedDark, palette.IsDark);
+            Assert.Equal(expectedPalette.Background, palette.Background);
             Assert.NotEqual(palette.Background, palette.Surface);
         }
 

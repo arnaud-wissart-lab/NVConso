@@ -35,7 +35,7 @@ namespace NVConso
                 {
                     MessageBox.Show(
                         "Les droits administrateur sont requis pour ajuster la limite de puissance.",
-                        "NVConso",
+                        ProductNames.DisplayName,
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                 }
@@ -57,10 +57,24 @@ namespace NVConso
                 .AddSingleton<IAppUpdater, VelopackAppUpdater>()
                 .AddSingleton<INvmlManager, NvmlManager>()
                 .AddSingleton<IGpuTelemetryService, GpuTelemetryService>()
+                .AddSingleton<IDisplayAdvancedColorDetector, DxgiAdvancedColorDetector>()
+                .AddSingleton<IDisplayVrrDetector, NvidiaVrrDetector>()
+                .AddSingleton<IDisplayManager, WindowsDisplayManager>()
+                .AddSingleton<ICaniculeGuardClock, SystemCaniculeGuardClock>()
+                .AddSingleton<ITelemetryRecorder>(services => new CsvTelemetryRecorder(
+                    TelemetryLoggingSettings.FromAppSettings(services.GetRequiredService<AppSettingsService>().Current),
+                    services.GetRequiredService<IDisplayManager>(),
+                    services.GetRequiredService<ILogger<CsvTelemetryRecorder>>()))
+                .AddSingleton<ITelemetryLogReader>(services => new CsvTelemetryLogReader(
+                    services.GetRequiredService<ITelemetryRecorder>().TelemetryRootPath))
+                .AddSingleton<ICaniculeGuard>(services => new CaniculeGuardService(
+                    services.GetRequiredService<ICaniculeGuardClock>(),
+                    services.GetRequiredService<ITelemetryRecorder>(),
+                    services.GetRequiredService<ILogger<CaniculeGuardService>>()))
                 .AddSingleton<ThemeService>()
                 .BuildServiceProvider();
 
-            var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("NVConso");
+            var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(ProductNames.DisplayName);
             logger.LogInformation("Application démarrée");
 
             if (launchOptions.StartInTray)
@@ -70,10 +84,14 @@ namespace NVConso
             var startupManager = services.GetRequiredService<IStartupManager>();
             var appUpdater = services.GetRequiredService<IAppUpdater>();
             var telemetryService = services.GetRequiredService<IGpuTelemetryService>();
+            var displayManager = services.GetRequiredService<IDisplayManager>();
+            var telemetryRecorder = services.GetRequiredService<ITelemetryRecorder>();
+            var telemetryLogReader = services.GetRequiredService<ITelemetryLogReader>();
+            var caniculeGuard = services.GetRequiredService<ICaniculeGuard>();
             var themeService = services.GetRequiredService<ThemeService>();
             var settingsService = services.GetRequiredService<AppSettingsService>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, themeService, settingsService, trayLogger, launchOptions));
+            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, displayManager, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
         }
 
         private static bool IsRunAsAdmin()

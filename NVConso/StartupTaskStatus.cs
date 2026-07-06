@@ -28,7 +28,7 @@ namespace NVConso
                 isAvailable: true,
                 exists: true,
                 isEnabledForCurrentExecutable: true,
-                message: "Démarrage Windows activé via la tâche planifiée NVConso.",
+                message: $"Démarrage Windows activé via la tâche planifiée {ProductNames.StartupTaskName}.",
                 task: task);
         }
 
@@ -38,7 +38,7 @@ namespace NVConso
                 isAvailable: true,
                 exists: false,
                 isEnabledForCurrentExecutable: false,
-                message: "Démarrage Windows désactivé : aucune tâche planifiée NVConso.",
+                message: $"Démarrage Windows désactivé : aucune tâche planifiée {ProductNames.StartupTaskName}.",
                 task: null);
         }
 

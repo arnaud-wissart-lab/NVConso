@@ -9,15 +9,10 @@ namespace NVConso.Tests
         [InlineData(GpuPowerMode.Stock, "Stock")]
         [InlineData(GpuPowerMode.Max, "Max")]
         [InlineData(GpuPowerMode.Custom, "Personnalisé")]
+        [InlineData((GpuPowerMode)999, "Stock")]
         public void GetDisplayName_ShouldReturnExpectedLabel(GpuPowerMode mode, string expected)
         {
             Assert.Equal(expected, ProfileLabels.GetDisplayName(mode));
-        }
-
-        [Fact]
-        public void GetDisplayName_ShouldFallbackToStock_ForUnknownMode()
-        {
-            Assert.Equal("Stock", ProfileLabels.GetDisplayName((GpuPowerMode)999));
         }
     }
 }

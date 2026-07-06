@@ -20,7 +20,14 @@ namespace NVConso.Tests
                 CaniculeGuardPowerThresholdWatts = 0,
                 CaniculeGuardTemperatureThresholdCelsius = 999,
                 CaniculeGuardAlertDelaySeconds = -10,
-                CaniculeGuardCooldownSeconds = 5
+                CaniculeGuardCooldownSeconds = 5,
+                RecordingIntervalSeconds = 0,
+                TelemetryRetentionDays = 999,
+                PeakPowerThresholdWatts = 0,
+                PeakTemperatureThresholdCelsius = 999,
+                CaniculeTargetRefreshRateHz = 0,
+                VideoSurfTargetRefreshRateHz = 5000,
+                Indie2DTargetRefreshRateHz = -1
             };
 
             AppSettingsValidationResult result = AppSettingsValidator.Validate(settings);
@@ -31,6 +38,13 @@ namespace NVConso.Tests
             Assert.Contains(result.Errors, error => error.Contains("température Canicule Guard", StringComparison.Ordinal));
             Assert.Contains(result.Errors, error => error.Contains("durée avant alerte", StringComparison.Ordinal));
             Assert.Contains(result.Errors, error => error.Contains("cooldown Canicule Guard", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("intervalle d'historisation GPU", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("rétention de l'historique GPU", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("pic de puissance", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("pic de température", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("fréquence cible Canicule", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("fréquence cible Vidéo / surf", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("fréquence cible Indie 2D", StringComparison.Ordinal));
         }
 
         [Fact]
