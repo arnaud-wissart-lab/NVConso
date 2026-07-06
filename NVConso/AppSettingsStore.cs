@@ -110,6 +110,18 @@ namespace NVConso
             if (TryGetString(root, nameof(AppSettings.LastUpdateError), out string lastUpdateError))
                 settings.LastUpdateError = lastUpdateError;
 
+            if (TryGetBoolean(root, nameof(AppSettings.ShowDashboardOnStartup), out bool showDashboardOnStartup))
+                settings.ShowDashboardOnStartup = showDashboardOnStartup;
+
+            if (TryGetUiTheme(root, nameof(AppSettings.DashboardTheme), out UiTheme dashboardTheme))
+                settings.DashboardTheme = dashboardTheme;
+
+            if (TryGetDashboardWindowBounds(root, nameof(AppSettings.DashboardWindowBounds), out DashboardWindowBounds dashboardWindowBounds))
+                settings.DashboardWindowBounds = dashboardWindowBounds;
+
+            if (TryGetInt32(root, nameof(AppSettings.TelemetryHistorySeconds), out int telemetryHistorySeconds))
+                settings.TelemetryHistorySeconds = telemetryHistorySeconds;
+
             if (TryGetBoolean(root, nameof(AppSettings.HasSavedMode), out bool hasSavedMode))
                 settings.HasSavedMode = hasSavedMode;
 
@@ -136,6 +148,10 @@ namespace NVConso
                 UpdateChannel = NormalizeUpdateChannel(settings.UpdateChannel),
                 LastUpdateCheckUtc = settings.LastUpdateCheckUtc,
                 LastUpdateError = NormalizeOptionalString(settings.LastUpdateError),
+                ShowDashboardOnStartup = settings.ShowDashboardOnStartup,
+                DashboardTheme = NormalizeUiTheme(settings.DashboardTheme),
+                DashboardWindowBounds = NormalizeDashboardWindowBounds(settings.DashboardWindowBounds),
+                TelemetryHistorySeconds = NormalizeTelemetryHistorySeconds(settings.TelemetryHistorySeconds),
                 HasSavedMode = settings.HasSavedMode,
                 LastSelectedMode = NormalizePowerMode(settings.LastSelectedMode),
                 CustomPowerLimitMilliwatt = settings.CustomPowerLimitMilliwatt
@@ -208,6 +224,67 @@ namespace NVConso
             return true;
         }
 
+        private static bool TryGetUiTheme(JsonElement root, string propertyName, out UiTheme value)
+        {
+            value = UiTheme.System;
+
+            if (!root.TryGetProperty(propertyName, out JsonElement property))
+                return false;
+
+            if (property.ValueKind == JsonValueKind.String
+                && Enum.TryParse(property.GetString(), ignoreCase: true, out UiTheme theme))
+            {
+                value = NormalizeUiTheme(theme);
+                return true;
+            }
+
+            if (property.ValueKind == JsonValueKind.Number
+                && property.TryGetInt32(out int numericTheme)
+                && Enum.IsDefined(typeof(UiTheme), numericTheme))
+            {
+                value = (UiTheme)numericTheme;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetDashboardWindowBounds(
+            JsonElement root,
+            string propertyName,
+            out DashboardWindowBounds value)
+        {
+            value = null;
+
+            if (!root.TryGetProperty(propertyName, out JsonElement property)
+                || property.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (!TryGetInt32(property, nameof(DashboardWindowBounds.X), out int x)
+                || !TryGetInt32(property, nameof(DashboardWindowBounds.Y), out int y)
+                || !TryGetInt32(property, nameof(DashboardWindowBounds.Width), out int width)
+                || !TryGetInt32(property, nameof(DashboardWindowBounds.Height), out int height))
+            {
+                return false;
+            }
+
+            var bounds = new DashboardWindowBounds
+            {
+                X = x,
+                Y = y,
+                Width = width,
+                Height = height
+            };
+
+            if (!bounds.IsUsable())
+                return false;
+
+            value = bounds;
+            return true;
+        }
+
         private static GpuPowerMode ReadPowerMode(JsonElement root)
         {
             if (!root.TryGetProperty(nameof(AppSettings.LastSelectedMode), out JsonElement property))
@@ -273,6 +350,28 @@ namespace NVConso
             return string.IsNullOrWhiteSpace(value)
                 ? VelopackAppUpdater.StableChannel
                 : value.Trim();
+        }
+
+        private static UiTheme NormalizeUiTheme(UiTheme theme)
+        {
+            return Enum.IsDefined(typeof(UiTheme), theme)
+                ? theme
+                : UiTheme.System;
+        }
+
+        private static DashboardWindowBounds NormalizeDashboardWindowBounds(DashboardWindowBounds bounds)
+        {
+            return bounds?.IsUsable() == true
+                ? bounds
+                : null;
+        }
+
+        private static int NormalizeTelemetryHistorySeconds(int seconds)
+        {
+            return Math.Clamp(
+                seconds <= 0 ? GpuTelemetryHistory.DefaultCapacitySeconds : seconds,
+                GpuTelemetryHistory.MinimumCapacitySeconds,
+                GpuTelemetryHistory.MaximumCapacitySeconds);
         }
     }
 }

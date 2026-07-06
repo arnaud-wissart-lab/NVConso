@@ -18,6 +18,7 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 
 ## Ce que ça démontre
 - Conception d'une application WinForms sans fenêtre principale, pilotée par `NotifyIcon` et menu contextuel tray ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
+- Tableau de bord WinForms optionnel, ouvert depuis le tray, avec cartes de métriques, jauges et graphes locaux sur 5 minutes ([`NVConso/DashboardForm.cs`](./NVConso/DashboardForm.cs)).
 - Interop natif C# vers NVML (`nvml.dll`) en `DllImport` pour énumérer les GPU, lire la télémétrie et modifier le power limit ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 - Gestion multi-GPU avec sélection dynamique et affichage de la plage min/max du GPU actif ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 - Gestion explicite des privilèges administrateur (`requireAdministrator` + relance `runas`) pour appliquer `nvmlDeviceSetPowerManagementLimit` ([`NVConso/app.manifest`](./NVConso/app.manifest), [`NVConso/Program.cs`](./NVConso/Program.cs)).
@@ -32,6 +33,15 @@ Utilitaire Windows (WinForms) en zone de notification pour piloter la limite de 
 ![Capture NVConso](./docs/screenshots/NVConso.png)
 
 TODO: mettre à jour cette capture après génération sur une machine Windows avec pilote NVIDIA et accès NVML. La capture actuelle peut ne pas refléter tous les items récents du menu tray.
+
+TODO: ajouter une capture du tableau de bord après validation visuelle sur une machine Windows avec pilote NVIDIA et télémétrie NVML disponible.
+
+## Interface
+NVConso reste une application WinForms légère, avec le menu natif de la zone de notification comme point d'entrée principal. Les entrées du menu sont groupées par usage : statut, profils, tableau de bord, options, mises à jour et arrêt.
+
+Le tableau de bord est une fenêtre WinForms optionnelle, construite avec des contrôles internes simples : cartes de métriques, jauges GDI+, pastille de statut, boutons de profil et graphes locaux. Aucune migration vers WPF, WinUI, Avalonia ou MAUI n'est faite dans cette passe, et aucun framework UI massif n'est introduit.
+
+La couche de thème centralise les couleurs, espacements, rayons, polices et états visuels. Les thèmes disponibles sont `System`, `Light` et `Dark`. L'état des métriques reste lisible par le texte et les valeurs affichées, pas uniquement par la couleur.
 
 ## Profils GPU
 NVConso ajuste le `power limit` NVIDIA, c'est-à-dire un plafond de puissance. Ce plafond ne force pas la carte à consommer cette valeur en permanence : le GPU consomme seulement ce dont il a besoin, jusqu'à la limite appliquée.
@@ -71,6 +81,11 @@ flowchart LR
   E --> F[nvml.dll]
   C --> G[AppSettingsStore]
   G --> H[%LOCALAPPDATA%/NVConso/settings.json]
+  C --> P[IGpuTelemetryService]
+  P --> Q[GpuTelemetryHistory]
+  P --> D
+  C --> R[DashboardForm]
+  R --> P
   I[Program.cs] --> J[Elevation admin runas]
   J --> C
   C --> K[IStartupManager]
@@ -85,7 +100,7 @@ flowchart LR
 2. `TrayAppContext` initialise NVML, charge la liste GPU, puis sélectionne le GPU sauvegardé (ou le premier disponible) ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs)).
 3. Les profils `Canicule`, `VideoSurf`, `Indie2D`, `Stock` et `Max` calculent/appliquent une limite de puissance en milliwatts via NVML, à partir des limites minimum, stock/default et maximum exposées par le GPU ([`NVConso/Constants.cs`](./NVConso/Constants.cs), [`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
 4. Une limite personnalisée peut être saisie en watts depuis le menu tray, puis validée strictement contre la plage NVML autorisée.
-5. Un timer (1 s) met à jour la télémétrie (consommation, limite active, température, utilisation, décodeur vidéo, fréquences, ventilateur en lecture seule et état performance si disponibles), et les choix utilisateur sont persistés en JSON ([`NVConso/TrayApplicationContext.cs`](./NVConso/TrayApplicationContext.cs), [`NVConso/AppSettingsStore.cs`](./NVConso/AppSettingsStore.cs)).
+5. Un service central `IGpuTelemetryService` interroge NVML au maximum une fois par seconde, publie un snapshot partagé et alimente un historique circulaire en mémoire. Le tray et le dashboard consomment cette même source, sans double polling NVML.
 6. L'option `Démarrer avec Windows` crée ou met à jour une tâche planifiée `NVConso` déclenchée à l'ouverture de session de l'utilisateur courant. L'action pointe vers le chemin complet de `NVConso.exe`, avec `--tray` ou `--minimized` comme argument et le dossier de l'exécutable comme dossier de travail.
 7. L'option `Rechercher une mise à jour` utilise Velopack avec les releases GitHub du dépôt. Si une version plus récente existe sur le canal `stable`, NVConso peut la télécharger, afficher `Mise à jour prête`, puis l'appliquer avec redémarrage seulement après validation utilisateur.
 
@@ -93,6 +108,7 @@ flowchart LR
 - Runtime/UI: .NET `net8.0-windows`, WinForms ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Plateforme cible: `x64` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Interop GPU: NVML (`nvml.dll`) via `DllImport` ([`NVConso/NvmlManager.cs`](./NVConso/NvmlManager.cs)).
+- Visualisation: contrôles WinForms/GDI+ internes pour cartes, jauges et graphes afin d'éviter une dépendance UI lourde ([`NVConso/TelemetryChartControl.cs`](./NVConso/TelemetryChartControl.cs)).
 - Injection de dépendances et logging: `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.Logging`, `Microsoft.Extensions.Logging.Console` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
 - Installation et auto-update: Velopack 1.2.x avec source GitHub Releases ([`NVConso/VelopackAppUpdater.cs`](./NVConso/VelopackAppUpdater.cs)).
 - Package présent dans le projet: `NvAPIWrapper.Net` ([`NVConso/NVConso.csproj`](./NVConso/NVConso.csproj)).
@@ -171,6 +187,10 @@ Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent 
   "UpdateChannel": "stable",
   "LastUpdateCheckUtc": null,
   "LastUpdateError": null,
+  "ShowDashboardOnStartup": false,
+  "DashboardTheme": "System",
+  "DashboardWindowBounds": null,
+  "TelemetryHistorySeconds": 300,
   "HasSavedMode": true,
   "LastSelectedMode": "Custom",
   "CustomPowerLimitMilliwatt": 180000
@@ -178,6 +198,17 @@ Exemple indicatif de `settings.json`; le chemin exact et les valeurs dépendent 
 ```
 
 `CustomPowerLimitMilliwatt` reste en milliwatts dans le fichier de configuration. Dans l'interface, la même valeur est affichée en watts.
+
+## Tableau de bord
+Le tableau de bord est optionnel. NVConso continue de démarrer en zone de notification ; la fenêtre s'ouvre depuis le menu tray `Ouvrir le tableau de bord` ou par clic sur l'icône tray. La fermeture de la fenêtre la masque seulement : l'action `Quitter` du tray reste l'arrêt réel.
+
+Le dashboard affiche:
+- l'identité du GPU actif, le profil détecté et l'état NVML ;
+- les métriques instantanées principales : puissance, power limit, température, utilisation GPU, décodeur vidéo, fréquences et ventilateur si disponible ;
+- des jauges simples pour puissance/limite, température/seuil, utilisation GPU et décodeur ;
+- des graphes locaux sur environ 5 minutes pour puissance, température et utilisation GPU/decode.
+
+Les graphes sont alimentés par `GpuTelemetryHistory`, un buffer circulaire en mémoire. Ils ne sont pas persistés par défaut et sont remis à zéro au redémarrage. Les préférences `ShowDashboardOnStartup`, `DashboardTheme`, `DashboardWindowBounds` et `TelemetryHistorySeconds` sont persistées dans `%LOCALAPPDATA%\\NVConso\\settings.json`.
 
 ## Mises à jour Velopack
 Le canal applicatif par défaut est `stable`. Les prereleases GitHub ne sont pas incluses par l'application dans cette passe.

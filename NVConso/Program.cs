@@ -55,6 +55,8 @@ namespace NVConso
                 .AddSingleton<IStartupManager, WindowsTaskSchedulerStartupManager>()
                 .AddSingleton<IAppUpdater, VelopackAppUpdater>()
                 .AddSingleton<INvmlManager, NvmlManager>()
+                .AddSingleton<IGpuTelemetryService, GpuTelemetryService>()
+                .AddSingleton<ThemeService>()
                 .BuildServiceProvider();
 
             var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("NVConso");
@@ -66,9 +68,11 @@ namespace NVConso
             var nvml = services.GetRequiredService<INvmlManager>();
             var startupManager = services.GetRequiredService<IStartupManager>();
             var appUpdater = services.GetRequiredService<IAppUpdater>();
+            var telemetryService = services.GetRequiredService<IGpuTelemetryService>();
+            var themeService = services.GetRequiredService<ThemeService>();
             var settingsStore = services.GetRequiredService<AppSettingsStore>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, settingsStore, trayLogger, launchOptions));
+            Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, themeService, settingsStore, trayLogger, launchOptions));
         }
 
         private static bool IsRunAsAdmin()

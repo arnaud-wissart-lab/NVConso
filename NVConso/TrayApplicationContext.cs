@@ -17,7 +17,6 @@ namespace NVConso
             GpuPowerMode.Max
         ];
 
-        private const int TelemetryRefreshIntervalMs = 1000;
         private const int CheckedThresholdMilliwatt = 200;
         private const int InitialUpdateCheckDelayMs = 30000;
         private const int UpdateCheckPollingIntervalMs = 60000;
@@ -37,6 +36,8 @@ namespace NVConso
         private readonly ToolStripMenuItem _powerRangeItem;
         private readonly ToolStripMenuItem _activeGpuItem;
         private readonly ToolStripMenuItem _statusItem;
+        private readonly ToolStripMenuItem _openDashboardItem;
+        private readonly ToolStripMenuItem _showDashboardOnStartupItem;
         private readonly ToolStripMenuItem _customPowerLimitItem;
         private readonly ToolStripMenuItem _restoreStockItem;
         private readonly ToolStripMenuItem _restoreStockOnExitItem;
@@ -49,11 +50,13 @@ namespace NVConso
         private readonly ToolStripMenuItem _availableUpdateItem;
         private readonly ToolStripMenuItem _gpuMenuItem;
         private readonly Dictionary<GpuPowerMode, ToolStripMenuItem> _profileItems = [];
-        private readonly System.Windows.Forms.Timer _telemetryTimer;
+        private readonly System.Windows.Forms.Timer _trayClickTimer;
         private readonly System.Windows.Forms.Timer _updateCheckTimer;
         private readonly INvmlManager _nvml;
         private readonly IStartupManager _startupManager;
         private readonly IAppUpdater _appUpdater;
+        private readonly IGpuTelemetryService _telemetryService;
+        private readonly ThemeService _themeService;
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly AppSettingsStore _settingsStore;
         private readonly ILogger<TrayAppContext> _logger;
@@ -64,12 +67,15 @@ namespace NVConso
         private bool _updateOperationInProgress;
         private bool _downloadedUpdateReady;
         private AppUpdateInfo _availableUpdate;
+        private DashboardForm _dashboardForm;
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
             : this(
                 nvml,
                 new WindowsTaskSchedulerStartupManager(),
                 new VelopackAppUpdater(),
+                new GpuTelemetryService(nvml),
+                new ThemeService(),
                 new AppSettingsStore(),
                 logger,
                 StartupLaunchOptions.Default)
@@ -80,6 +86,8 @@ namespace NVConso
             INvmlManager nvml,
             IStartupManager startupManager,
             IAppUpdater appUpdater,
+            IGpuTelemetryService telemetryService,
+            ThemeService themeService,
             AppSettingsStore settingsStore,
             ILogger<TrayAppContext> logger = null,
             StartupLaunchOptions launchOptions = null)
@@ -87,11 +95,15 @@ namespace NVConso
             _nvml = nvml;
             _startupManager = startupManager ?? new WindowsTaskSchedulerStartupManager();
             _appUpdater = appUpdater ?? new VelopackAppUpdater();
+            _telemetryService = telemetryService ?? new GpuTelemetryService(nvml);
+            _themeService = themeService ?? new ThemeService();
             _updateWorkflow = new AppUpdateWorkflow(_appUpdater);
             _logger = logger;
             _settingsStore = settingsStore ?? new AppSettingsStore();
             _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
             _settings = _settingsStore.Load();
+            _telemetryService.SetHistoryCapacitySeconds(_settings.TelemetryHistorySeconds);
+            _telemetryService.SnapshotUpdated += OnTelemetrySnapshotUpdated;
 
             if (_launchOptions.StartInTray)
                 _logger?.LogInformation("Lancement en zone de notification demandé.");
@@ -101,19 +113,20 @@ namespace NVConso
                 ShowItemToolTips = true
             };
 
-            _powerUsageItem = CreateInfoItem("⚡ Conso instantanée : --");
-            _currentLimitItem = CreateInfoItem("🎯 Limite active : --");
-            _temperatureItem = CreateInfoItem("🌡️ Température GPU : --");
-            _gpuUtilizationItem = CreateInfoItem("📊 Utilisation GPU : --");
-            _memoryUtilizationItem = CreateInfoItem("🧠 Utilisation mémoire : --");
-            _decoderUtilizationItem = CreateInfoItem("🎥 Décodeur vidéo : --");
-            _clocksItem = CreateInfoItem("⏱️ Fréquences : GPU -- / mémoire --");
-            _fanSpeedItem = CreateInfoItem("🌀 Ventilateur : --");
-            _performanceStateItem = CreateInfoItem("🚦 État performance : --");
-            _powerRangeItem = CreateInfoItem("📏 Plage autorisée : -- - --");
-            _activeGpuItem = CreateInfoItem("🖥️ GPU actif : --");
-            _statusItem = CreateInfoItem("ℹ️ Statut : initialisation...");
+            _powerUsageItem = CreateInfoItem("Puissance instantanée : --");
+            _currentLimitItem = CreateInfoItem("Power limit : --");
+            _temperatureItem = CreateInfoItem("Température GPU : --");
+            _gpuUtilizationItem = CreateInfoItem("Utilisation GPU : --");
+            _memoryUtilizationItem = CreateInfoItem("Utilisation mémoire : --");
+            _decoderUtilizationItem = CreateInfoItem("Décodeur vidéo : --");
+            _clocksItem = CreateInfoItem("Fréquences : GPU -- / mémoire --");
+            _fanSpeedItem = CreateInfoItem("Ventilateur : --");
+            _performanceStateItem = CreateInfoItem("État performance : --");
+            _powerRangeItem = CreateInfoItem("Plage autorisée : -- - --");
+            _activeGpuItem = CreateInfoItem("GPU actif : --");
+            _statusItem = CreateInfoItem("Statut : initialisation...");
 
+            _trayMenu.Items.Add(CreateSectionHeader("Statut"));
             _trayMenu.Items.Add(_powerUsageItem);
             _trayMenu.Items.Add(_currentLimitItem);
             _trayMenu.Items.Add(_temperatureItem);
@@ -128,9 +141,10 @@ namespace NVConso
             _trayMenu.Items.Add(_statusItem);
             _trayMenu.Items.Add(new ToolStripSeparator());
 
+            _trayMenu.Items.Add(CreateSectionHeader("Profils"));
             foreach (GpuPowerMode mode in ProfileOrder)
             {
-                var profileItem = new ToolStripMenuItem($"{GetProfileIcon(mode)} {GetProfileDisplayName(mode)}")
+                var profileItem = new ToolStripMenuItem(ProfileLabels.GetDisplayName(mode))
                 {
                     Enabled = false
                 };
@@ -140,8 +154,6 @@ namespace NVConso
                 _trayMenu.Items.Add(profileItem);
             }
 
-            _trayMenu.Items.Add(new ToolStripSeparator());
-
             _customPowerLimitItem = new ToolStripMenuItem("Limite personnalisée...")
             {
                 Enabled = false
@@ -149,12 +161,26 @@ namespace NVConso
             _customPowerLimitItem.Click += (_, _) => ShowCustomPowerLimitDialog();
             _trayMenu.Items.Add(_customPowerLimitItem);
 
-            _restoreStockItem = new ToolStripMenuItem("🏭 Restaurer Stock")
+            _restoreStockItem = new ToolStripMenuItem("Restaurer Stock")
             {
                 Enabled = false
             };
             _restoreStockItem.Click += (_, _) => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true);
             _trayMenu.Items.Add(_restoreStockItem);
+            _trayMenu.Items.Add(new ToolStripSeparator());
+
+            _openDashboardItem = new ToolStripMenuItem("Ouvrir le tableau de bord");
+            _openDashboardItem.Click += (_, _) => OpenDashboard();
+            _trayMenu.Items.Add(CreateSectionHeader("Dashboard"));
+            _trayMenu.Items.Add(_openDashboardItem);
+
+            _showDashboardOnStartupItem = new ToolStripMenuItem("Toujours afficher au démarrage");
+            _showDashboardOnStartupItem.Click += (_, _) => ToggleShowDashboardOnStartup();
+            UpdateShowDashboardOnStartupLabel();
+            _trayMenu.Items.Add(_showDashboardOnStartupItem);
+            _trayMenu.Items.Add(new ToolStripSeparator());
+
+            _trayMenu.Items.Add(CreateSectionHeader("Options"));
 
             _restoreStockOnExitItem = new ToolStripMenuItem();
             _restoreStockOnExitItem.Click += (_, _) => ToggleRestoreStockOnExit();
@@ -171,8 +197,14 @@ namespace NVConso
             _trayMenu.Items.Add(_startMinimizedItem);
             RefreshStartupMenuState();
 
-            _trayMenu.Items.Add(new ToolStripSeparator());
+            _gpuMenuItem = new ToolStripMenuItem("Choix du GPU")
+            {
+                Enabled = false
+            };
+            _trayMenu.Items.Add(_gpuMenuItem);
 
+            _trayMenu.Items.Add(new ToolStripSeparator());
+            _trayMenu.Items.Add(CreateSectionHeader("Mises à jour"));
             _manualUpdateCheckItem = new ToolStripMenuItem("Rechercher une mise à jour");
             _manualUpdateCheckItem.Click += async (_, _) => await CheckForUpdatesAsync(showUpToDateStatus: true, isAutomatic: false);
             _trayMenu.Items.Add(_manualUpdateCheckItem);
@@ -204,14 +236,6 @@ namespace NVConso
             _trayMenu.Items.Add(_availableUpdateItem);
 
             _trayMenu.Items.Add(new ToolStripSeparator());
-
-            _gpuMenuItem = new ToolStripMenuItem("🖥️ Choix du GPU")
-            {
-                Enabled = false
-            };
-            _trayMenu.Items.Add(_gpuMenuItem);
-
-            _trayMenu.Items.Add(new ToolStripSeparator());
             _trayMenu.Items.Add("Quitter", null, (_, _) => Application.Exit());
 
             _icon = new NotifyIcon
@@ -223,13 +247,17 @@ namespace NVConso
             };
 
             _icon.MouseUp += OnIconMouseUp;
+            _icon.MouseDoubleClick += OnIconMouseDoubleClick;
 
-            _telemetryTimer = new System.Windows.Forms.Timer
+            _trayClickTimer = new System.Windows.Forms.Timer
             {
-                Interval = TelemetryRefreshIntervalMs
+                Interval = SystemInformation.DoubleClickTime
             };
-
-            _telemetryTimer.Tick += (_, _) => RefreshTelemetry();
+            _trayClickTimer.Tick += (_, _) =>
+            {
+                _trayClickTimer.Stop();
+                OpenDashboard();
+            };
 
             _updateCheckTimer = new System.Windows.Forms.Timer
             {
@@ -242,6 +270,9 @@ namespace NVConso
 
             RefreshPendingUpdateState();
             InitializeRuntime();
+
+            if (_settings.ShowDashboardOnStartup)
+                OpenDashboard();
         }
 
         private static ToolStripMenuItem CreateInfoItem(string text)
@@ -252,31 +283,12 @@ namespace NVConso
             };
         }
 
-        private static string GetProfileDisplayName(GpuPowerMode mode)
+        private static ToolStripMenuItem CreateSectionHeader(string text)
         {
-            return mode switch
+            return new ToolStripMenuItem(text)
             {
-                GpuPowerMode.Canicule => "Canicule",
-                GpuPowerMode.VideoSurf => "Vidéo / surf",
-                GpuPowerMode.Indie2D => "Indie 2D",
-                GpuPowerMode.Stock => "Stock",
-                GpuPowerMode.Max => "Max",
-                GpuPowerMode.Custom => "Personnalisé",
-                _ => "Stock"
-            };
-        }
-
-        private static string GetProfileIcon(GpuPowerMode mode)
-        {
-            return mode switch
-            {
-                GpuPowerMode.Canicule => "🌡️",
-                GpuPowerMode.VideoSurf => "🎬",
-                GpuPowerMode.Indie2D => "🎮",
-                GpuPowerMode.Stock => "🏭",
-                GpuPowerMode.Max => "⚠️",
-                GpuPowerMode.Custom => "✏️",
-                _ => "🏭"
+                Enabled = false,
+                Font = new Font(SystemFonts.MenuFont, FontStyle.Bold)
             };
         }
 
@@ -287,6 +299,61 @@ namespace NVConso
 
             _customPowerLimitItem.Enabled = enabled;
             _restoreStockItem.Enabled = enabled;
+        }
+
+        private void OpenDashboard()
+        {
+            DashboardForm dashboard = EnsureDashboard();
+            if (!dashboard.Visible)
+                dashboard.Show();
+
+            if (dashboard.WindowState == FormWindowState.Minimized)
+                dashboard.WindowState = FormWindowState.Normal;
+
+            dashboard.Activate();
+        }
+
+        private void ToggleDashboard()
+        {
+            if (_dashboardForm?.Visible == true)
+            {
+                _dashboardForm.Hide();
+                return;
+            }
+
+            OpenDashboard();
+        }
+
+        private DashboardForm EnsureDashboard()
+        {
+            if (_dashboardForm is { IsDisposed: false })
+                return _dashboardForm;
+
+            _dashboardForm = new DashboardForm(
+                _telemetryService,
+                _themeService,
+                _settings,
+                _settingsStore,
+                mode => ApplyProfile(mode, persistSelection: true, showBalloon: true),
+                () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
+                ShowCustomPowerLimitDialog);
+
+            return _dashboardForm;
+        }
+
+        private void ToggleShowDashboardOnStartup()
+        {
+            _settings.ShowDashboardOnStartup = !_settings.ShowDashboardOnStartup;
+            _settingsStore.Save(_settings);
+            UpdateShowDashboardOnStartupLabel();
+            SetStatus(_settings.ShowDashboardOnStartup
+                ? "Tableau de bord affiché au démarrage."
+                : "Tableau de bord masqué au démarrage.");
+        }
+
+        private void UpdateShowDashboardOnStartupLabel()
+        {
+            _showDashboardOnStartupItem.Checked = _settings.ShowDashboardOnStartup;
         }
 
         private void ToggleRestoreStockOnExit()
@@ -674,22 +741,29 @@ namespace NVConso
             if (!_nvml.Initialize())
             {
                 SetStatus("❌ Initialisation NVML impossible.");
+                _telemetryService.SetNvmlState(false, "Initialisation NVML impossible.");
+                _telemetryService.RefreshNow();
                 return;
             }
 
             _nvmlReady = true;
+            _telemetryService.SetNvmlState(true, "NVML prêt.");
             SetProfileItemsEnabled(true);
 
             PopulateGpuMenu();
 
             if (!TrySelectStartupGpu())
+            {
+                _telemetryService.SetNvmlState(false, "Aucun GPU NVIDIA sélectionné.");
+                _telemetryService.RefreshNow();
                 return;
+            }
 
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
                 ApplySavedPowerLimit();
 
-            RefreshTelemetry();
-            _telemetryTimer.Start();
+            _telemetryService.RefreshNow();
+            _telemetryService.Start();
         }
 
         private bool TrySelectStartupGpu()
@@ -744,7 +818,7 @@ namespace NVConso
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
                 ApplySavedPowerLimit();
 
-            RefreshTelemetry();
+            _telemetryService.RefreshNow();
         }
 
         private bool TrySelectGpu(int gpuIndex, bool persistSelection, bool showBalloon)
@@ -767,9 +841,9 @@ namespace NVConso
             UpdateGpuMenuChecks(gpuIndex);
             UpdateProfileLabels();
 
-            _activeGpuItem.Text = $"🖥️ GPU actif : {_nvml.SelectedGpuName} (#{_nvml.SelectedGpuIndex})";
-            _powerRangeItem.Text = $"📏 Plage autorisée : {GpuTelemetryFormatter.FormatWatts(_nvml.MinimumPowerLimit)} - {GpuTelemetryFormatter.FormatWatts(_nvml.MaximumPowerLimit)} (stock {GpuTelemetryFormatter.FormatWatts(_nvml.DefaultPowerLimit)})";
-            SetStatus($"✅ GPU sélectionné : {_nvml.SelectedGpuName}");
+            _activeGpuItem.Text = $"GPU actif : {_nvml.SelectedGpuName} (#{_nvml.SelectedGpuIndex})";
+            _powerRangeItem.Text = $"Plage autorisée : {GpuTelemetryFormatter.FormatWatts(_nvml.MinimumPowerLimit)} - {GpuTelemetryFormatter.FormatWatts(_nvml.MaximumPowerLimit)} (stock {GpuTelemetryFormatter.FormatWatts(_nvml.DefaultPowerLimit)})";
+            SetStatus($"GPU sélectionné : {_nvml.SelectedGpuName}");
             return true;
         }
 
@@ -787,7 +861,7 @@ namespace NVConso
             foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
             {
                 uint powerLimit = _nvml.GetPowerLimit(mode);
-                item.Text = $"{GetProfileIcon(mode)} {GetProfileDisplayName(mode)} ({GpuTelemetryFormatter.FormatWatts(powerLimit)})";
+                item.Text = $"{ProfileLabels.GetDisplayName(mode)} ({GpuTelemetryFormatter.FormatWatts(powerLimit)})";
             }
         }
 
@@ -816,14 +890,14 @@ namespace NVConso
                 _settingsStore.Save(_settings);
             }
 
-            string modeLabel = GetProfileDisplayName(mode);
+            string modeLabel = ProfileLabels.GetDisplayName(mode);
             string formattedLimit = GpuTelemetryFormatter.FormatWatts(target);
             SetStatus($"✅ Profil {modeLabel} appliqué ({formattedLimit})");
 
             if (showBalloon)
                 _icon.ShowBalloonTip(1000, "GPU", $"Profil {modeLabel} appliqué ({formattedLimit})", ToolTipIcon.Info);
 
-            RefreshTelemetry();
+            _telemetryService.RefreshNow();
         }
 
         private void ApplySavedPowerLimit()
@@ -919,52 +993,65 @@ namespace NVConso
             if (showBalloon)
                 _icon.ShowBalloonTip(1000, "GPU", $"Limite personnalisée appliquée : {formattedLimit}", ToolTipIcon.Info);
 
-            RefreshTelemetry();
+            _telemetryService.RefreshNow();
             return true;
         }
 
         private void OnIconMouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button is not (MouseButtons.Left or MouseButtons.Right))
+            if (e.Button == MouseButtons.Left)
+            {
+                _trayClickTimer.Stop();
+                _trayClickTimer.Start();
+                return;
+            }
+
+            if (e.Button != MouseButtons.Right)
                 return;
 
-            RefreshTelemetry();
+            _telemetryService.RefreshNow();
             _trayMenu.Hide();
             SetForegroundWindow(_trayMenu.Handle);
             _trayMenu.Show(Cursor.Position);
         }
 
-        private void RefreshTelemetry()
+        private void OnIconMouseDoubleClick(object sender, MouseEventArgs e)
         {
-            if (!_nvmlReady)
+            if (e.Button != MouseButtons.Left)
                 return;
 
-            if (!_nvml.TryGetTelemetry(out GpuTelemetry telemetry))
+            _trayClickTimer.Stop();
+            ToggleDashboard();
+        }
+
+        private void OnTelemetrySnapshotUpdated(object sender, GpuTelemetrySnapshot snapshot)
+        {
+            if (snapshot?.IsAvailable != true)
             {
-                UpdateTelemetryItems(new GpuTelemetry());
+                UpdateTelemetryItems(snapshot?.Telemetry ?? new GpuTelemetry());
                 ClearProfileChecks();
                 return;
             }
 
-            UpdateTelemetryItems(telemetry);
+            UpdateTelemetryItems(snapshot.Telemetry);
 
-            if (telemetry.CurrentPowerLimitMilliwatt.HasValue)
-                UpdatePowerSelection(telemetry.CurrentPowerLimitMilliwatt.Value);
+            if (snapshot.Telemetry.CurrentPowerLimitMilliwatt.HasValue)
+                UpdatePowerSelection(snapshot.Telemetry.CurrentPowerLimitMilliwatt.Value);
             else
                 ClearProfileChecks();
         }
 
         private void UpdateTelemetryItems(GpuTelemetry telemetry)
         {
-            _powerUsageItem.Text = $"⚡ Conso instantanée : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerUsageMilliwatt)}";
-            _currentLimitItem.Text = $"🎯 Limite active : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerLimitMilliwatt)}";
-            _temperatureItem.Text = $"🌡️ Température GPU : {GpuTelemetryFormatter.FormatTemperature(telemetry.TemperatureGpuCelsius)}";
-            _gpuUtilizationItem.Text = $"📊 Utilisation GPU : {GpuTelemetryFormatter.FormatPercentage(telemetry.GpuUtilizationPercent)}";
-            _memoryUtilizationItem.Text = $"🧠 Utilisation mémoire : {GpuTelemetryFormatter.FormatPercentage(telemetry.MemoryUtilizationPercent)}";
-            _decoderUtilizationItem.Text = $"🎥 Décodeur vidéo : {GpuTelemetryFormatter.FormatPercentage(telemetry.DecoderUtilizationPercent)}";
-            _clocksItem.Text = $"⏱️ Fréquences : GPU {GpuTelemetryFormatter.FormatMegahertz(telemetry.GraphicsClockMHz)} / mémoire {GpuTelemetryFormatter.FormatMegahertz(telemetry.MemoryClockMHz)}";
-            _fanSpeedItem.Text = $"🌀 Ventilateur : {GpuTelemetryFormatter.FormatPercentage(telemetry.FanSpeedPercent)}";
-            _performanceStateItem.Text = $"🚦 État performance : {GpuTelemetryFormatter.FormatPerformanceState(telemetry.PerformanceState)}";
+            _powerUsageItem.Text = $"Puissance instantanée : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerUsageMilliwatt)}";
+            _currentLimitItem.Text = $"Power limit : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerLimitMilliwatt)}";
+            _temperatureItem.Text = $"Température GPU : {GpuTelemetryFormatter.FormatTemperature(telemetry.TemperatureGpuCelsius)}";
+            _gpuUtilizationItem.Text = $"Utilisation GPU : {GpuTelemetryFormatter.FormatPercentage(telemetry.GpuUtilizationPercent)}";
+            _memoryUtilizationItem.Text = $"Utilisation mémoire : {GpuTelemetryFormatter.FormatPercentage(telemetry.MemoryUtilizationPercent)}";
+            _decoderUtilizationItem.Text = $"Décodeur vidéo : {GpuTelemetryFormatter.FormatPercentage(telemetry.DecoderUtilizationPercent)}";
+            _clocksItem.Text = $"Fréquences : GPU {GpuTelemetryFormatter.FormatMegahertz(telemetry.GraphicsClockMHz)} / mémoire {GpuTelemetryFormatter.FormatMegahertz(telemetry.MemoryClockMHz)}";
+            _fanSpeedItem.Text = $"Ventilateur : {GpuTelemetryFormatter.FormatPercentage(telemetry.FanSpeedPercent)}";
+            _performanceStateItem.Text = $"État performance : {GpuTelemetryFormatter.FormatPerformanceState(telemetry.PerformanceState)}";
         }
 
         private void UpdatePowerSelection(uint currentLimit)
@@ -992,15 +1079,34 @@ namespace NVConso
 
         private void SetStatus(string message)
         {
-            _statusItem.Text = $"ℹ️ Statut : {message}";
+            _statusItem.Text = $"Statut : {NormalizeStatusMessage(message)}";
+        }
+
+        private static string NormalizeStatusMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return "--";
+
+            string normalized = message.Trim();
+            string[] prefixes = ["✅ ", "ℹ️ ", "⚠️ ", "❌ "];
+
+            foreach (string prefix in prefixes)
+            {
+                if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+                    return normalized[prefix.Length..];
+            }
+
+            return normalized;
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                _telemetryTimer.Stop();
-                _telemetryTimer.Dispose();
+                _telemetryService.SnapshotUpdated -= OnTelemetrySnapshotUpdated;
+                _telemetryService.StopPolling();
+                _trayClickTimer.Stop();
+                _trayClickTimer.Dispose();
                 _updateCheckTimer.Stop();
                 _updateCheckTimer.Dispose();
 
@@ -1012,6 +1118,7 @@ namespace NVConso
                 }
 
                 _icon.Dispose();
+                _dashboardForm?.Dispose();
                 _trayMenu.Dispose();
             }
 

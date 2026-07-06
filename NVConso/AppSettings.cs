@@ -13,6 +13,10 @@ namespace NVConso
         public string UpdateChannel { get; set; } = "stable";
         public DateTimeOffset? LastUpdateCheckUtc { get; set; }
         public string LastUpdateError { get; set; }
+        public bool ShowDashboardOnStartup { get; set; }
+        public UiTheme DashboardTheme { get; set; } = UiTheme.System;
+        public DashboardWindowBounds DashboardWindowBounds { get; set; }
+        public int TelemetryHistorySeconds { get; set; } = GpuTelemetryHistory.DefaultCapacitySeconds;
         public bool HasSavedMode { get; set; }
         public GpuPowerMode LastSelectedMode { get; set; } = GpuPowerMode.Stock;
         public uint? CustomPowerLimitMilliwatt { get; set; }

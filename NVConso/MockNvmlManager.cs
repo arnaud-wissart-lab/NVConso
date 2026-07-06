@@ -44,6 +44,10 @@ namespace NVConso
 
         public Exception SetPowerLimitException { get; set; }
 
+        public bool TryGetTelemetryResult { get; set; } = true;
+
+        public Exception TryGetTelemetryException { get; set; }
+
         public GpuTelemetry Telemetry { get; set; } = new()
         {
             TemperatureGpuCelsius = 55,
@@ -95,6 +99,15 @@ namespace NVConso
 
         public bool TryGetTelemetry(out GpuTelemetry telemetry)
         {
+            if (TryGetTelemetryException is not null)
+                throw TryGetTelemetryException;
+
+            if (!TryGetTelemetryResult)
+            {
+                telemetry = new GpuTelemetry();
+                return false;
+            }
+
             telemetry = new GpuTelemetry
             {
                 CurrentPowerUsageMilliwatt = Telemetry.CurrentPowerUsageMilliwatt ?? _currentLimit,

@@ -24,6 +24,10 @@ namespace NVConso.Tests
                 Assert.Equal("stable", settings.UpdateChannel);
                 Assert.Null(settings.LastUpdateCheckUtc);
                 Assert.Null(settings.LastUpdateError);
+                Assert.False(settings.ShowDashboardOnStartup);
+                Assert.Equal(UiTheme.System, settings.DashboardTheme);
+                Assert.Null(settings.DashboardWindowBounds);
+                Assert.Equal(300, settings.TelemetryHistorySeconds);
                 Assert.False(settings.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Stock, settings.LastSelectedMode);
             }
@@ -55,6 +59,16 @@ namespace NVConso.Tests
                     UpdateChannel = "stable",
                     LastUpdateCheckUtc = new DateTimeOffset(2026, 7, 6, 10, 30, 0, TimeSpan.Zero),
                     LastUpdateError = "Réseau indisponible.",
+                    ShowDashboardOnStartup = true,
+                    DashboardTheme = UiTheme.Dark,
+                    DashboardWindowBounds = new DashboardWindowBounds
+                    {
+                        X = 120,
+                        Y = 80,
+                        Width = 1280,
+                        Height = 760
+                    },
+                    TelemetryHistorySeconds = 600,
                     HasSavedMode = true,
                     LastSelectedMode = GpuPowerMode.Indie2D,
                     CustomPowerLimitMilliwatt = 225000
@@ -75,6 +89,14 @@ namespace NVConso.Tests
                 Assert.Equal("stable", actual.UpdateChannel);
                 Assert.Equal(new DateTimeOffset(2026, 7, 6, 10, 30, 0, TimeSpan.Zero), actual.LastUpdateCheckUtc);
                 Assert.Equal("Réseau indisponible.", actual.LastUpdateError);
+                Assert.True(actual.ShowDashboardOnStartup);
+                Assert.Equal(UiTheme.Dark, actual.DashboardTheme);
+                Assert.NotNull(actual.DashboardWindowBounds);
+                Assert.Equal(120, actual.DashboardWindowBounds.X);
+                Assert.Equal(80, actual.DashboardWindowBounds.Y);
+                Assert.Equal(1280, actual.DashboardWindowBounds.Width);
+                Assert.Equal(760, actual.DashboardWindowBounds.Height);
+                Assert.Equal(600, actual.TelemetryHistorySeconds);
                 Assert.True(actual.HasSavedMode);
                 Assert.Equal(GpuPowerMode.Indie2D, actual.LastSelectedMode);
                 Assert.Equal(225000u, actual.CustomPowerLimitMilliwatt);
@@ -86,6 +108,10 @@ namespace NVConso.Tests
                 Assert.Contains("\"AutoApplyUpdatesOnStartup\": false", rawSettings);
                 Assert.Contains("\"UpdateChannel\": \"stable\"", rawSettings);
                 Assert.Contains("\"LastUpdateError\":", rawSettings);
+                Assert.Contains("\"ShowDashboardOnStartup\": true", rawSettings);
+                Assert.Contains("\"DashboardTheme\": \"Dark\"", rawSettings);
+                Assert.Contains("\"DashboardWindowBounds\":", rawSettings);
+                Assert.Contains("\"TelemetryHistorySeconds\": 600", rawSettings);
                 Assert.Contains("\"CustomPowerLimitMilliwatt\": 225000", rawSettings);
                 Assert.Contains("\"LastSelectedMode\": \"Indie2D\"", rawSettings);
             }
