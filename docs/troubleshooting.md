@@ -26,6 +26,7 @@ Symptômes :
 - la lecture de télémétrie fonctionne ;
 - l'application d'un power limit échoue ;
 - NVML refuse l'écriture.
+- le dashboard affiche `Mode lecture seule — une élévation sera demandée pour appliquer les profils.`
 
 Causes possibles :
 
@@ -35,9 +36,32 @@ Causes possibles :
 
 Actions :
 
-- relancer WattPilot en administrateur ;
-- vérifier que le manifeste demande bien l'élévation ;
+- cliquer sur un profil ou une limite personnalisée, puis choisir `Exécuter en administrateur` ;
+- si l'UAC est refusé, relancer l'action et accepter l'élévation ;
 - si WattPilot démarre avec Windows, réparer la tâche planifiée depuis les préférences.
+
+WattPilot démarre volontairement sans droits administrateur. L'élévation est demandée seulement pour modifier la limite de puissance GPU ou gérer la tâche planifiée élevée. Le dashboard, l'historique, la télémétrie et les mises à jour restent dans le processus principal non élevé.
+
+Les commandes élevées passent par un mode interne `--elevated-command` limité à une liste blanche : modification de power limit, restauration `Stock`, configuration ou suppression de la tâche planifiée. Les paramètres sont validés et aucun shell arbitraire n'est exécuté.
+
+## Erreur Velopack `L'opération demandée nécessite une élévation`
+
+Symptômes :
+
+- `Setup.exe` installe WattPilot puis affiche `Une erreur s'est produite — L'opération demandée nécessite une élévation. (os error -2147024156)` ;
+- l'installation ne parvient pas à lancer l'application après les hooks Velopack.
+
+Cause :
+
+Les anciennes versions forçaient toute l'application à démarrer en administrateur via le manifeste et une relance `runas` au démarrage. Velopack pouvait alors installer puis tenter de lancer WattPilot depuis un contexte non élevé, ce qui déclenchait l'erreur.
+
+Correction attendue :
+
+- installer une version où le manifeste utilise `asInvoker` ;
+- vérifier que WattPilot démarre en mode utilisateur standard après installation ;
+- accepter l'élévation uniquement au moment d'appliquer un profil GPU, une limite personnalisée, une restauration `Stock` ou une opération de tâche planifiée.
+
+Cette élévation lance une commande dédiée puis se termine ; elle ne relance pas toute l'application en administrateur.
 
 ## GPU non compatible power limit
 

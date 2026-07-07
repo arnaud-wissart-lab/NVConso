@@ -1,7 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using System.Security.Principal;
 using Velopack;
 
 namespace NVConso
@@ -15,34 +13,19 @@ namespace NVConso
                 .SetAutoApplyOnStartup(false)
                 .Run();
 
+            if (!ProgramStartupPolicy.ShouldStartApplicationAfterVelopack(args))
+                return;
+
+            if (ElevatedCommandLine.IsElevatedCommand(args))
+            {
+                Environment.Exit(ElevatedCommandProgram.Run(args));
+                return;
+            }
+
             StartupLaunchOptions launchOptions = StartupLaunchOptions.Parse(args);
 
             ApplicationConfiguration.Initialize();
             EnsureWpfApplication();
-
-            if (!IsRunAsAdmin())
-            {
-                try
-                {
-                    var startInfo = new ProcessStartInfo(System.Windows.Forms.Application.ExecutablePath)
-                    {
-                        Arguments = WindowsCommandLine.FormatArguments(args),
-                        Verb = "runas",
-                        UseShellExecute = true,
-                    };
-                    Process.Start(startInfo);
-                }
-                catch (Exception)
-                {
-                    System.Windows.Forms.MessageBox.Show(
-                        "Les droits administrateur sont requis pour ajuster la limite de puissance.",
-                        ProductNames.DisplayName,
-                        System.Windows.Forms.MessageBoxButtons.OK,
-                        System.Windows.Forms.MessageBoxIcon.Error);
-                }
-
-                return;
-            }
 
             var services = new ServiceCollection()
                 .AddLogging(config => config.AddSimpleConsole(options =>
@@ -56,6 +39,9 @@ namespace NVConso
                 .AddSingleton<IStartupTaskScheduler, WindowsTaskSchedulerClient>()
                 .AddSingleton<IStartupManager, WindowsTaskSchedulerStartupManager>()
                 .AddSingleton<IAppUpdater, VelopackAppUpdater>()
+                .AddSingleton<IPrivilegeService>(services => new WindowsPrivilegeService(
+                    services.GetRequiredService<ILogger<WindowsPrivilegeService>>(),
+                    executablePath: System.Windows.Forms.Application.ExecutablePath))
                 .AddSingleton<INvmlManager, NvmlManager>()
                 .AddSingleton<IGpuTelemetryService, GpuTelemetryService>()
                 .AddSingleton<ICaniculeGuardClock, SystemCaniculeGuardClock>()
@@ -86,8 +72,9 @@ namespace NVConso
             var caniculeGuard = services.GetRequiredService<ICaniculeGuard>();
             var themeService = services.GetRequiredService<ThemeService>();
             var settingsService = services.GetRequiredService<AppSettingsService>();
+            var privilegeService = services.GetRequiredService<IPrivilegeService>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
+            System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, privilegeService, trayLogger, launchOptions));
         }
 
         private static void EnsureWpfApplication()
@@ -101,11 +88,5 @@ namespace NVConso
             };
         }
 
-        private static bool IsRunAsAdmin()
-        {
-            using var identity = WindowsIdentity.GetCurrent();
-            var principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
-        }
     }
 }

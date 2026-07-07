@@ -4,6 +4,7 @@ namespace NVConso
     {
         private const double TemperatureWarningCelsius = 80;
         private const double TemperatureCriticalCelsius = 88;
+        private const string UnavailableMetric = "indisponible";
 
         private DashboardTelemetryViewModel()
         {
@@ -40,14 +41,14 @@ namespace NVConso
                     : $"#{snapshot.SelectedGpuIndex} - {snapshot.SelectedGpuName}",
                 ProfileName = GpuTelemetryFormatter.FormatPowerMode(snapshot.ActivePowerMode, snapshot.IsCustomPowerLimit),
                 NvmlStatus = snapshot.IsAvailable ? "NVML prêt" : NormalizeStatus(snapshot.StatusMessage),
-                PowerUsage = GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerUsageMilliwatt),
-                PowerLimit = GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerLimitMilliwatt),
-                Temperature = GpuTelemetryFormatter.FormatTemperature(telemetry.TemperatureGpuCelsius),
-                GpuUsage = GpuTelemetryFormatter.FormatPercentage(telemetry.GpuUtilizationPercent),
-                DecoderUsage = GpuTelemetryFormatter.FormatPercentage(telemetry.DecoderUtilizationPercent),
-                GraphicsClock = GpuTelemetryFormatter.FormatMegahertz(telemetry.GraphicsClockMHz),
-                MemoryClock = GpuTelemetryFormatter.FormatMegahertz(telemetry.MemoryClockMHz),
-                FanSpeed = GpuTelemetryFormatter.FormatPercentage(telemetry.FanSpeedPercent),
+                PowerUsage = FormatMetric(telemetry.CurrentPowerUsageMilliwatt, GpuTelemetryFormatter.FormatWatts),
+                PowerLimit = FormatMetric(telemetry.CurrentPowerLimitMilliwatt, GpuTelemetryFormatter.FormatWatts),
+                Temperature = FormatMetric(telemetry.TemperatureGpuCelsius, GpuTelemetryFormatter.FormatTemperature),
+                GpuUsage = FormatMetric(telemetry.GpuUtilizationPercent, GpuTelemetryFormatter.FormatPercentage),
+                DecoderUsage = FormatMetric(telemetry.DecoderUtilizationPercent, GpuTelemetryFormatter.FormatPercentage),
+                GraphicsClock = FormatMetric(telemetry.GraphicsClockMHz, GpuTelemetryFormatter.FormatMegahertz),
+                MemoryClock = FormatMetric(telemetry.MemoryClockMHz, GpuTelemetryFormatter.FormatMegahertz),
+                FanSpeed = FormatMetric(telemetry.FanSpeedPercent, GpuTelemetryFormatter.FormatPercentage),
                 PowerGaugeValue = ResolvePowerRatio(telemetry),
                 TemperatureGaugeValue = telemetry.TemperatureGpuCelsius.HasValue
                     ? Math.Clamp(telemetry.TemperatureGpuCelsius.Value / TemperatureCriticalCelsius, 0, 1)
@@ -65,6 +66,13 @@ namespace NVConso
             return string.IsNullOrWhiteSpace(statusMessage)
                 ? "NVML indisponible"
                 : statusMessage;
+        }
+
+        private static string FormatMetric(uint? value, Func<uint?, string> formatter)
+        {
+            return value.HasValue
+                ? formatter(value)
+                : UnavailableMetric;
         }
 
         private static double? ResolvePowerRatio(GpuTelemetry telemetry)

@@ -8,13 +8,20 @@ namespace NVConso
             INvmlManager nvml,
             AppSettings settings,
             bool nvmlReady,
-            Microsoft.Extensions.Logging.ILogger logger = null)
+            Microsoft.Extensions.Logging.ILogger logger = null,
+            IPrivilegeService privilegeService = null)
         {
             if (nvml is null || settings is null)
                 return false;
 
             if (!settings.RestoreStockOnExit || !nvmlReady)
                 return false;
+
+            if (privilegeService is not null && !privilegeService.CanWritePowerLimit)
+            {
+                logger?.LogDebug("[NVML] Restauration Stock ignorée: mode lecture seule.");
+                return false;
+            }
 
             if (!nvml.IsDefaultPowerLimitAvailable || nvml.DefaultPowerLimit == 0)
             {

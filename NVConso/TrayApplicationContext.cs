@@ -36,6 +36,7 @@ namespace NVConso
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly GpuProfileController _gpuProfiles;
         private readonly AppSettingsService _settingsService;
+        private readonly IPrivilegeService _privilegeService;
         private readonly ILogger<TrayAppContext> _logger;
         private readonly StartupLaunchOptions _launchOptions;
         private readonly TrayNotificationService _notifications;
@@ -57,6 +58,7 @@ namespace NVConso
                 new CaniculeGuardService(),
                 new ThemeService(),
                 new AppSettingsService(new AppSettingsStore()),
+                new WindowsPrivilegeService(),
                 logger,
                 StartupLaunchOptions.Default)
         {
@@ -72,6 +74,7 @@ namespace NVConso
             ICaniculeGuard caniculeGuard,
             ThemeService themeService,
             AppSettingsService settingsService,
+            IPrivilegeService privilegeService = null,
             ILogger<TrayAppContext> logger = null,
             StartupLaunchOptions launchOptions = null)
         {
@@ -87,7 +90,8 @@ namespace NVConso
             _updateWorkflow = new AppUpdateWorkflow(resolvedAppUpdater);
             _logger = logger;
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
-            _gpuProfiles = new GpuProfileController(_nvml, _settingsService, _telemetryService, _logger);
+            _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
+            _gpuProfiles = new GpuProfileController(_nvml, _settingsService, _telemetryService, _privilegeService, _logger);
             _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
             _settings = _settingsService.Current;
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -220,7 +224,8 @@ namespace NVConso
                 () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
                 ShowCustomPowerLimitDialog,
                 OpenPreferences,
-                _logger);
+                _logger,
+                _privilegeService);
 
             _dashboardWindow = new DashboardWindow(viewModel);
             System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dashboardWindow);
@@ -249,7 +254,8 @@ namespace NVConso
                 _updateWorkflow,
                 _nvml,
                 _telemetryService,
-                _telemetryRecorder);
+                _telemetryRecorder,
+                _privilegeService);
 
             _preferencesWindow = new PreferencesWindow(viewModel);
             System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_preferencesWindow);
@@ -321,6 +327,9 @@ namespace NVConso
                 return;
             }
 
+            if (!_privilegeService.CanWritePowerLimit)
+                _notifications.SetStatus(_privilegeService.CurrentPrivilegeStatusMessage);
+
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
                 ApplySavedPowerLimit();
 
@@ -369,10 +378,17 @@ namespace NVConso
 
         private void ApplyProfile(GpuPowerMode mode, bool persistSelection, bool showBalloon)
         {
+            _ = ApplyProfileAsync(mode, persistSelection, showBalloon);
+        }
+
+        private async Task ApplyProfileAsync(GpuPowerMode mode, bool persistSelection, bool showBalloon)
+        {
             if (!_gpuProfiles.IsReady)
                 return;
 
-            GpuProfileOperationResult result = _gpuProfiles.ApplyProfile(_settings, mode, persistSelection);
+            GpuProfileOperationResult result = await _gpuProfiles
+                .ApplyProfileAsync(_settings, mode, persistSelection)
+                .ConfigureAwait(true);
             if (!result.Success)
             {
                 _notifications.SetStatus(result.Message);
@@ -398,7 +414,9 @@ namespace NVConso
             GpuProfileOperationResult result = _gpuProfiles.ApplySavedPowerLimit(_settings);
             if (!result.Success)
             {
-                _notifications.SetStatus(result.Message);
+                _notifications.SetStatus(result.RequiresElevation
+                    ? _privilegeService.CurrentPrivilegeStatusMessage
+                    : result.Message);
                 return;
             }
 
@@ -412,6 +430,11 @@ namespace NVConso
 
         private void ShowCustomPowerLimitDialog()
         {
+            _ = ShowCustomPowerLimitDialogAsync();
+        }
+
+        private async Task ShowCustomPowerLimitDialogAsync()
+        {
             if (!_gpuProfiles.IsReady)
                 return;
 
@@ -423,10 +446,10 @@ namespace NVConso
             if (dialog.ShowDialog() != DialogResult.OK)
                 return;
 
-            ApplyCustomPowerLimit(
+            await ApplyCustomPowerLimitAsync(
                 dialog.TargetPowerLimitMilliwatt,
                 persistSelection: true,
-                showBalloon: true);
+                showBalloon: true).ConfigureAwait(true);
         }
 
         private uint ResolveInitialCustomPowerLimit()
@@ -434,12 +457,14 @@ namespace NVConso
             return _gpuProfiles.ResolveInitialCustomPowerLimit(_settings);
         }
 
-        private bool ApplyCustomPowerLimit(uint targetMilliwatt, bool persistSelection, bool showBalloon)
+        private async Task<bool> ApplyCustomPowerLimitAsync(uint targetMilliwatt, bool persistSelection, bool showBalloon)
         {
             if (!_gpuProfiles.IsReady)
                 return false;
 
-            GpuProfileOperationResult result = _gpuProfiles.ApplyCustomPowerLimit(_settings, targetMilliwatt, persistSelection);
+            GpuProfileOperationResult result = await _gpuProfiles
+                .ApplyCustomPowerLimit(_settings, targetMilliwatt, persistSelection, allowElevationPrompt: true)
+                .ConfigureAwait(true);
             if (!result.Success)
             {
                 _notifications.SetStatus(result.Message);
@@ -458,7 +483,6 @@ namespace NVConso
 
             return true;
         }
-
         private void OnIconMouseUp(object sender, MouseEventArgs e)
         {
             TrayIconMouseAction action = TrayIconMouseActions.FromMouseUp(e.Button);
@@ -571,7 +595,12 @@ namespace NVConso
 
                 if (_gpuProfiles.IsReady)
                 {
-                    StockPowerLimitRestorer.TryRestoreStockOnExit(_nvml, _settings, nvmlReady: true, _logger);
+                    StockPowerLimitRestorer.TryRestoreStockOnExit(
+                        _nvml,
+                        _settings,
+                        nvmlReady: true,
+                        _logger,
+                        _privilegeService);
                     _gpuProfiles.Shutdown();
                 }
 

@@ -13,6 +13,7 @@ namespace NVConso.ViewModels
         private readonly INvmlManager _nvml;
         private readonly IGpuTelemetryService _telemetryService;
         private readonly ITelemetryRecorder _telemetryRecorder;
+        private readonly IPrivilegeService _privilegeService;
         private bool _syncingTheme;
         private bool _showDashboardOnStartup;
         private bool _autoApplySavedMode;
@@ -47,7 +48,8 @@ namespace NVConso.ViewModels
             AppUpdateWorkflow updateWorkflow,
             INvmlManager nvml,
             IGpuTelemetryService telemetryService,
-            ITelemetryRecorder telemetryRecorder)
+            ITelemetryRecorder telemetryRecorder,
+            IPrivilegeService privilegeService = null)
         {
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
             _startupController = startupController ?? throw new ArgumentNullException(nameof(startupController));
@@ -55,6 +57,7 @@ namespace NVConso.ViewModels
             _nvml = nvml;
             _telemetryService = telemetryService;
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
+            _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
 
             ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System));
             ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light));
@@ -77,8 +80,8 @@ namespace NVConso.ViewModels
             CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesNowAsync);
             OpenGitHubReleasesCommand = new RelayCommand(OpenGitHubReleases);
             CopyUpdateDiagnosticCommand = new RelayCommand(CopyUpdateDiagnostic);
-            RepairStartupCommand = new RelayCommand(RepairStartupTask);
-            DeleteStartupCommand = new RelayCommand(DeleteStartupTask);
+            RepairStartupCommand = new AsyncRelayCommand(RepairStartupTaskAsync);
+            DeleteStartupCommand = new AsyncRelayCommand(DeleteStartupTaskAsync);
             ResetCaniculeGuardCommand = new RelayCommand(ResetCaniculeGuardDefaults);
             ResetDefaultsCommand = new RelayCommand(ResetToDefaults);
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
@@ -318,13 +321,33 @@ namespace NVConso.ViewModels
         public async Task<bool> SaveAsync(bool closeAfterSave)
         {
             AppSettings settings = BuildSettings();
+            bool startupTaskHandledByHelper = false;
 
-            StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
-            if (!startupResult.Success)
+            if (RequiresStartupTaskWrite(settings) && !_privilegeService.CanManageStartupTask)
             {
-                StatusMessage = startupResult.Message;
-                RefreshStartupStatus(startupResult.Status);
-                return false;
+                PrivilegeOperationResult helperResult = settings.StartWithWindows
+                    ? await _privilegeService.ConfigureStartupTaskAsync(settings.StartMinimized).ConfigureAwait(true)
+                    : await _privilegeService.DeleteStartupTaskAsync().ConfigureAwait(true);
+
+                StatusMessage = helperResult.Message;
+                if (!helperResult.Success)
+                {
+                    RefreshStartupStatus();
+                    return false;
+                }
+
+                startupTaskHandledByHelper = true;
+            }
+
+            if (!startupTaskHandledByHelper)
+            {
+                StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
+                if (!startupResult.Success)
+                {
+                    StatusMessage = startupResult.Message;
+                    RefreshStartupStatus(startupResult.Status);
+                    return false;
+                }
             }
 
             if (!_settingsService.TrySave(settings, out string message))
@@ -487,8 +510,22 @@ namespace NVConso.ViewModels
             }
         }
 
-        private void RepairStartupTask()
+        private async Task RepairStartupTaskAsync()
         {
+            if (!_privilegeService.CanManageStartupTask)
+            {
+                PrivilegeOperationResult helperResult = await _privilegeService
+                    .ConfigureStartupTaskAsync(StartMinimized)
+                    .ConfigureAwait(true);
+
+                StatusMessage = helperResult.Message;
+                if (helperResult.Success)
+                    PersistStartupState(startWithWindows: true);
+
+                RefreshStartupStatus();
+                return;
+            }
+
             StartupOperationResult result = _startupController.Repair(StartMinimized);
             StatusMessage = result.Message;
             if (result.Success)
@@ -496,8 +533,22 @@ namespace NVConso.ViewModels
             RefreshStartupStatus(result.Status);
         }
 
-        private void DeleteStartupTask()
+        private async Task DeleteStartupTaskAsync()
         {
+            if (!_privilegeService.CanManageStartupTask)
+            {
+                PrivilegeOperationResult helperResult = await _privilegeService
+                    .DeleteStartupTaskAsync()
+                    .ConfigureAwait(true);
+
+                StatusMessage = helperResult.Message;
+                if (helperResult.Success)
+                    PersistStartupState(startWithWindows: false);
+
+                RefreshStartupStatus();
+                return;
+            }
+
             StartupOperationResult result = _startupController.Delete();
             StatusMessage = result.Message;
             if (result.Success)
@@ -542,6 +593,15 @@ namespace NVConso.ViewModels
         private void RefreshStartupStatus(StartupTaskStatus status = null)
         {
             StartupStatus = (status ?? _startupController.GetStatus()).Message;
+        }
+
+        private bool RequiresStartupTaskWrite(AppSettings settings)
+        {
+            StartupTaskStatus status = _startupController.GetStatus();
+            if (settings.StartWithWindows)
+                return !status.IsAvailable || !status.IsEnabledForCurrentExecutable;
+
+            return status.IsAvailable && status.Exists;
         }
 
         private void OpenTelemetryFolder()

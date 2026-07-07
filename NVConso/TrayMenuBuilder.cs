@@ -13,7 +13,6 @@ namespace NVConso
             ToolStripMenuItem gpuProfileSummaryItem = CreateInfoItem(TrayMenuLabels.FormatGpuProfileSummary("--", "--"));
             ToolStripMenuItem powerTemperatureSummaryItem = CreateInfoItem(TrayMenuLabels.FormatPowerTemperatureSummary(new GpuTelemetry()));
             ToolStripMenuItem statusItem = CreateInfoItem("Statut : initialisation...");
-            statusItem.Available = false;
 
             ToolStripMenuItem openDashboardItem = new("Ouvrir le tableau de bord");
             ToolStripMenuItem profilesMenuItem = new("Profils");
@@ -49,6 +48,7 @@ namespace NVConso
             menu.Items.Add(titleItem);
             menu.Items.Add(gpuProfileSummaryItem);
             menu.Items.Add(powerTemperatureSummaryItem);
+            menu.Items.Add(statusItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(openDashboardItem);
             menu.Items.Add(profilesMenuItem);

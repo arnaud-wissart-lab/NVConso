@@ -16,6 +16,7 @@ namespace NVConso.ViewModels
         private readonly ThemeService _themeService;
         private readonly AppSettingsService _settingsService;
         private readonly AppUpdateWorkflow _updateWorkflow;
+        private readonly IPrivilegeService _privilegeService;
         private readonly Action<GpuPowerMode> _applyProfile;
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
@@ -43,6 +44,7 @@ namespace NVConso.ViewModels
         private string _gpuName = "GPU non sélectionné";
         private string _profileName = "--";
         private string _statusMessage = "NVML indisponible";
+        private string _privilegeStatusMessage = PrivilegeMessages.ReadOnlyMode;
         private string _productVersion = DashboardHeaderLabels.FormatProductVersion();
         private string _historySummary = "Résumé : --";
         private string _historyStatus = "Historique persistant : sélectionnez une date.";
@@ -65,7 +67,8 @@ namespace NVConso.ViewModels
             Action restoreStock,
             Action showCustomPowerLimit,
             Action openPreferences,
-            Microsoft.Extensions.Logging.ILogger logger = null)
+            Microsoft.Extensions.Logging.ILogger logger = null,
+            IPrivilegeService privilegeService = null)
         {
             _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
@@ -74,6 +77,7 @@ namespace NVConso.ViewModels
             _themeService = themeService ?? new ThemeService();
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
             _updateWorkflow = updateWorkflow;
+            _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
             _applyProfile = applyProfile;
             _restoreStock = restoreStock;
             _showCustomPowerLimit = showCustomPowerLimit;
@@ -122,6 +126,7 @@ namespace NVConso.ViewModels
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
 
             ApplySettings(_settings);
+            RefreshPrivilegeStatus();
             ApplySnapshot(_telemetryService.CurrentSnapshot);
             RefreshDailySummary();
             RefreshCaniculeGuardSummary();
@@ -176,6 +181,12 @@ namespace NVConso.ViewModels
         {
             get => _statusMessage;
             private set => SetProperty(ref _statusMessage, value);
+        }
+
+        public string PrivilegeStatusMessage
+        {
+            get => _privilegeStatusMessage;
+            private set => SetProperty(ref _privilegeStatusMessage, value);
         }
 
         public DashboardMetricState StatusState
@@ -269,6 +280,7 @@ namespace NVConso.ViewModels
             _settings = settings ?? _settingsService.Current;
             ProductVersion = DashboardHeaderLabels.FormatProductVersion();
             ResolvedTheme = _themeService.ResolveTheme(_settings.DashboardTheme);
+            RefreshPrivilegeStatus();
             RefreshUpdateStatus();
             RefreshDailySummary();
             RefreshCaniculeGuardSummary();
@@ -407,6 +419,11 @@ namespace NVConso.ViewModels
                 : new UpdateStatusPresenter(_updateWorkflow).GetStoredState(_settings);
             UpdateStatus.Apply(state);
             OnPropertyChanged(nameof(UpdateModeLabel));
+        }
+
+        private void RefreshPrivilegeStatus()
+        {
+            PrivilegeStatusMessage = _privilegeService.CurrentPrivilegeStatusMessage;
         }
 
         private async Task LoadHistoryAsync()

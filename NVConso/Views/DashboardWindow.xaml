@@ -104,6 +104,11 @@
                                                    TextWrapping="Wrap"
                                                    TextTrimming="None" />
                                     </Border>
+                                    <TextBlock Text="{Binding PrivilegeStatusMessage}"
+                                               Style="{StaticResource MutedText}"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,8" />
                                     <Button Content="Restaurer Stock"
                                             Command="{Binding RestoreStockCommand}"
                                             Margin="0,0,0,8"

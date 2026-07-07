@@ -29,7 +29,12 @@ namespace NVConso
             StartupTaskStatus status = _startupManager.GetStatus();
 
             if (settings.StartWithWindows)
+            {
+                if (status.IsAvailable && status.IsEnabledForCurrentExecutable)
+                    return StartupOperationResult.Succeeded(status.Message, status);
+
                 return _startupManager.Enable(settings.StartMinimized);
+            }
 
             if (!status.IsAvailable || !status.Exists)
                 return StartupOperationResult.Succeeded(status.Message, status);
