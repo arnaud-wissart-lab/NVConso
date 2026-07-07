@@ -112,56 +112,6 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Affichage">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="260" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.ColumnSpan="2" Text="Profils écran" Style="{StaticResource SectionTitleText}" />
-                                <CheckBox Grid.Row="1" Grid.ColumnSpan="2" Content="Activer les profils écran" IsChecked="{Binding EnableDisplayProfiles}" />
-                                <CheckBox Grid.Row="2" Grid.ColumnSpan="2" Content="Restaurer l'état écran initial sur Stock" IsChecked="{Binding RestoreDisplayStateOnStock}" />
-                                <CheckBox Grid.Row="3" Grid.ColumnSpan="2" Content="Restaurer l'état écran initial à la fermeture" IsChecked="{Binding RestoreDisplayStateOnExit}" />
-                                <TextBlock Grid.Row="4" Text="Canicule cible (Hz)" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,8,0,0" />
-                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CaniculeTargetRefreshRateHz, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" Margin="0,8,0,0" />
-                                <TextBlock Grid.Row="5" Text="Vidéo / surf cible (Hz)" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,8,0,0" />
-                                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding VideoSurfTargetRefreshRateHz, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" Margin="0,8,0,0" />
-                                <TextBlock Grid.Row="6" Text="Indie 2D cible (Hz)" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,8,0,0" />
-                                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Indie2DTargetRefreshRateHz, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" Margin="0,8,0,0" />
-                                <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,14,0,0">
-                                    <Button Content="Paramètres HDR" Command="{Binding OpenHdrSettingsCommand}" Margin="0,0,8,0" />
-                                    <Button Content="Graphiques Windows" Command="{Binding OpenGraphicsSettingsCommand}" Margin="0,0,8,0" />
-                                    <Button Content="Panneau NVIDIA" Command="{Binding OpenNvidiaSettingsCommand}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource CardBorder}">
-                            <StackPanel>
-                                <TextBlock Text="État détecté" Style="{StaticResource SectionTitleText}" />
-                                <TextBlock Text="{Binding DisplayStatus}" Margin="0,0,0,8" />
-                                <TextBox Text="{Binding DisplayDevices}" MinHeight="150" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
-                                <CheckBox Content="Autoriser les changements HDR expérimentaux" IsChecked="{Binding AllowExperimentalHdrChanges}" Margin="0,12,0,0" />
-                                <CheckBox Content="Autoriser les changements VRR expérimentaux" IsChecked="{Binding AllowExperimentalVrrChanges}" />
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
             <TabItem Header="Historisation">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Border Style="{StaticResource CardBorder}">

@@ -12,7 +12,6 @@ namespace NVConso.ViewModels
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly INvmlManager _nvml;
         private readonly IGpuTelemetryService _telemetryService;
-        private readonly IDisplayManager _displayManager;
         private readonly ITelemetryRecorder _telemetryRecorder;
         private bool _syncingTheme;
         private bool _showDashboardOnStartup;
@@ -24,11 +23,6 @@ namespace NVConso.ViewModels
         private bool _includePrereleaseUpdates;
         private bool _caniculeGuardEnabled;
         private bool _recordingEnabled = true;
-        private bool _enableDisplayProfiles;
-        private bool _restoreDisplayStateOnStock = true;
-        private bool _restoreDisplayStateOnExit = true;
-        private bool _allowExperimentalHdrChanges;
-        private bool _allowExperimentalVrrChanges;
         private int _customPowerLimitWatts;
         private int _telemetryHistorySeconds = GpuTelemetryHistory.DefaultCapacitySeconds;
         private int _caniculePowerThresholdWatts = CaniculeGuardDefaults.PowerThresholdWatts;
@@ -39,13 +33,8 @@ namespace NVConso.ViewModels
         private int _telemetryRetentionDays = 30;
         private int _peakPowerThresholdWatts = 100;
         private int _peakTemperatureThresholdCelsius = 70;
-        private int _caniculeTargetRefreshRateHz = 60;
-        private int _videoSurfTargetRefreshRateHz = 120;
-        private int _indie2DTargetRefreshRateHz = 120;
         private string _statusMessage = "Préférences prêtes.";
         private string _startupStatus = "--";
-        private string _displayStatus = "--";
-        private string _displayDevices = "--";
         private string _gpuRange = "--";
         private string _telemetryPath = "--";
         private SelectionOption<UiTheme> _selectedTheme;
@@ -58,7 +47,6 @@ namespace NVConso.ViewModels
             AppUpdateWorkflow updateWorkflow,
             INvmlManager nvml,
             IGpuTelemetryService telemetryService,
-            IDisplayManager displayManager,
             ITelemetryRecorder telemetryRecorder)
         {
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
@@ -66,8 +54,7 @@ namespace NVConso.ViewModels
             _updateWorkflow = updateWorkflow;
             _nvml = nvml;
             _telemetryService = telemetryService;
-            _displayManager = displayManager ?? new WindowsDisplayManager();
-            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder(_displayManager);
+            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
 
             ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System));
             ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light));
@@ -95,13 +82,9 @@ namespace NVConso.ViewModels
             ResetCaniculeGuardCommand = new RelayCommand(ResetCaniculeGuardDefaults);
             ResetDefaultsCommand = new RelayCommand(ResetToDefaults);
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
-            OpenHdrSettingsCommand = new RelayCommand(() => _displayManager.OpenHdrSettings());
-            OpenGraphicsSettingsCommand = new RelayCommand(() => _displayManager.OpenGraphicsSettings());
-            OpenNvidiaSettingsCommand = new RelayCommand(() => _displayManager.OpenNvidiaSettings());
 
             LoadFromSettings(_settingsService.Current);
             RefreshStartupStatus();
-            RefreshDisplayStatus();
             RefreshUpdateStatus();
         }
 
@@ -117,9 +100,6 @@ namespace NVConso.ViewModels
         public ICommand ResetCaniculeGuardCommand { get; }
         public ICommand ResetDefaultsCommand { get; }
         public ICommand OpenTelemetryFolderCommand { get; }
-        public ICommand OpenHdrSettingsCommand { get; }
-        public ICommand OpenGraphicsSettingsCommand { get; }
-        public ICommand OpenNvidiaSettingsCommand { get; }
 
         public bool ShowDashboardOnStartup
         {
@@ -173,40 +153,6 @@ namespace NVConso.ViewModels
         {
             get => _recordingEnabled;
             set => SetProperty(ref _recordingEnabled, value);
-        }
-
-        public bool EnableDisplayProfiles
-        {
-            get => _enableDisplayProfiles;
-            set
-            {
-                if (SetProperty(ref _enableDisplayProfiles, value))
-                    RefreshDisplayStatus();
-            }
-        }
-
-        public bool RestoreDisplayStateOnStock
-        {
-            get => _restoreDisplayStateOnStock;
-            set => SetProperty(ref _restoreDisplayStateOnStock, value);
-        }
-
-        public bool RestoreDisplayStateOnExit
-        {
-            get => _restoreDisplayStateOnExit;
-            set => SetProperty(ref _restoreDisplayStateOnExit, value);
-        }
-
-        public bool AllowExperimentalHdrChanges
-        {
-            get => _allowExperimentalHdrChanges;
-            set => SetProperty(ref _allowExperimentalHdrChanges, value);
-        }
-
-        public bool AllowExperimentalVrrChanges
-        {
-            get => _allowExperimentalVrrChanges;
-            set => SetProperty(ref _allowExperimentalVrrChanges, value);
         }
 
         public int CustomPowerLimitWatts
@@ -269,24 +215,6 @@ namespace NVConso.ViewModels
             set => SetProperty(ref _peakTemperatureThresholdCelsius, value);
         }
 
-        public int CaniculeTargetRefreshRateHz
-        {
-            get => _caniculeTargetRefreshRateHz;
-            set => SetProperty(ref _caniculeTargetRefreshRateHz, value);
-        }
-
-        public int VideoSurfTargetRefreshRateHz
-        {
-            get => _videoSurfTargetRefreshRateHz;
-            set => SetProperty(ref _videoSurfTargetRefreshRateHz, value);
-        }
-
-        public int Indie2DTargetRefreshRateHz
-        {
-            get => _indie2DTargetRefreshRateHz;
-            set => SetProperty(ref _indie2DTargetRefreshRateHz, value);
-        }
-
         public SelectionOption<UiTheme> SelectedTheme
         {
             get => _selectedTheme;
@@ -333,18 +261,6 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _startupStatus, value);
         }
 
-        public string DisplayStatus
-        {
-            get => _displayStatus;
-            private set => SetProperty(ref _displayStatus, value);
-        }
-
-        public string DisplayDevices
-        {
-            get => _displayDevices;
-            private set => SetProperty(ref _displayDevices, value);
-        }
-
         public string GpuRange
         {
             get => _gpuRange;
@@ -387,14 +303,6 @@ namespace NVConso.ViewModels
                 TelemetryRetentionDays = settings.TelemetryRetentionDays;
                 PeakPowerThresholdWatts = settings.PeakPowerThresholdWatts;
                 PeakTemperatureThresholdCelsius = settings.PeakTemperatureThresholdCelsius;
-                EnableDisplayProfiles = settings.EnableDisplayProfiles;
-                RestoreDisplayStateOnStock = settings.RestoreDisplayStateOnStock;
-                RestoreDisplayStateOnExit = settings.RestoreDisplayStateOnExit;
-                CaniculeTargetRefreshRateHz = settings.CaniculeTargetRefreshRateHz;
-                VideoSurfTargetRefreshRateHz = settings.VideoSurfTargetRefreshRateHz;
-                Indie2DTargetRefreshRateHz = settings.Indie2DTargetRefreshRateHz;
-                AllowExperimentalHdrChanges = settings.AllowExperimentalHdrChanges;
-                AllowExperimentalVrrChanges = settings.AllowExperimentalVrrChanges;
                 TelemetryPath = _telemetryRecorder.TelemetryRootPath;
                 GpuRange = GpuPowerRangeFormatter.Format(_nvml);
             }
@@ -428,7 +336,6 @@ namespace NVConso.ViewModels
             _telemetryService?.SetHistoryCapacitySeconds(settings.TelemetryHistorySeconds);
             _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(settings));
             RefreshStartupStatus();
-            RefreshDisplayStatus();
             RefreshUpdateStatus();
             StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
             await Task.CompletedTask.ConfigureAwait(true);
@@ -496,14 +403,6 @@ namespace NVConso.ViewModels
             settings.TelemetryRetentionDays = TelemetryRetentionDays;
             settings.PeakPowerThresholdWatts = PeakPowerThresholdWatts;
             settings.PeakTemperatureThresholdCelsius = PeakTemperatureThresholdCelsius;
-            settings.EnableDisplayProfiles = EnableDisplayProfiles;
-            settings.RestoreDisplayStateOnStock = RestoreDisplayStateOnStock;
-            settings.RestoreDisplayStateOnExit = RestoreDisplayStateOnExit;
-            settings.CaniculeTargetRefreshRateHz = CaniculeTargetRefreshRateHz;
-            settings.VideoSurfTargetRefreshRateHz = VideoSurfTargetRefreshRateHz;
-            settings.Indie2DTargetRefreshRateHz = Indie2DTargetRefreshRateHz;
-            settings.AllowExperimentalHdrChanges = AllowExperimentalHdrChanges;
-            settings.AllowExperimentalVrrChanges = AllowExperimentalVrrChanges;
             return settings;
         }
 
@@ -637,28 +536,12 @@ namespace NVConso.ViewModels
 
             LoadFromSettings(_settingsService.Current);
             RefreshStartupStatus();
-            RefreshDisplayStatus();
             StatusMessage = "Préférences locales réinitialisées.";
         }
 
         private void RefreshStartupStatus(StartupTaskStatus status = null)
         {
             StartupStatus = (status ?? _startupController.GetStatus()).Message;
-        }
-
-        private void RefreshDisplayStatus()
-        {
-            try
-            {
-                DisplayRuntimeState state = _displayManager.GetRuntimeState();
-                DisplayStatus = FormatDisplayStatus(state, EnableDisplayProfiles);
-                DisplayDevices = FormatDisplayList(state);
-            }
-            catch (Exception exception)
-            {
-                DisplayStatus = $"État écran indisponible : {exception.Message}";
-                DisplayDevices = "--";
-            }
         }
 
         private void OpenTelemetryFolder()
@@ -693,37 +576,5 @@ namespace NVConso.ViewModels
             return 0;
         }
 
-        private static string FormatDisplayStatus(DisplayRuntimeState state, bool enabled)
-        {
-            string prefix = enabled ? "Profils écran activés" : "Profils écran désactivés";
-            if (state?.Devices?.Count > 0)
-            {
-                DisplayDeviceInfo primary = state.Devices.FirstOrDefault(display => display.IsPrimary) ?? state.Devices[0];
-                DisplayAdvancedColorSummary hdrSummary = DisplayAdvancedColorSummary.FromState(state);
-                DisplayVrrSummary vrrSummary = DisplayVrrSummary.FromState(state);
-                return $"{prefix} - {state.Devices.Count} écran(s), principal {primary.DisplayName}, {primary.CurrentRefreshRateHz} Hz, {hdrSummary.FormatTrayStatus()}, {vrrSummary.FormatTrayStatus()}.";
-            }
-
-            return $"{prefix} - {state?.Message ?? "État écran inconnu."}";
-        }
-
-        private static string FormatDisplayList(DisplayRuntimeState state)
-        {
-            if (state?.Devices?.Count > 0 != true)
-                return state?.Message ?? "Aucun écran actif détecté.";
-
-            var builder = new StringBuilder();
-            foreach (DisplayDeviceInfo display in state.Devices)
-            {
-                string primary = display.IsPrimary ? "principal" : "secondaire";
-                builder.AppendLine(FormattableString.Invariant($"{display.DisplayName} ({primary})"));
-                builder.AppendLine(FormattableString.Invariant($"  Résolution : {display.Width}x{display.Height} à {display.CurrentRefreshRateHz} Hz"));
-                builder.AppendLine(FormattableString.Invariant($"  Fréquence max : {(display.MaxRefreshRateHz > 0 ? $"{display.MaxRefreshRateHz} Hz" : "inconnue")}"));
-                builder.AppendLine(FormattableString.Invariant($"  HDR : {display.HdrState}"));
-                builder.AppendLine(FormattableString.Invariant($"  VRR/G-Sync : {display.VrrDetection?.State}"));
-            }
-
-            return builder.ToString();
-        }
     }
 }

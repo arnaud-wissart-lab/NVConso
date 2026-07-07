@@ -185,30 +185,6 @@ namespace NVConso
             if (TryGetInt32(root, nameof(AppSettings.PeakTemperatureThresholdCelsius), out int peakTemperatureThresholdCelsius))
                 settings.PeakTemperatureThresholdCelsius = peakTemperatureThresholdCelsius;
 
-            if (TryGetBoolean(root, nameof(AppSettings.EnableDisplayProfiles), out bool enableDisplayProfiles))
-                settings.EnableDisplayProfiles = enableDisplayProfiles;
-
-            if (TryGetBoolean(root, nameof(AppSettings.RestoreDisplayStateOnStock), out bool restoreDisplayStateOnStock))
-                settings.RestoreDisplayStateOnStock = restoreDisplayStateOnStock;
-
-            if (TryGetBoolean(root, nameof(AppSettings.RestoreDisplayStateOnExit), out bool restoreDisplayStateOnExit))
-                settings.RestoreDisplayStateOnExit = restoreDisplayStateOnExit;
-
-            if (TryGetInt32(root, nameof(AppSettings.CaniculeTargetRefreshRateHz), out int caniculeTargetRefreshRateHz))
-                settings.CaniculeTargetRefreshRateHz = caniculeTargetRefreshRateHz;
-
-            if (TryGetInt32(root, nameof(AppSettings.VideoSurfTargetRefreshRateHz), out int videoSurfTargetRefreshRateHz))
-                settings.VideoSurfTargetRefreshRateHz = videoSurfTargetRefreshRateHz;
-
-            if (TryGetInt32(root, nameof(AppSettings.Indie2DTargetRefreshRateHz), out int indie2DTargetRefreshRateHz))
-                settings.Indie2DTargetRefreshRateHz = indie2DTargetRefreshRateHz;
-
-            if (TryGetBoolean(root, nameof(AppSettings.AllowExperimentalHdrChanges), out bool allowExperimentalHdrChanges))
-                settings.AllowExperimentalHdrChanges = allowExperimentalHdrChanges;
-
-            if (TryGetBoolean(root, nameof(AppSettings.AllowExperimentalVrrChanges), out bool allowExperimentalVrrChanges))
-                settings.AllowExperimentalVrrChanges = allowExperimentalVrrChanges;
-
             if (TryGetBoolean(root, nameof(AppSettings.HasSavedMode), out bool hasSavedMode))
                 settings.HasSavedMode = hasSavedMode;
 
@@ -284,26 +260,6 @@ namespace NVConso
                     70,
                     AppSettingsValidator.MinimumPeakTemperatureThresholdCelsius,
                     AppSettingsValidator.MaximumPeakTemperatureThresholdCelsius),
-                EnableDisplayProfiles = settings.EnableDisplayProfiles,
-                RestoreDisplayStateOnStock = settings.RestoreDisplayStateOnStock,
-                RestoreDisplayStateOnExit = settings.RestoreDisplayStateOnExit,
-                CaniculeTargetRefreshRateHz = NormalizeRange(
-                    settings.CaniculeTargetRefreshRateHz,
-                    60,
-                    AppSettingsValidator.MinimumDisplayRefreshRateHz,
-                    AppSettingsValidator.MaximumDisplayRefreshRateHz),
-                VideoSurfTargetRefreshRateHz = NormalizeRange(
-                    settings.VideoSurfTargetRefreshRateHz,
-                    120,
-                    AppSettingsValidator.MinimumDisplayRefreshRateHz,
-                    AppSettingsValidator.MaximumDisplayRefreshRateHz),
-                Indie2DTargetRefreshRateHz = NormalizeRange(
-                    settings.Indie2DTargetRefreshRateHz,
-                    120,
-                    AppSettingsValidator.MinimumDisplayRefreshRateHz,
-                    AppSettingsValidator.MaximumDisplayRefreshRateHz),
-                AllowExperimentalHdrChanges = settings.AllowExperimentalHdrChanges,
-                AllowExperimentalVrrChanges = settings.AllowExperimentalVrrChanges,
                 HasSavedMode = settings.HasSavedMode,
                 LastSelectedMode = NormalizePowerMode(settings.LastSelectedMode),
                 CustomPowerLimitMilliwatt = settings.CustomPowerLimitMilliwatt

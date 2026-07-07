@@ -6,7 +6,7 @@ namespace NVConso.Tests
     public class CsvTelemetryRecorderTests
     {
         [Fact]
-        public async Task FlushAsync_ShouldWriteCsvHeaderAndDisplayFields()
+        public async Task FlushAsync_ShouldWriteCsvHeaderAndGpuFields()
         {
             string root = CreateTempRoot();
             try
@@ -22,7 +22,8 @@ namespace NVConso.Tests
                 Assert.True(lines.Length >= 2);
                 Assert.Equal(TelemetryCsvFormat.Header, lines[0]);
                 Assert.Contains("Mock GPU", lines[1], StringComparison.Ordinal);
-                Assert.Contains(",144,Active,Compatible", lines[1], StringComparison.Ordinal);
+                Assert.Contains(",95,200,62,42,18,12,1500,7000,45,2,100,200,300", lines[1], StringComparison.Ordinal);
+                Assert.DoesNotContain("Active,Compatible", lines[1], StringComparison.Ordinal);
             }
             finally
             {
@@ -61,8 +62,7 @@ namespace NVConso.Tests
             {
                 using var recorder = new CsvTelemetryRecorder(
                     root,
-                    new TelemetryLoggingSettings { TelemetryRetentionDays = 5 },
-                    new FakeDisplayManager());
+                    new TelemetryLoggingSettings { TelemetryRetentionDays = 5 });
                 DateTimeOffset nowUtc = LocalTimestamp(2026, 7, 20, 12);
                 string oldDay = "2026-07-10";
                 string currentDay = "2026-07-18";
@@ -187,7 +187,7 @@ namespace NVConso.Tests
             try
             {
                 DateTimeOffset timestampUtc = LocalTimestamp(2026, 7, 6, 12);
-                var recorder = new CsvTelemetryRecorder(root, new TelemetryLoggingSettings(), new FakeDisplayManager());
+                var recorder = new CsvTelemetryRecorder(root, new TelemetryLoggingSettings());
 
                 recorder.Enqueue(CreateSnapshot(timestampUtc, powerWatts: 95, temperatureCelsius: 62));
                 recorder.Dispose();
@@ -208,7 +208,7 @@ namespace NVConso.Tests
             {
                 string invalidRoot = Path.Combine(root, "telemetry-file");
                 File.WriteAllText(invalidRoot, "not a directory");
-                using var recorder = new CsvTelemetryRecorder(invalidRoot, new TelemetryLoggingSettings(), new FakeDisplayManager());
+                using var recorder = new CsvTelemetryRecorder(invalidRoot, new TelemetryLoggingSettings());
                 string warning = null;
                 recorder.WarningRaised += (_, message) => warning = message;
 
@@ -228,7 +228,7 @@ namespace NVConso.Tests
             string root,
             TelemetryLoggingSettings settings = null)
         {
-            return new RecorderScope(new CsvTelemetryRecorder(root, settings ?? new TelemetryLoggingSettings(), new FakeDisplayManager()));
+            return new RecorderScope(new CsvTelemetryRecorder(root, settings ?? new TelemetryLoggingSettings()));
         }
 
         private static GpuTelemetrySnapshot CreateSnapshot(
@@ -334,57 +334,5 @@ namespace NVConso.Tests
             }
         }
 
-        private sealed class FakeDisplayManager : IDisplayManager
-        {
-            public DisplayRuntimeState GetRuntimeState()
-            {
-                return DisplayRuntimeState.Available(
-                [
-                    new DisplayDeviceInfo
-                    {
-                        DeviceName = @"\\.\DISPLAY1",
-                        FriendlyName = "Écran principal",
-                        DevicePath = @"\\?\DISPLAY#MOCK",
-                        IsPrimary = true,
-                        Width = 2560,
-                        Height = 1440,
-                        CurrentRefreshRateHz = 144,
-                        MaxRefreshRateHz = 144,
-                        SupportedRefreshRatesHz = [60, 120, 144],
-                        HdrStatus = DisplayHdrStatus.Active,
-                        VrrStatus = DisplayVrrStatus.Compatible
-                    }
-                ]);
-            }
-
-            public DisplayProfileSnapshot CaptureSnapshot()
-            {
-                return DisplayProfileSnapshot.FromRuntimeState(GetRuntimeState());
-            }
-
-            public bool TryApplyRefreshRate(DisplayDeviceInfo display, int refreshRateHz, out string message)
-            {
-                message = "Non utilisé par ces tests.";
-                return true;
-            }
-
-            public bool TryRestoreSnapshot(DisplayProfileSnapshot snapshot, out string message)
-            {
-                message = "Non utilisé par ces tests.";
-                return true;
-            }
-
-            public void OpenHdrSettings()
-            {
-            }
-
-            public void OpenGraphicsSettings()
-            {
-            }
-
-            public void OpenNvidiaSettings()
-            {
-            }
-        }
     }
 }

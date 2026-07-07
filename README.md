@@ -1,13 +1,13 @@
 # WattPilot
 
-Utilitaire Windows WinForms pour piloter prudemment la limite de puissance d'un GPU NVIDIA via NVML, suivre la télémétrie et appliquer des profils d'usage sobres.
+Utilitaire Windows avec dashboard WPF et tray WinForms pour piloter prudemment la limite de puissance d'un GPU NVIDIA via NVML, suivre la télémétrie et appliquer des profils d'usage sobres.
 
 WattPilot est le nom public du produit. `NVConso` était l'ancien nom technique ; il peut encore apparaître dans le dépôt GitHub, le dossier projet et les namespaces C#, mais les artefacts distribués utilisent désormais le nom WattPilot.
 
 [![CI](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/NVConso/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/arnaud-wissart-lab/NVConso)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-net10.0--windows-512BD4)](./NVConso/NVConso.csproj)
-[![WinForms](https://img.shields.io/badge/UI-WinForms-0078D4)](./NVConso/NVConso.csproj)
+[![WPF](https://img.shields.io/badge/UI-WPF-0078D4)](./NVConso/NVConso.csproj)
 
 ## Télécharger
 
@@ -36,12 +36,11 @@ Depuis le ZIP portable ou une exécution développeur `bin\Debug` / `bin\Release
 ## Fonctionnalités
 
 - Profils GPU `Canicule`, `VideoSurf`, `Indie2D`, `Stock`, `Max` et `Custom`.
-- Tableau de bord WinForms avec temps réel, historique persisté, résumé journalier et état Canicule Guard.
-- Préférences WinForms centralisées : profils, démarrage Windows, mises à jour, historique, affichage, thème et options avancées.
+- Tableau de bord WPF avec temps réel, historique persisté, résumé journalier et état Canicule Guard.
+- Préférences WPF centralisées : profils, démarrage Windows, mises à jour, historique, thème et options avancées.
 - Démarrage avec Windows via tâche planifiée utilisateur, sans service Windows et sans mot de passe stocké.
 - Mises à jour via Velopack pour les installations compatibles.
 - Historisation GPU persistante en CSV/JSON sous `%LOCALAPPDATA%\WattPilot\telemetry\`.
-- Profils écran optionnels, désactivés par défaut, limités au refresh rate supporté.
 - Canicule Guard : alertes puissance/température avec seuils adaptés au profil actif, sans changement automatique de profil.
 
 ## Profils GPU
@@ -70,19 +69,18 @@ Il affiche seulement :
 - le nom `WattPilot` ;
 - un résumé GPU/profil ;
 - un résumé puissance/température ;
-- un résumé affichage quand HDR ou VRR/G-Sync sont connus ;
 - l'action `Ouvrir le tableau de bord` ;
 - le sous-menu `Profils` ;
 - une ligne de mise à jour et une seule action si une version est disponible ou prête ;
 - `Préférences...` et `Quitter`.
 
-Les métriques détaillées, les graphes, les jauges, les options de démarrage, les options d'affichage, les réglages Canicule Guard et les détails de mise à jour sont dans le dashboard ou les préférences.
+Les métriques détaillées, les graphes, les jauges, les options de démarrage, les réglages Canicule Guard et les détails de mise à jour sont dans le dashboard ou les préférences.
 
 Clic gauche sur l'icône : ouvrir ou afficher le dashboard. Clic droit : afficher le menu compact. Double-clic gauche : ouvrir le dashboard.
 
 ## Dashboard
 
-Le dashboard WinForms est le cockpit graphique actuel de WattPilot. Quand il faut comprendre ce que fait la carte, c'est cette fenêtre qu'il faut ouvrir plutôt que le menu tray.
+Le dashboard WPF est le cockpit graphique de WattPilot. Quand il faut comprendre ce que fait la carte, c'est cette fenêtre qu'il faut ouvrir plutôt que le menu tray.
 
 WattPilot démarre dans la zone de notification ; le dashboard s'ouvre par clic gauche sur l'icône tray, par double-clic gauche ou depuis le menu compact. Fermer la fenêtre masque le dashboard sans arrêter l'application. L'arrêt réel passe par `Quitter` dans le tray.
 
@@ -94,17 +92,14 @@ Il contient :
 - les métriques GPU principales : puissance, limite, température, utilisation, décodeur, fréquences et ventilateur quand NVML les expose ;
 - les jauges puissance/limite, température/seuil, utilisation GPU et décodeur vidéo ;
 - les graphes puissance, température et utilisation GPU/décodeur ;
-- un résumé affichage avec fréquence courante, fréquence maximale connue, HDR et VRR/G-Sync quand l'information est disponible ;
 - les maxima du jour et le nombre de pics enregistrés ;
 - l'état de Canicule Guard.
 
 Les graphes temps réel affichent la durée réelle configurée par `TelemetryHistorySeconds`. Ils ne promettent pas de survivre à un redémarrage. L'historique persisté est relu depuis le disque, uniquement pour la journée sélectionnée.
 
-La structure WPF `DashboardWindow` / `PreferencesWindow` reste dans le dépôt pour la migration progressive, mais le tray ouvre actuellement `DashboardForm` et `SettingsForm`.
-
 ## Préférences
 
-La fenêtre WinForms `Préférences` regroupe les réglages qui ne doivent pas rester uniquement dans le menu tray :
+La fenêtre WPF `Préférences` regroupe les réglages qui ne doivent pas rester uniquement dans le menu tray :
 
 - profil de démarrage et restauration `Stock` à la fermeture ;
 - démarrage Windows ;
@@ -112,7 +107,6 @@ La fenêtre WinForms `Préférences` regroupe les réglages qui ne doivent pas r
 - thème du dashboard ;
 - Canicule Guard ;
 - historique GPU persistant ;
-- profils écran ;
 - export diagnostic et réinitialisation locale.
 
 Les valeurs numériques sont bornées avant sauvegarde. Les préférences sont stockées dans `%LOCALAPPDATA%\WattPilot\settings.json`. Au premier lancement compatible, WattPilot migre automatiquement `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` si le nouveau dossier n'existe pas encore, avec une sauvegarde horodatée.
@@ -134,28 +128,13 @@ Les snapshots ne contiennent pas les noms de fenêtres ni la liste des processus
 
 Voir [docs/telemetry.md](./docs/telemetry.md) pour le format CSV, les événements de pics, la rétention et les exemples d'analyse dans Excel ou LibreOffice.
 
-## Profils écran
+## Non inclus actuellement
 
-Les profils écran sont désactivés par défaut. Une fois activés, ils peuvent réduire uniquement la fréquence de rafraîchissement d'un écran actif, sans changer la résolution, sans couper d'écran et sans modifier la disposition multi-écrans.
-
-État actuel :
-
-| Sujet | Statut |
-|---|---|
-| Refresh rate | Supporté, avec `CDS_TEST`, mode supporté obligatoire et rollback. |
-| HDR | Détection prudente via DXGI/`IDXGIOutput6` quand Windows expose l'état actif. Pas de bascule automatique. |
-| VRR/G-Sync | Détection lecture seule via NVAPI quand disponible. État inconnu si l'API ou le pilote ne répond pas. Pas de bascule automatique. |
-| Changements HDR/VRR expérimentaux | Options présentes, désactivées par défaut, sans action automatique dans cette version. |
-
-Voir [docs/display-profiles.md](./docs/display-profiles.md) pour les détails de sécurité, restauration et limitations.
-
-La détection HDR indique si HDR est actif sur un écran. Quand DXGI renvoie un état SDR, WattPilot ne peut pas toujours savoir si l'écran ne supporte pas HDR ou si HDR est simplement désactivé dans Windows. Dans ce cas, l'interface affiche un support HDR inconnu.
-
-La détection VRR/G-Sync utilise NVAPI quand le pilote NVIDIA expose `NvAPI_Disp_GetVRRInfo` pour l'écran actif. Windows VRR, NVIDIA G-Sync, G-Sync Compatible et Adaptive Sync sont affichés comme informations de diagnostic quand elles sont fiables. WattPilot peut ouvrir les paramètres graphiques Windows ou le panneau NVIDIA pour une vérification manuelle, mais ne modifie pas ces réglages.
+WattPilot ne modifie pas HDR, VRR ou G-Sync. Ces réglages ne sont pas affichés dans le dashboard principal ni dans le tray.
 
 ## Canicule Guard
 
-Canicule Guard avertit. Il ne change pas automatiquement de profil et ne modifie pas les réglages écran.
+Canicule Guard avertit. Il ne change pas automatiquement de profil.
 
 Quand l'option est active, WattPilot surveille la puissance et la température. Les seuils puissance sont adaptés au profil actif : plus stricts en `Canicule`, intermédiaires en `VideoSurf`, plus hauts en `Indie2D`. En `Stock` et `Max`, l'alerte puissance basse consommation est désactivée ; la température reste surveillée dans tous les profils.
 
@@ -195,8 +174,6 @@ Attendre le workflow `Release`, vérifier les assets publiés, télécharger l'i
 - L'écriture du power limit passe par NVML et peut demander les droits administrateur.
 - Les limites sont calculées depuis la plage NVML du GPU actif, pas depuis des valeurs codées pour un modèle précis.
 - La restauration `Stock` à la fermeture est optionnelle et activée par défaut.
-- Les profils écran ne s'appliquent jamais sans snapshot préalable.
-- Les changements écran refusés déclenchent une restauration du snapshot.
 - Les mises à jour Velopack demandent une action explicite avant installation/redémarrage.
 - L'historique GPU ne journalise pas les fenêtres ni les processus.
 
@@ -206,7 +183,7 @@ Attendre le workflow `Release`, vérifier les assets publiés, télécharger l'i
 - GPU NVIDIA avec pilote et NVML requis pour les fonctions GPU.
 - Certaines métriques NVML peuvent être absentes selon le GPU ou le pilote.
 - Certains GPU refusent la modification du power limit.
-- HDR et G-Sync/VRR ne sont pas modifiés automatiquement.
+- WattPilot ne modifie pas HDR, VRR ou G-Sync.
 - La mise à jour automatique Velopack est indisponible en ZIP portable ou en exécution développeur `bin`.
 - WattPilot ne contrôle pas les ventilateurs et ne remplace pas NVIDIA App.
 
@@ -214,7 +191,7 @@ Voir [docs/troubleshooting.md](./docs/troubleshooting.md) pour les diagnostics c
 
 ## Captures
 
-Aucune fausse capture n'est fournie. Les captures WinForms rafraîchies sont à refaire manuellement sur une machine Windows avec GPU NVIDIA, pilote installé et télémétrie NVML disponible.
+Aucune fausse capture n'est fournie. Les captures WPF rafraîchies sont à refaire manuellement sur une machine Windows avec GPU NVIDIA, pilote installé et télémétrie NVML disponible.
 
 Chemins prévus :
 
@@ -251,7 +228,7 @@ La cible principale est `net10.0-windows` en `x64`. Nullable reste désactivé g
 - [Architecture](./docs/architecture.md)
 - [Publication et packaging](./docs/release.md)
 - [Télémétrie persistante](./docs/telemetry.md)
-- [Profils écran](./docs/display-profiles.md)
+- [Fonctionnalité Display Profiles retirée](./docs/display-profiles.md)
 - [Dépannage](./docs/troubleshooting.md)
 - [Maintenance](./docs/MAINTENANCE.md)
 - [Changelog](./CHANGELOG.md)

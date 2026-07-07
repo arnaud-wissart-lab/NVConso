@@ -29,6 +29,9 @@ namespace NVConso.Tests
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Utilisation GPU", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Décodeur vidéo", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Ventilateur", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(topLevelTexts, text => text.Contains("Affichage", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(topLevelTexts, text => text.Contains("HDR", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(topLevelTexts, text => text.Contains("VRR", StringComparison.OrdinalIgnoreCase));
         }
 
         [Fact]

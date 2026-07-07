@@ -28,14 +28,6 @@ namespace NVConso
         public int TelemetryRetentionDays { get; set; } = 30;
         public int PeakPowerThresholdWatts { get; set; } = 100;
         public int PeakTemperatureThresholdCelsius { get; set; } = 70;
-        public bool EnableDisplayProfiles { get; set; }
-        public bool RestoreDisplayStateOnStock { get; set; } = true;
-        public bool RestoreDisplayStateOnExit { get; set; } = true;
-        public int CaniculeTargetRefreshRateHz { get; set; } = 60;
-        public int VideoSurfTargetRefreshRateHz { get; set; } = 120;
-        public int Indie2DTargetRefreshRateHz { get; set; } = 120;
-        public bool AllowExperimentalHdrChanges { get; set; }
-        public bool AllowExperimentalVrrChanges { get; set; }
         public bool HasSavedMode { get; set; }
         public GpuPowerMode LastSelectedMode { get; set; } = GpuPowerMode.Stock;
         public uint? CustomPowerLimitMilliwatt { get; set; }

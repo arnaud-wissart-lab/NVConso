@@ -43,10 +43,6 @@ namespace NVConso
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU rétention jours : {settings.TelemetryRetentionDays}"));
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU seuil puissance W : {settings.PeakPowerThresholdWatts}"));
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU seuil température °C : {settings.PeakTemperatureThresholdCelsius}"));
-            builder.AppendLine(FormattableString.Invariant($"Profils écran activés : {settings.EnableDisplayProfiles}"));
-            builder.AppendLine(FormattableString.Invariant($"Restauration écran sur Stock : {settings.RestoreDisplayStateOnStock}"));
-            builder.AppendLine(FormattableString.Invariant($"Restauration écran fermeture : {settings.RestoreDisplayStateOnExit}"));
-            builder.AppendLine(FormattableString.Invariant($"Fréquences écran cibles Hz : Canicule={settings.CaniculeTargetRefreshRateHz}, VideoSurf={settings.VideoSurfTargetRefreshRateHz}, Indie2D={settings.Indie2DTargetRefreshRateHz}"));
             return builder.ToString();
         }
     }

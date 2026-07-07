@@ -21,9 +21,6 @@ namespace NVConso
         public double? MinimumPowerLimitW { get; set; }
         public double? DefaultPowerLimitW { get; set; }
         public double? MaximumPowerLimitW { get; set; }
-        public int? DisplayRefreshRateHz { get; set; }
-        public string HdrState { get; set; }
-        public string VrrState { get; set; }
 
         public DateOnly LocalDate => DateOnly.FromDateTime(TimestampLocal.DateTime);
     }

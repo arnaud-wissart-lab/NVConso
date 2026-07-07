@@ -126,56 +126,8 @@ Actions :
 
 La rétention automatique ne touche pas `settings.json` et ne supprime pas les logs hors du dossier `telemetry`.
 
-## HDR non modifiable automatiquement
-
-Symptômes :
-
-- HDR est affiché comme `Unknown` ;
-- aucune option ne désactive HDR automatiquement.
-
-Explication :
-
-WattPilot lit HDR quand Windows expose l'état. La bascule automatique n'est pas implémentée, car elle doit être fiable et réversible.
-
-Action :
-
-- utiliser le bouton d'ouverture des paramètres d'affichage Windows, puis modifier HDR manuellement.
-
-## G-Sync ou VRR non modifiable automatiquement
-
-Symptômes :
-
-- VRR/G-Sync est affiché comme `Unknown` ;
-- l'état reste inconnu sur un écran non piloté par NVIDIA ;
-- aucune option ne bascule G-Sync automatiquement.
-
-Explication :
-
-WattPilot lit VRR/G-Sync via NVAPI quand `NvAPI_Disp_GetVRRInfo` est disponible. Windows expose des paramètres graphiques VRR, mais WattPilot n'utilise pas de clé de registre non documentée et ne considère pas ces paramètres comme une source fiable de lecture par écran.
-
-WattPilot ne modifie pas globalement G-Sync/VRR dans cette version. Une telle action peut avoir un impact large et nécessite une API officielle, testée et réversible.
-
-Actions :
-
-- ouvrir les paramètres graphiques Windows depuis `Préférences > Affichage` ;
-- ouvrir le panneau de configuration NVIDIA ;
-- ouvrir NVIDIA App si disponible ;
-- vérifier les réglages manuellement.
-
-## Profils écran sans effet
-
-Vérifications :
-
-- `EnableDisplayProfiles` est-il activé ?
-- l'écran courant est-il déjà à une fréquence inférieure ou égale à la cible ?
-- la fréquence cible existe-t-elle pour la résolution courante ?
-- Windows accepte-t-il `CDS_TEST` ?
-
-WattPilot n'applique pas de mode non supporté et ne change pas la résolution pour atteindre une fréquence.
-
 ## Fichiers utiles
 
 - Préférences : `%LOCALAPPDATA%\WattPilot\settings.json`
 - Télémétrie : `%LOCALAPPDATA%\WattPilot\telemetry\`
 - Documentation télémétrie : [telemetry.md](./telemetry.md)
-- Documentation profils écran : [display-profiles.md](./display-profiles.md)

@@ -18,8 +18,6 @@ namespace NVConso
         public const int MaximumPeakPowerThresholdWatts = 2000;
         public const int MinimumPeakTemperatureThresholdCelsius = 1;
         public const int MaximumPeakTemperatureThresholdCelsius = 150;
-        public const int MinimumDisplayRefreshRateHz = 30;
-        public const int MaximumDisplayRefreshRateHz = 1000;
 
         public static AppSettingsValidationResult Validate(AppSettings settings)
         {
@@ -90,27 +88,6 @@ namespace NVConso
                 MinimumPeakTemperatureThresholdCelsius,
                 MaximumPeakTemperatureThresholdCelsius,
                 "Le seuil de pic de température");
-
-            AddRangeError(
-                errors,
-                settings.CaniculeTargetRefreshRateHz,
-                MinimumDisplayRefreshRateHz,
-                MaximumDisplayRefreshRateHz,
-                "La fréquence cible Canicule");
-
-            AddRangeError(
-                errors,
-                settings.VideoSurfTargetRefreshRateHz,
-                MinimumDisplayRefreshRateHz,
-                MaximumDisplayRefreshRateHz,
-                "La fréquence cible Vidéo / surf");
-
-            AddRangeError(
-                errors,
-                settings.Indie2DTargetRefreshRateHz,
-                MinimumDisplayRefreshRateHz,
-                MaximumDisplayRefreshRateHz,
-                "La fréquence cible Indie 2D");
 
             if (!Enum.IsDefined<UiTheme>(settings.DashboardTheme))
                 errors.Add("Le thème sélectionné est invalide.");

@@ -30,7 +30,6 @@ updates:
       dotnet-runtime:
         patterns:
           - "Microsoft.Extensions.*"
-          - "NvAPIWrapper.Net"
     labels:
       - "dependencies"
       - "dotnet"

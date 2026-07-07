@@ -25,17 +25,19 @@ namespace NVConso
             "PerformanceState",
             "MinimumPowerLimitW",
             "DefaultPowerLimitW",
-            "MaximumPowerLimitW",
-            "DisplayRefreshRateHz",
-            "HdrState",
-            "VrrState"
+            "MaximumPowerLimitW"
         ];
 
         public static string Header { get; } = string.Join(',', Fields);
 
         public static bool IsHeader(string line)
         {
-            return string.Equals(line?.Trim(), Header, StringComparison.Ordinal);
+            if (string.IsNullOrWhiteSpace(line))
+                return false;
+
+            List<string> values = SplitCsvLine(line.Trim());
+            return values.Count > 0
+                && string.Equals(values[0], Fields[0], StringComparison.Ordinal);
         }
 
         public static string FormatEntry(TelemetryLogEntry entry)
@@ -61,10 +63,7 @@ namespace NVConso
                     Csv(entry.PerformanceState),
                     Csv(entry.MinimumPowerLimitW),
                     Csv(entry.DefaultPowerLimitW),
-                    Csv(entry.MaximumPowerLimitW),
-                    Csv(entry.DisplayRefreshRateHz),
-                    Csv(entry.HdrState),
-                    Csv(entry.VrrState)
+                    Csv(entry.MaximumPowerLimitW)
                 ]);
         }
 
@@ -105,10 +104,7 @@ namespace NVConso
                 PerformanceState = TryParseUInt32(values[15], out uint performanceState) ? performanceState : null,
                 MinimumPowerLimitW = TryParseDouble(values[16], out double minimumPowerLimitW) ? minimumPowerLimitW : null,
                 DefaultPowerLimitW = TryParseDouble(values[17], out double defaultPowerLimitW) ? defaultPowerLimitW : null,
-                MaximumPowerLimitW = TryParseDouble(values[18], out double maximumPowerLimitW) ? maximumPowerLimitW : null,
-                DisplayRefreshRateHz = TryParseInt32(values[19], out int displayRefreshRateHz) ? displayRefreshRateHz : null,
-                HdrState = values[20],
-                VrrState = values[21]
+                MaximumPowerLimitW = TryParseDouble(values[18], out double maximumPowerLimitW) ? maximumPowerLimitW : null
             };
 
             return true;

@@ -21,7 +21,6 @@ namespace NVConso.Tests
                 Assert.Single(result.FilteredEntries);
                 Assert.Equal("Mock GPU, principal", result.FilteredEntries[0].GpuName);
                 Assert.Equal(42, result.FilteredEntries[0].PowerUsageW);
-                Assert.Equal("Active", result.FilteredEntries[0].HdrState);
                 Assert.Empty(result.PeakEvents);
                 Assert.Single(result.Gpus);
                 Assert.Contains("Canicule", result.Profiles);
@@ -73,6 +72,34 @@ namespace NVConso.Tests
 
                 Assert.Single(result.FilteredEntries);
                 Assert.Equal(1, result.InvalidLineCount);
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [Fact]
+        public async Task ReadDayAsync_ShouldIgnoreUnknownColumns_FromLegacyCsv()
+        {
+            string root = CreateTempRoot();
+            try
+            {
+                DateOnly date = new(2026, 7, 6);
+                TelemetryLogEntry entry = CreateEntry(date, 12, GpuPowerMode.Canicule, powerWatts: 42, temperatureCelsius: 58);
+                string legacyHeader = $"{TelemetryCsvFormat.Header},DisplayRefreshRateHz,HdrState,VrrState";
+                string legacyLine = $"{TelemetryCsvFormat.FormatEntry(entry)},144,Active,Compatible";
+                string path = SnapshotPath(root, date);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllLines(path, [legacyHeader, legacyLine]);
+                var reader = new CsvTelemetryLogReader(root);
+
+                TelemetryLogReadResult result = await reader.ReadDayAsync(date, new TelemetryLogReadOptions(), TestContext.Current.CancellationToken);
+
+                Assert.Single(result.FilteredEntries);
+                Assert.Equal("Mock GPU, principal", result.FilteredEntries[0].GpuName);
+                Assert.Equal(42, result.FilteredEntries[0].PowerUsageW);
+                Assert.Equal(0, result.InvalidLineCount);
             }
             finally
             {
@@ -206,10 +233,7 @@ namespace NVConso.Tests
                 PerformanceState = 2,
                 MinimumPowerLimitW = 100,
                 DefaultPowerLimitW = 200,
-                MaximumPowerLimitW = 300,
-                DisplayRefreshRateHz = 144,
-                HdrState = "Active",
-                VrrState = "Compatible"
+                MaximumPowerLimitW = 300
             };
         }
 

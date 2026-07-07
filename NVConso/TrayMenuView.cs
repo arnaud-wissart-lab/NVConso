@@ -6,7 +6,6 @@ namespace NVConso
             ContextMenuStrip menu,
             ToolStripMenuItem gpuProfileSummaryItem,
             ToolStripMenuItem powerTemperatureSummaryItem,
-            ToolStripMenuItem displaySummaryItem,
             ToolStripMenuItem statusItem,
             ToolStripMenuItem openDashboardItem,
             ToolStripMenuItem profilesMenuItem,
@@ -20,7 +19,6 @@ namespace NVConso
             Menu = menu ?? throw new ArgumentNullException(nameof(menu));
             GpuProfileSummaryItem = gpuProfileSummaryItem ?? throw new ArgumentNullException(nameof(gpuProfileSummaryItem));
             PowerTemperatureSummaryItem = powerTemperatureSummaryItem ?? throw new ArgumentNullException(nameof(powerTemperatureSummaryItem));
-            DisplaySummaryItem = displaySummaryItem ?? throw new ArgumentNullException(nameof(displaySummaryItem));
             StatusItem = statusItem ?? throw new ArgumentNullException(nameof(statusItem));
             OpenDashboardItem = openDashboardItem ?? throw new ArgumentNullException(nameof(openDashboardItem));
             ProfilesMenuItem = profilesMenuItem ?? throw new ArgumentNullException(nameof(profilesMenuItem));
@@ -35,7 +33,6 @@ namespace NVConso
         public ContextMenuStrip Menu { get; }
         public ToolStripMenuItem GpuProfileSummaryItem { get; }
         public ToolStripMenuItem PowerTemperatureSummaryItem { get; }
-        public ToolStripMenuItem DisplaySummaryItem { get; }
         public ToolStripMenuItem StatusItem { get; }
         public ToolStripMenuItem OpenDashboardItem { get; }
         public ToolStripMenuItem ProfilesMenuItem { get; }

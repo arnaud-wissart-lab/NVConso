@@ -308,13 +308,13 @@ namespace NVConso
             string profileName = profile.HasValue ? ProfileLabels.GetDisplayName(profile.Value) : "--";
             if (type == CaniculeGuardAlertType.TemperatureHigh)
             {
-                return $"Température élevée en {profileName} : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Envisager Canicule/Stock, refresh rate réduit ou vérifier l'airflow.";
+                return $"Température élevée en {profileName} : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Envisager Canicule/Stock ou vérifier l'airflow.";
             }
 
             return profile switch
             {
-                GpuPowerMode.Canicule => $"Puissance élevée en Canicule : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier RTX Video, HDR, refresh rate, overlay ou tâche GPU en arrière-plan.",
-                GpuPowerMode.VideoSurf => $"Puissance élevée en Vidéo / surf : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier RTX Video, HDR, refresh rate ou overlay navigateur.",
+                GpuPowerMode.Canicule => $"Puissance élevée en Canicule : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier RTX Video, overlay ou tâche GPU en arrière-plan.",
+                GpuPowerMode.VideoSurf => $"Puissance élevée en Vidéo / surf : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier RTX Video ou overlay navigateur.",
                 GpuPowerMode.Indie2D => $"Puissance élevée en Indie 2D : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier limite FPS, overlay, upscale ou profil d'alimentation du jeu.",
                 _ => $"Puissance élevée en {profileName} : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Vérifier les traitements GPU actifs."
             };

@@ -26,7 +26,6 @@ namespace NVConso
         private readonly CancellationTokenSource _shutdown = new();
         private readonly object _settingsLock = new();
         private readonly object _summaryLock = new();
-        private readonly IDisplayManager _displayManager;
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly Task _worker;
         private readonly Dictionary<string, TelemetryDailySummary> _summaries = [];
@@ -38,30 +37,27 @@ namespace NVConso
         private volatile bool _isProcessing;
         private volatile bool _isDisposed;
 
-        public CsvTelemetryRecorder(IDisplayManager displayManager, Microsoft.Extensions.Logging.ILogger<CsvTelemetryRecorder> logger = null)
-            : this(GetDefaultTelemetryRootPath(), new TelemetryLoggingSettings(), displayManager, logger)
+        public CsvTelemetryRecorder(Microsoft.Extensions.Logging.ILogger<CsvTelemetryRecorder> logger = null)
+            : this(GetDefaultTelemetryRootPath(), new TelemetryLoggingSettings(), logger)
         {
         }
 
         public CsvTelemetryRecorder(
             TelemetryLoggingSettings settings,
-            IDisplayManager displayManager,
             Microsoft.Extensions.Logging.ILogger<CsvTelemetryRecorder> logger = null)
-            : this(GetDefaultTelemetryRootPath(), settings, displayManager, logger)
+            : this(GetDefaultTelemetryRootPath(), settings, logger)
         {
         }
 
         public CsvTelemetryRecorder(
             string telemetryRootPath,
             TelemetryLoggingSettings settings,
-            IDisplayManager displayManager,
             Microsoft.Extensions.Logging.ILogger logger = null)
         {
             TelemetryRootPath = string.IsNullOrWhiteSpace(telemetryRootPath)
                 ? GetDefaultTelemetryRootPath()
                 : telemetryRootPath;
             _settings = NormalizeSettings(settings);
-            _displayManager = displayManager ?? throw new ArgumentNullException(nameof(displayManager));
             _logger = logger;
             _worker = Task.Run(ProcessQueueAsync);
         }
@@ -236,8 +232,7 @@ namespace NVConso
                 while (_queue.TryDequeue(out GpuTelemetrySnapshot snapshot))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    DisplayRuntimeState displayState = _displayManager.GetRuntimeState();
-                    TelemetryLogEntry entry = TelemetryLogEntryFactory.FromSnapshot(snapshot, displayState);
+                    TelemetryLogEntry entry = TelemetryLogEntryFactory.FromSnapshot(snapshot);
                     await AppendCsvEntryAsync(entry, cancellationToken).ConfigureAwait(false);
 
                     List<TelemetryPeakEvent> peakEvents = UpdateSummaryAndDetectPeaks(entry);
@@ -672,10 +667,9 @@ namespace NVConso
 
         private static class TelemetryLogEntryFactory
         {
-            public static TelemetryLogEntry FromSnapshot(GpuTelemetrySnapshot snapshot, DisplayRuntimeState displayState)
+            public static TelemetryLogEntry FromSnapshot(GpuTelemetrySnapshot snapshot)
             {
                 GpuTelemetry telemetry = snapshot.Telemetry ?? new GpuTelemetry();
-                DisplayDeviceInfo display = ResolveDisplay(displayState);
 
                 return new TelemetryLogEntry
                 {
@@ -697,45 +691,7 @@ namespace NVConso
                     PerformanceState = telemetry.PerformanceState,
                     MinimumPowerLimitW = ToWatts(snapshot.MinimumPowerLimitMilliwatt),
                     DefaultPowerLimitW = ToWatts(snapshot.DefaultPowerLimitMilliwatt),
-                    MaximumPowerLimitW = ToWatts(snapshot.MaximumPowerLimitMilliwatt),
-                    DisplayRefreshRateHz = display?.CurrentRefreshRateHz,
-                    HdrState = FormatHdrState(display?.HdrStatus),
-                    VrrState = FormatVrrState(display?.VrrStatus)
-                };
-            }
-
-            private static DisplayDeviceInfo ResolveDisplay(DisplayRuntimeState displayState)
-            {
-                if (displayState?.Devices is not { Count: > 0 } devices)
-                    return null;
-
-                foreach (DisplayDeviceInfo display in devices)
-                {
-                    if (display.IsPrimary)
-                        return display;
-                }
-
-                return devices[0];
-            }
-
-            private static string FormatHdrState(DisplayHdrStatus? status)
-            {
-                return status switch
-                {
-                    DisplayHdrStatus.Active => "Active",
-                    DisplayHdrStatus.Inactive => "Inactive",
-                    _ => "Unknown"
-                };
-            }
-
-            private static string FormatVrrState(DisplayVrrStatus? status)
-            {
-                return status switch
-                {
-                    DisplayVrrStatus.Enabled => "Enabled",
-                    DisplayVrrStatus.Disabled => "Disabled",
-                    DisplayVrrStatus.Compatible => "Compatible",
-                    _ => "Unknown"
+                    MaximumPowerLimitW = ToWatts(snapshot.MaximumPowerLimitMilliwatt)
                 };
             }
         }

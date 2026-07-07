@@ -13,17 +13,6 @@ namespace NVConso
             return $"Puissance : {GpuTelemetryFormatter.FormatWatts(telemetry.CurrentPowerUsageMilliwatt)} | Température : {GpuTelemetryFormatter.FormatTemperature(telemetry.TemperatureGpuCelsius)}";
         }
 
-        public static string FormatDisplaySummary(DisplayRuntimeState state)
-        {
-            var hdrSummary = DisplayAdvancedColorSummary.FromState(state);
-            var vrrSummary = DisplayVrrSummary.FromState(state);
-
-            if (hdrSummary.DisplayCount == 0 && vrrSummary.DisplayCount == 0)
-                return string.Empty;
-
-            return $"Affichage : HDR {hdrSummary.FormatCompactStatus()} | VRR {vrrSummary.FormatCompactStatus()}";
-        }
-
         private static string ShortenGpuName(string gpuName)
         {
             string normalized = NormalizeValue(gpuName);

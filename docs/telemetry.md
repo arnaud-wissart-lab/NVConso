@@ -48,7 +48,7 @@ Si une erreur I/O survient, l'enregistreur se désactive temporairement et remon
 Un fichier CSV est créé par jour. La première ligne contient l'en-tête.
 
 ```text
-TimestampUtc,TimestampLocal,GpuIndex,GpuName,ActivePowerMode,IsCustomPowerLimit,PowerUsageW,PowerLimitW,TemperatureC,GpuUtilizationPercent,MemoryUtilizationPercent,DecoderUtilizationPercent,GraphicsClockMHz,MemoryClockMHz,FanSpeedPercent,PerformanceState,MinimumPowerLimitW,DefaultPowerLimitW,MaximumPowerLimitW,DisplayRefreshRateHz,HdrState,VrrState
+TimestampUtc,TimestampLocal,GpuIndex,GpuName,ActivePowerMode,IsCustomPowerLimit,PowerUsageW,PowerLimitW,TemperatureC,GpuUtilizationPercent,MemoryUtilizationPercent,DecoderUtilizationPercent,GraphicsClockMHz,MemoryClockMHz,FanSpeedPercent,PerformanceState,MinimumPowerLimitW,DefaultPowerLimitW,MaximumPowerLimitW
 ```
 
 Colonnes principales :
@@ -74,10 +74,6 @@ Colonnes principales :
 | `MinimumPowerLimitW` | Limite minimale NVML en watts. |
 | `DefaultPowerLimitW` | Limite stock/default NVML en watts, si disponible. |
 | `MaximumPowerLimitW` | Limite maximale NVML en watts. |
-| `DisplayRefreshRateHz` | Refresh rate de l'écran principal ou du premier écran connu. |
-| `HdrState` | `Active`, `Inactive` ou `Unknown`. |
-| `VrrState` | `Enabled`, `Disabled`, `Compatible` ou `Unknown`. Ce champ reste compact pour compatibilité CSV ; le diagnostic détaillé est affiché dans l'interface. |
-
 Les valeurs absentes sont laissées vides.
 
 ## Format des pics
@@ -152,7 +148,7 @@ Méthode simple :
 7. Filtrez par date, GPU et profil.
 8. Comparez `PowerUsageW`, `TemperatureC`, `GpuUtilizationPercent` et les pics.
 
-Pour une comparaison plus propre, gardez le même écran, la même résolution, le même refresh rate et les mêmes paramètres applicatifs.
+Pour une comparaison plus propre, gardez les mêmes paramètres applicatifs et le même scénario d'usage.
 
 ## Excel et LibreOffice
 
