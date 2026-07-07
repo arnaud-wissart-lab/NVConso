@@ -10,7 +10,6 @@ namespace NVConso.ViewModels
     public sealed class DashboardViewModel : ObservableObject, IDisposable
     {
         private readonly IGpuTelemetryService _telemetryService;
-        private readonly IDisplayManager _displayManager;
         private readonly ITelemetryRecorder _telemetryRecorder;
         private readonly ITelemetryLogReader _telemetryLogReader;
         private readonly ICaniculeGuard _caniculeGuard;
@@ -56,7 +55,6 @@ namespace NVConso.ViewModels
 
         public DashboardViewModel(
             IGpuTelemetryService telemetryService,
-            IDisplayManager displayManager,
             ITelemetryRecorder telemetryRecorder,
             ITelemetryLogReader telemetryLogReader,
             ICaniculeGuard caniculeGuard,
@@ -70,8 +68,7 @@ namespace NVConso.ViewModels
             Microsoft.Extensions.Logging.ILogger logger = null)
         {
             _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
-            _displayManager = displayManager ?? new WindowsDisplayManager();
-            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder(_displayManager);
+            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
             _telemetryLogReader = telemetryLogReader ?? new CsvTelemetryLogReader(_telemetryRecorder.TelemetryRootPath);
             _caniculeGuard = caniculeGuard ?? new CaniculeGuardService(telemetryRecorder: _telemetryRecorder);
             _themeService = themeService ?? new ThemeService();
@@ -126,7 +123,6 @@ namespace NVConso.ViewModels
 
             ApplySettings(_settings);
             ApplySnapshot(_telemetryService.CurrentSnapshot);
-            RefreshDisplaySummary();
             RefreshDailySummary();
             RefreshCaniculeGuardSummary();
             RefreshUpdateStatus();
@@ -146,7 +142,7 @@ namespace NVConso.ViewModels
         public ChartViewModel TemperatureChart { get; }
         public ChartViewModel UsageChart { get; }
         public ChartViewModel HistoryChart { get; }
-        public DisplayStatusViewModel DisplayStatus { get; } = new();
+        public DashboardStatusViewModel DashboardStatus { get; } = new();
         public UpdateStatusViewModel UpdateStatus { get; } = new();
         public ICommand ApplyProfileCommand { get; }
         public ICommand RestoreStockCommand { get; }
@@ -264,6 +260,7 @@ namespace NVConso.ViewModels
 
         public string TelemetryRootPath => _telemetryLogReader.TelemetryRootPath;
         public DashboardWindowBounds SavedBounds => _settings?.DashboardWindowBounds;
+        public string UpdateModeLabel => DashboardHeaderLabels.FormatUpdateMode(UpdateStatus.ExecutionModeLabel);
 
         public event EventHandler<UiTheme> ThemeChanged;
 
@@ -273,35 +270,18 @@ namespace NVConso.ViewModels
             ProductVersion = DashboardHeaderLabels.FormatProductVersion();
             ResolvedTheme = _themeService.ResolveTheme(_settings.DashboardTheme);
             RefreshUpdateStatus();
-            RefreshDisplaySummary();
             RefreshDailySummary();
             RefreshCaniculeGuardSummary();
         }
 
-        public void RefreshDisplaySummary()
-        {
-            RunOnUiThread(() =>
-            {
-                try
-                {
-                    DisplayStatus.ApplyDisplayState(_displayManager.GetRuntimeState(), _settings.EnableDisplayProfiles);
-                }
-                catch (Exception exception)
-                {
-                    _logger?.LogWarning(exception, "Lecture de l'état écran impossible.");
-                    DisplayStatus.Summary = "État écran indisponible.";
-                }
-            });
-        }
-
         public void RefreshDailySummary()
         {
-            RunOnUiThread(() => DisplayStatus.ApplyDailySummary(_telemetryRecorder.CurrentDailySummary, _settings.RecordingEnabled));
+            RunOnUiThread(() => DashboardStatus.ApplyDailySummary(_telemetryRecorder.CurrentDailySummary, _settings.RecordingEnabled));
         }
 
         public void RefreshCaniculeGuardSummary()
         {
-            RunOnUiThread(() => DisplayStatus.ApplyCaniculeGuard(_caniculeGuard.State));
+            RunOnUiThread(() => DashboardStatus.ApplyCaniculeGuard(_caniculeGuard.State));
         }
 
         public async Task EnsureHistoryLoadedAsync()
@@ -426,6 +406,7 @@ namespace NVConso.ViewModels
                 ? UpdateStatusPresenter.FromStoredState(_settings, PendingUpdateStatus.None())
                 : new UpdateStatusPresenter(_updateWorkflow).GetStoredState(_settings);
             UpdateStatus.Apply(state);
+            OnPropertyChanged(nameof(UpdateModeLabel));
         }
 
         private async Task LoadHistoryAsync()

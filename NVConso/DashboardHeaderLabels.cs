@@ -29,6 +29,17 @@ namespace NVConso
             return UpdateLabels.FormatUpToDate(settings.LastUpdateCheckUtc);
         }
 
+        public static string FormatUpdateMode(string executionModeLabel)
+        {
+            if (string.IsNullOrWhiteSpace(executionModeLabel))
+                return "--";
+
+            string label = executionModeLabel.Trim();
+            return label.StartsWith("Mode : ", StringComparison.OrdinalIgnoreCase)
+                ? $"Mode {label["Mode : ".Length..]}"
+                : label;
+        }
+
         public static string FormatCaniculeGuardStatus(CaniculeGuardState state)
         {
             if (state is null)

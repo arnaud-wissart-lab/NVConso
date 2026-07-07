@@ -1,5 +1,3 @@
-using System.Drawing;
-
 namespace NVConso
 {
     public sealed class DashboardWindowBounds
@@ -14,20 +12,5 @@ namespace NVConso
             return Width >= 900 && Height >= 600;
         }
 
-        public Rectangle ToRectangle()
-        {
-            return new Rectangle(X, Y, Width, Height);
-        }
-
-        public static DashboardWindowBounds FromRectangle(Rectangle bounds)
-        {
-            return new DashboardWindowBounds
-            {
-                X = bounds.X,
-                Y = bounds.Y,
-                Width = bounds.Width,
-                Height = bounds.Height
-            };
-        }
     }
 }

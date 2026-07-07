@@ -16,13 +16,6 @@ namespace NVConso
             _isSystemDarkTheme = isSystemDarkTheme ?? IsWindowsAppThemeDark;
         }
 
-        public ThemePalette GetPalette(UiTheme theme)
-        {
-            return ResolveTheme(theme) == UiTheme.Dark
-                ? ThemePalette.Dark()
-                : ThemePalette.Light();
-        }
-
         public UiTheme ResolveTheme(UiTheme theme)
         {
             if (theme == UiTheme.Light || theme == UiTheme.Dark)

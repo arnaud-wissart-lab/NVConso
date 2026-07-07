@@ -1,4 +1,5 @@
 using NVConso.ViewModels;
+using NVConso.Controls;
 
 namespace NVConso.Tests
 {
@@ -18,15 +19,53 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void DisplayStatus_ShouldFormatNullDailySummary()
+        public void ResponsiveWrapPanel_ShouldAdaptColumnsToAvailableWidth()
         {
-            var model = new DisplayStatusViewModel();
+            Assert.Equal(4, ResponsiveWrapPanel.CalculateColumnCount(920, 220, 4, 12, 8));
+            Assert.Equal(3, ResponsiveWrapPanel.CalculateColumnCount(700, 220, 4, 12, 8));
+            Assert.Equal(2, ResponsiveWrapPanel.CalculateColumnCount(460, 220, 4, 12, 8));
+            Assert.Equal(1, ResponsiveWrapPanel.CalculateColumnCount(320, 220, 4, 12, 8));
+        }
+
+        [Fact]
+        public void ResponsiveSplitPanel_ShouldStack_WhenSecondaryColumnWouldBeTooNarrow()
+        {
+            Assert.False(ResponsiveSplitPanel.ShouldStack(980, 640, 280, 12));
+            Assert.True(ResponsiveSplitPanel.ShouldStack(860, 640, 280, 12));
+        }
+
+        [Fact]
+        public void MetricCard_ShouldPreserveReadableLongValuesAndFallbacks()
+        {
+            var metric = new MetricCardViewModel("Mode de mise à jour");
+
+            metric.Update("Mode portable ZIP — mise à jour manuelle");
+
+            Assert.Equal("Mode portable ZIP — mise à jour manuelle", metric.Value);
+
+            metric.Update(string.Empty);
+
+            Assert.Equal("--", metric.Value);
+        }
+
+        [Fact]
+        public void DashboardHeader_ShouldFormatCompactUpdateMode()
+        {
+            Assert.Equal(
+                "Mode portable ZIP — mise à jour manuelle",
+                DashboardHeaderLabels.FormatUpdateMode("Mode : portable ZIP — mise à jour manuelle"));
+        }
+
+        [Fact]
+        public void DashboardStatus_ShouldFormatNullDailySummary()
+        {
+            var model = new DashboardStatusViewModel();
 
             model.ApplyDailySummary(null, recordingEnabled: true);
-            model.ApplyDisplayState(DisplayRuntimeState.Unavailable("Aucun écran."), enabled: false);
+            model.ApplyCaniculeGuard(null);
 
             Assert.Equal("Historique aujourd'hui - max puissance --, max température --, pics 0.", model.DailySummary);
-            Assert.Equal("Profils écran désactivés - Aucun écran.", model.Summary);
+            Assert.Equal("Canicule Guard : état inconnu", model.CaniculeGuardSummary);
         }
 
         [Fact]
@@ -44,6 +83,33 @@ namespace NVConso.Tests
             Assert.Equal(UpdateLabels.ErrorStatus, model.Message);
             Assert.Equal("Réseau indisponible.", model.Detail);
             Assert.False(model.CanRunPrimaryAction);
+        }
+
+        [Fact]
+        public void UpdateStatus_ShouldExposePortableModeWithoutShorteningLabel()
+        {
+            var model = new UpdateStatusViewModel();
+
+            model.Apply(UpdateStatusPresenter.FromStoredState(
+                new AppSettings(),
+                PendingUpdateStatus.None(),
+                AppExecutionModeInfo.PortableZip()));
+
+            Assert.Equal("Mode : portable ZIP — mise à jour manuelle", model.ExecutionModeLabel);
+        }
+
+        [Theory]
+        [InlineData(30, "30 s")]
+        [InlineData(300, "5 min")]
+        [InlineData(900, "15 min")]
+        public void DashboardViewModel_ShouldUseConfiguredHistoryDurationForRealtimeCharts(int seconds, string expected)
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            context.SettingsService.Current.TelemetryHistorySeconds = seconds;
+
+            using var model = context.CreateDashboardViewModel();
+
+            Assert.All(model.RealtimeCharts, chart => Assert.Equal(expected, chart.Summary));
         }
 
         [Fact]
@@ -175,7 +241,6 @@ namespace NVConso.Tests
                 SettingsService = new AppSettingsService(new AppSettingsStore(Path.Combine(tempDirectory, "settings.json")));
                 StartupManager = new FakeStartupManager();
                 TelemetryService = new FakeGpuTelemetryService();
-                DisplayManager = new FakeDisplayManager();
                 Recorder = new FakeTelemetryRecorder(tempDirectory);
                 LogReader = new FakeTelemetryLogReader(tempDirectory);
                 UpdateWorkflow = new AppUpdateWorkflow(new FakeAppUpdater());
@@ -185,7 +250,6 @@ namespace NVConso.Tests
             public AppSettingsService SettingsService { get; }
             public FakeStartupManager StartupManager { get; }
             public FakeGpuTelemetryService TelemetryService { get; }
-            public FakeDisplayManager DisplayManager { get; }
             public FakeTelemetryRecorder Recorder { get; }
             public FakeTelemetryLogReader LogReader { get; }
             public AppUpdateWorkflow UpdateWorkflow { get; }
@@ -201,7 +265,6 @@ namespace NVConso.Tests
             {
                 return new DashboardViewModel(
                     TelemetryService,
-                    DisplayManager,
                     Recorder,
                     LogReader,
                     new FakeCaniculeGuard(),
@@ -222,7 +285,6 @@ namespace NVConso.Tests
                     UpdateWorkflow,
                     new MockNvmlManager(100000, 200000, 300000),
                     TelemetryService,
-                    DisplayManager,
                     Recorder);
             }
 
@@ -347,57 +409,6 @@ namespace NVConso.Tests
             public AppExecutionModeInfo GetExecutionMode()
             {
                 return AppExecutionModeInfo.InstalledVelopack();
-            }
-        }
-
-        private sealed class FakeDisplayManager : IDisplayManager
-        {
-            public DisplayRuntimeState GetRuntimeState()
-            {
-                return DisplayRuntimeState.Available(
-                [
-                    new DisplayDeviceInfo
-                    {
-                        DeviceName = @"\\.\DISPLAY1",
-                        FriendlyName = "Écran de test",
-                        IsPrimary = true,
-                        Width = 2560,
-                        Height = 1440,
-                        CurrentRefreshRateHz = 120,
-                        MaxRefreshRateHz = 144,
-                        HdrState = DisplayHdrState.Sdr,
-                        VrrDetection = VrrDetectionResult.Unknown(@"\\.\DISPLAY1")
-                    }
-                ]);
-            }
-
-            public DisplayProfileSnapshot CaptureSnapshot()
-            {
-                return DisplayProfileSnapshot.FromRuntimeState(GetRuntimeState());
-            }
-
-            public bool TryApplyRefreshRate(DisplayDeviceInfo display, int refreshRateHz, out string message)
-            {
-                message = "Non utilisé par ce test.";
-                return false;
-            }
-
-            public bool TryRestoreSnapshot(DisplayProfileSnapshot snapshot, out string message)
-            {
-                message = "Non utilisé par ce test.";
-                return true;
-            }
-
-            public void OpenHdrSettings()
-            {
-            }
-
-            public void OpenGraphicsSettings()
-            {
-            }
-
-            public void OpenNvidiaSettings()
-            {
             }
         }
 

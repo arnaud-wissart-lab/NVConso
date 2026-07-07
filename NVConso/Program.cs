@@ -18,6 +18,7 @@ namespace NVConso
             StartupLaunchOptions launchOptions = StartupLaunchOptions.Parse(args);
 
             ApplicationConfiguration.Initialize();
+            EnsureWpfApplication();
 
             if (!IsRunAsAdmin())
             {
@@ -57,13 +58,9 @@ namespace NVConso
                 .AddSingleton<IAppUpdater, VelopackAppUpdater>()
                 .AddSingleton<INvmlManager, NvmlManager>()
                 .AddSingleton<IGpuTelemetryService, GpuTelemetryService>()
-                .AddSingleton<IDisplayAdvancedColorDetector, DxgiAdvancedColorDetector>()
-                .AddSingleton<IDisplayVrrDetector, NvidiaVrrDetector>()
-                .AddSingleton<IDisplayManager, WindowsDisplayManager>()
                 .AddSingleton<ICaniculeGuardClock, SystemCaniculeGuardClock>()
                 .AddSingleton<ITelemetryRecorder>(services => new CsvTelemetryRecorder(
                     TelemetryLoggingSettings.FromAppSettings(services.GetRequiredService<AppSettingsService>().Current),
-                    services.GetRequiredService<IDisplayManager>(),
                     services.GetRequiredService<ILogger<CsvTelemetryRecorder>>()))
                 .AddSingleton<ITelemetryLogReader>(services => new CsvTelemetryLogReader(
                     services.GetRequiredService<ITelemetryRecorder>().TelemetryRootPath))
@@ -84,14 +81,24 @@ namespace NVConso
             var startupManager = services.GetRequiredService<IStartupManager>();
             var appUpdater = services.GetRequiredService<IAppUpdater>();
             var telemetryService = services.GetRequiredService<IGpuTelemetryService>();
-            var displayManager = services.GetRequiredService<IDisplayManager>();
             var telemetryRecorder = services.GetRequiredService<ITelemetryRecorder>();
             var telemetryLogReader = services.GetRequiredService<ITelemetryLogReader>();
             var caniculeGuard = services.GetRequiredService<ICaniculeGuard>();
             var themeService = services.GetRequiredService<ThemeService>();
             var settingsService = services.GetRequiredService<AppSettingsService>();
             var trayLogger = services.GetRequiredService<ILogger<TrayAppContext>>();
-            System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, displayManager, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
+            System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, trayLogger, launchOptions));
+        }
+
+        private static void EnsureWpfApplication()
+        {
+            if (System.Windows.Application.Current is not null)
+                return;
+
+            _ = new System.Windows.Application
+            {
+                ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown
+            };
         }
 
         private static bool IsRunAsAdmin()

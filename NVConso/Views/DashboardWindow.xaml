@@ -3,17 +3,56 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:NVConso.Controls"
         Title="WattPilot - Tableau de bord"
-        Width="1260"
-        Height="840"
-        MinWidth="980"
-        MinHeight="700"
-        WindowStartupLocation="CenterScreen">
+        Width="1280"
+        Height="820"
+        MinWidth="760"
+        MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/WattPilot;component/Themes/LightTheme.xaml" />
                 <ResourceDictionary Source="/WattPilot;component/Themes/CommonStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <controls:SecondaryLegendVisibilityConverter x:Key="SecondaryLegendVisibilityConverter" CompactWidth="360" />
+
+            <Style x:Key="DashboardFactLabelText" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Margin" Value="0,0,0,2" />
+            </Style>
+
+            <Style x:Key="DashboardFactValueText" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="LineHeight" Value="18" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="TextTrimming" Value="None" />
+            </Style>
+
+            <Style x:Key="MetricTitleText" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+
+            <Style x:Key="DashboardMetricValueText" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MetricValueText}">
+                <Setter Property="FontSize" Value="22" />
+                <Setter Property="LineHeight" Value="28" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="TextTrimming" Value="None" />
+            </Style>
+
+            <Style x:Key="DashboardGaugeValueText" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MetricValueText}">
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="LineHeight" Value="20" />
+                <Setter Property="TextAlignment" Value="Right" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="TextTrimming" Value="None" />
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -26,115 +65,179 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" MinHeight="220" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource CardBorder}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Text="{Binding GpuName}" Style="{StaticResource WindowTitleText}" />
-                                    <WrapPanel Margin="0,8,0,0" ItemHeight="24">
-                                        <TextBlock Text="Profil actif : " Style="{StaticResource MutedText}" />
-                                        <TextBlock Text="{Binding ProfileName}" FontWeight="SemiBold" Margin="0,0,18,0" />
-                                        <TextBlock Text="{Binding ProductVersion}" Style="{StaticResource MutedText}" Margin="0,0,18,0" />
-                                        <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" Style="{StaticResource MutedText}" Margin="0,0,18,0" />
-                                        <TextBlock Text="{Binding UpdateStatus.Message}" Style="{StaticResource MutedText}" Margin="0,0,18,0" />
-                                        <TextBlock Text="{Binding DisplayStatus.CaniculeGuardSummary}" Style="{StaticResource MutedText}" />
+                            <controls:ResponsiveSplitPanel PrimaryMinWidth="460"
+                                                           SecondaryMinWidth="220"
+                                                           SecondaryMaxWidth="260"
+                                                           SecondaryWidthRatio="0.24"
+                                                           ItemSpacing="14">
+                                <StackPanel>
+                                    <TextBlock Text="WattPilot" Style="{StaticResource WindowTitleText}" />
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <StackPanel MinWidth="220" MaxWidth="520" Margin="0,0,18,8">
+                                            <TextBlock Text="GPU actif" Style="{StaticResource DashboardFactLabelText}" />
+                                            <TextBlock Text="{Binding GpuName}" Style="{StaticResource DashboardFactValueText}" />
+                                        </StackPanel>
+                                        <StackPanel MinWidth="150" MaxWidth="240" Margin="0,0,18,8">
+                                            <TextBlock Text="Profil actif" Style="{StaticResource DashboardFactLabelText}" />
+                                            <TextBlock Text="{Binding ProfileName}" Style="{StaticResource DashboardFactValueText}" />
+                                        </StackPanel>
+                                        <StackPanel MinWidth="130" MaxWidth="220" Margin="0,0,18,8">
+                                            <TextBlock Text="Version" Style="{StaticResource DashboardFactLabelText}" />
+                                            <TextBlock Text="{Binding ProductVersion}" Style="{StaticResource DashboardFactValueText}" />
+                                        </StackPanel>
+                                        <StackPanel MinWidth="260" MaxWidth="360" Margin="0,0,0,8">
+                                            <TextBlock Text="Mode de mise à jour" Style="{StaticResource DashboardFactLabelText}" />
+                                            <TextBlock Text="{Binding UpdateModeLabel}" Style="{StaticResource DashboardFactValueText}" />
+                                        </StackPanel>
                                     </WrapPanel>
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="1" MinWidth="220">
+                                <StackPanel MinWidth="220">
                                     <Border Style="{StaticResource StatusPillBorder}" Margin="0,0,0,8">
-                                        <TextBlock Text="{Binding StatusMessage}" TextAlignment="Center" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding StatusMessage}"
+                                                   TextAlignment="Center"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   TextTrimming="None" />
                                     </Border>
-                                    <Button Content="Restaurer Stock" Command="{Binding RestoreStockCommand}" Margin="0,0,0,8" />
-                                    <Button Content="Préférences" Command="{Binding OpenPreferencesCommand}" />
+                                    <Button Content="Restaurer Stock"
+                                            Command="{Binding RestoreStockCommand}"
+                                            Margin="0,0,0,8"
+                                            MinHeight="36" />
+                                    <Button Content="Préférences"
+                                            Command="{Binding OpenPreferencesCommand}"
+                                            MinHeight="36" />
                                 </StackPanel>
-                            </Grid>
+                            </controls:ResponsiveSplitPanel>
                         </Border>
 
-                        <Grid Grid.Row="1" Margin="0,14,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="7*" />
-                                <ColumnDefinition Width="3*" MinWidth="260" />
-                            </Grid.ColumnDefinitions>
-
-                            <ItemsControl Grid.Column="0" ItemsSource="{Binding Metrics}">
+                        <controls:ResponsiveSplitPanel Grid.Row="1"
+                                                       Margin="0,14,0,0"
+                                                       PrimaryMinWidth="640"
+                                                       SecondaryMinWidth="280"
+                                                       SecondaryMaxWidth="360"
+                                                       SecondaryWidthRatio="0.28"
+                                                       ItemSpacing="12">
+                            <ItemsControl ItemsSource="{Binding Metrics}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <UniformGrid Columns="4" />
+                                        <controls:ResponsiveWrapPanel MinItemWidth="205"
+                                                                      MaxColumns="4"
+                                                                      ItemSpacing="10" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource CardBorder}" MinHeight="112" Margin="0,0,10,10">
+                                        <Border Style="{StaticResource CardBorder}" MinHeight="118">
                                             <StackPanel>
-                                                <TextBlock Text="{Binding Title}" Style="{StaticResource MutedText}" />
-                                                <TextBlock Text="{Binding Value}" Style="{StaticResource MetricValueText}" Margin="0,8,0,2" />
-                                                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource MutedText}" />
+                                                <TextBlock Text="{Binding Title}"
+                                                           Style="{StaticResource MetricTitleText}"
+                                                           ToolTip="{Binding Title}" />
+                                                <TextBlock Text="{Binding Value}"
+                                                           Style="{StaticResource DashboardMetricValueText}"
+                                                           Margin="0,8,0,3" />
+                                                <TextBlock Text="{Binding Subtitle}"
+                                                           Style="{StaticResource MutedText}"
+                                                           TextWrapping="Wrap"
+                                                           TextTrimming="None" />
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Gauges}" Margin="4,0,0,0">
+                            <ItemsControl ItemsSource="{Binding Gauges}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <controls:ResponsiveWrapPanel MinItemWidth="260"
+                                                                      MaxColumns="2"
+                                                                      ItemSpacing="10" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource CardBorder}" MinHeight="66" Margin="0,0,0,10">
+                                        <Border Style="{StaticResource CardBorder}" MinHeight="84">
                                             <Grid>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
-                                                <DockPanel>
-                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource MutedText}" DockPanel.Dock="Left" />
-                                                    <TextBlock Text="{Binding Value}" Style="{StaticResource MetricValueText}" FontSize="16" LineHeight="20" TextAlignment="Right" />
-                                                </DockPanel>
-                                                <ProgressBar Grid.Row="1" Value="{Binding GaugeValue}" Margin="0,8,0,0" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding Title}"
+                                                               Style="{StaticResource MutedText}"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="None"
+                                                               Margin="0,0,10,0" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Value}"
+                                                               Style="{StaticResource DashboardGaugeValueText}" />
+                                                </Grid>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding Subtitle}"
+                                                           Style="{StaticResource MutedText}"
+                                                           TextWrapping="Wrap"
+                                                           TextTrimming="None"
+                                                           Margin="0,4,0,0" />
+                                                <ProgressBar Grid.Row="2"
+                                                             Value="{Binding GaugeValue}"
+                                                             Height="10"
+                                                             Margin="0,8,0,0" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </Grid>
+                        </controls:ResponsiveSplitPanel>
 
-                        <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,4,0,0">
+                        <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <WrapPanel>
-                                    <ItemsControl ItemsSource="{Binding ProfileActions}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Content="{Binding Label}"
-                                                        Command="{Binding DataContext.ApplyProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding Value}"
-                                                        Margin="0,0,8,8"
-                                                        MinWidth="112" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    <Button Content="Limite personnalisée"
-                                            Command="{Binding CustomPowerLimitCommand}"
-                                            Margin="0,0,8,8"
-                                            MinWidth="150" />
-                                </WrapPanel>
-                                <StackPanel Grid.Row="1" Margin="0,8,0,0">
-                                    <TextBlock Text="{Binding DisplayStatus.Summary}" Style="{StaticResource MutedText}" />
-                                    <TextBlock Text="{Binding DisplayStatus.DailySummary}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+
+                                <ItemsControl ItemsSource="{Binding ProfileActions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Label}"
+                                                    Command="{Binding DataContext.ApplyProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding Value}"
+                                                    Margin="0,0,8,8"
+                                                    MinWidth="104"
+                                                    MinHeight="38"
+                                                    Padding="12,7" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button Grid.Row="1"
+                                        Content="Limite personnalisée"
+                                        Command="{Binding CustomPowerLimitCommand}"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,8,8"
+                                        MinWidth="170"
+                                        MinHeight="38"
+                                        Padding="12,7" />
+
+                                <StackPanel Grid.Row="2" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding DashboardStatus.DailySummary}" Style="{StaticResource MutedText}" />
+                                    <TextBlock Text="{Binding DashboardStatus.CaniculeGuardSummary}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -142,24 +245,47 @@
                         <ItemsControl Grid.Row="3" ItemsSource="{Binding RealtimeCharts}" Margin="0,14,0,0">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <UniformGrid Columns="3" />
+                                    <controls:ResponsiveWrapPanel MinItemWidth="330"
+                                                                  MaxColumns="3"
+                                                                  ItemSpacing="12" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Style="{StaticResource CardBorder}" MinHeight="220" Margin="0,0,10,0">
+                                    <Border Style="{StaticResource CardBorder}" MinHeight="280">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="*" />
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
-                                            <DockPanel>
-                                                <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" DockPanel.Dock="Left" />
-                                                <TextBlock Text="{Binding Summary}" Style="{StaticResource MutedText}" TextAlignment="Right" />
-                                            </DockPanel>
-                                            <controls:TelemetrySparkline Grid.Row="1" Chart="{Binding}" MinHeight="150" />
-                                            <ItemsControl Grid.Row="2" ItemsSource="{Binding Series}" Margin="0,10,0,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Title}"
+                                                           Style="{StaticResource SectionTitleText}"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Title}"
+                                                           Margin="0,0,12,10" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Summary}"
+                                                           Style="{StaticResource MutedText}"
+                                                           TextAlignment="Right"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="None"
+                                                           Margin="0,2,0,10" />
+                                            </Grid>
+                                            <controls:TelemetrySparkline Grid.Row="1"
+                                                                         Chart="{Binding}"
+                                                                         MinHeight="180" />
+                                            <ItemsControl Grid.Row="2"
+                                                          ItemsSource="{Binding Series}"
+                                                          AlternationCount="32"
+                                                          Margin="0,12,0,0">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <WrapPanel />
@@ -167,7 +293,20 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource MutedText}" Margin="0,0,12,0" />
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Style="{StaticResource MutedText}"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,0,12,0">
+                                                            <TextBlock.Visibility>
+                                                                <MultiBinding Converter="{StaticResource SecondaryLegendVisibilityConverter}">
+                                                                    <Binding RelativeSource="{RelativeSource AncestorType=ContentPresenter}"
+                                                                             Path="(ItemsControl.AlternationIndex)" />
+                                                                    <Binding RelativeSource="{RelativeSource AncestorType=Border}"
+                                                                             Path="ActualWidth" />
+                                                                </MultiBinding>
+                                                            </TextBlock.Visibility>
+                                                        </TextBlock>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -181,85 +320,93 @@
             </TabItem>
 
             <TabItem Header="Historique">
-                <Grid Margin="{StaticResource PagePadding}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="180" />
-                    </Grid.RowDefinitions>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="{StaticResource PagePadding}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Style="{StaticResource CardBorder}">
-                        <WrapPanel VerticalAlignment="Center">
-                            <StackPanel Width="140" Margin="0,0,10,8">
-                                <TextBlock Text="Date" Style="{StaticResource MutedText}" />
-                                <DatePicker SelectedDate="{Binding HistoryDate}" />
-                            </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
-                                <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryGpus}" SelectedItem="{Binding SelectedHistoryGpu}" DisplayMemberPath="Label" />
-                            </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
-                                <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryProfiles}" SelectedItem="{Binding SelectedHistoryProfile}" DisplayMemberPath="Label" />
-                            </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
-                                <TextBlock Text="Métrique" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryMetrics}" SelectedItem="{Binding SelectedHistoryMetric}" DisplayMemberPath="Label" />
-                            </StackPanel>
-                            <Button Content="Actualiser" Command="{Binding RefreshHistoryCommand}" Margin="0,18,8,8" />
-                            <Button Content="Exporter CSV" Click="ExportHistory_Click" Margin="0,18,8,8" />
-                            <Button Content="Copier résumé" Click="CopyHistorySummary_Click" Margin="0,18,8,8" />
-                            <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,18,0,8" />
-                        </WrapPanel>
-                    </Border>
+                        <Border Grid.Row="0" Style="{StaticResource CardBorder}">
+                            <WrapPanel VerticalAlignment="Center">
+                                <StackPanel Width="140" Margin="0,0,10,8">
+                                    <TextBlock Text="Date" Style="{StaticResource MutedText}" />
+                                    <DatePicker SelectedDate="{Binding HistoryDate}" />
+                                </StackPanel>
+                                <StackPanel Width="190" Margin="0,0,10,8">
+                                    <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
+                                    <ComboBox ItemsSource="{Binding HistoryGpus}" SelectedItem="{Binding SelectedHistoryGpu}" DisplayMemberPath="Label" />
+                                </StackPanel>
+                                <StackPanel Width="190" Margin="0,0,10,8">
+                                    <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
+                                    <ComboBox ItemsSource="{Binding HistoryProfiles}" SelectedItem="{Binding SelectedHistoryProfile}" DisplayMemberPath="Label" />
+                                </StackPanel>
+                                <StackPanel Width="190" Margin="0,0,10,8">
+                                    <TextBlock Text="Métrique" Style="{StaticResource MutedText}" />
+                                    <ComboBox ItemsSource="{Binding HistoryMetrics}" SelectedItem="{Binding SelectedHistoryMetric}" DisplayMemberPath="Label" />
+                                </StackPanel>
+                                <Button Content="Actualiser" Command="{Binding RefreshHistoryCommand}" Margin="0,18,8,8" />
+                                <Button Content="Exporter CSV" Click="ExportHistory_Click" Margin="0,18,8,8" />
+                                <Button Content="Copier résumé" Click="CopyHistorySummary_Click" Margin="0,18,8,8" />
+                                <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,18,0,8" />
+                            </WrapPanel>
+                        </Border>
 
-                    <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="{Binding HistoryChart.Summary}" Style="{StaticResource SectionTitleText}" />
-                            <controls:TelemetrySparkline Grid.Row="1" Chart="{Binding HistoryChart}" MinHeight="260" />
-                        </Grid>
-                    </Border>
+                        <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="{Binding HistoryChart.Summary}"
+                                           Style="{StaticResource SectionTitleText}"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis" />
+                                <controls:TelemetrySparkline Grid.Row="1"
+                                                             Chart="{Binding HistoryChart}"
+                                                             MinHeight="300" />
+                            </Grid>
+                        </Border>
 
-                    <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
-                        <StackPanel>
-                            <TextBlock Text="{Binding HistorySummary}" />
-                            <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
+                        <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding HistorySummary}" />
+                                <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
 
-                    <Border Grid.Row="3" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Pics détectés" Style="{StaticResource SectionTitleText}" />
-                            <DataGrid Grid.Row="1"
-                                      ItemsSource="{Binding HistoryPeaks}"
-                                      AutoGenerateColumns="False"
-                                      HeadersVisibility="Column"
-                                      IsReadOnly="True"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      GridLinesVisibility="Horizontal"
-                                      Background="{DynamicResource SurfaceBrush}"
-                                      Foreground="{DynamicResource PrimaryTextBrush}">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="90" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" />
-                                    <DataGridTextColumn Header="Valeur" Binding="{Binding Value}" Width="90" />
-                                    <DataGridTextColumn Header="Profil" Binding="{Binding Profile}" Width="120" />
-                                    <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
-                    </Border>
-                </Grid>
+                        <Border Grid.Row="3" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Pics détectés" Style="{StaticResource SectionTitleText}" />
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding HistoryPeaks}"
+                                          AutoGenerateColumns="False"
+                                          HeadersVisibility="Column"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          GridLinesVisibility="Horizontal"
+                                          MinHeight="180"
+                                          Background="{DynamicResource SurfaceBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="90" />
+                                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" />
+                                        <DataGridTextColumn Header="Valeur" Binding="{Binding Value}" Width="90" />
+                                        <DataGridTextColumn Header="Profil" Binding="{Binding Profile}" Width="120" />
+                                        <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
     </Grid>

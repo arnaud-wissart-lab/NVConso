@@ -1,5 +1,9 @@
 using Microsoft.Extensions.Logging;
+using NVConso.ViewModels;
+using NVConso.Views;
+using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Windows;
 
 namespace NVConso
 {
@@ -14,7 +18,6 @@ namespace NVConso
         private readonly ContextMenuStrip _trayMenu;
         private readonly ToolStripMenuItem _gpuProfileSummaryItem;
         private readonly ToolStripMenuItem _powerTemperatureSummaryItem;
-        private readonly ToolStripMenuItem _displaySummaryItem;
         private readonly ToolStripMenuItem _statusItem;
         private readonly ToolStripMenuItem _openDashboardItem;
         private readonly ToolStripMenuItem _preferencesItem;
@@ -26,14 +29,12 @@ namespace NVConso
         private readonly INvmlManager _nvml;
         private readonly WindowsStartupController _startupController;
         private readonly IGpuTelemetryService _telemetryService;
-        private readonly IDisplayManager _displayManager;
         private readonly ITelemetryRecorder _telemetryRecorder;
         private readonly ITelemetryLogReader _telemetryLogReader;
         private readonly ICaniculeGuard _caniculeGuard;
         private readonly ThemeService _themeService;
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly GpuProfileController _gpuProfiles;
-        private readonly DisplayProfileController _displayProfiles;
         private readonly AppSettingsService _settingsService;
         private readonly ILogger<TrayAppContext> _logger;
         private readonly StartupLaunchOptions _launchOptions;
@@ -41,8 +42,8 @@ namespace NVConso
         private readonly TrayUpdateController _updateController;
 
         private AppSettings _settings;
-        private DashboardForm _dashboardForm;
-        private SettingsForm _settingsForm;
+        private DashboardWindow _dashboardWindow;
+        private PreferencesWindow _preferencesWindow;
         private string _activeProfileLabel = "--";
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
@@ -51,8 +52,7 @@ namespace NVConso
                 new WindowsTaskSchedulerStartupManager(),
                 new VelopackAppUpdater(),
                 new GpuTelemetryService(nvml),
-                new WindowsDisplayManager(),
-                new CsvTelemetryRecorder(new WindowsDisplayManager()),
+                new CsvTelemetryRecorder(),
                 new CsvTelemetryLogReader(),
                 new CaniculeGuardService(),
                 new ThemeService(),
@@ -67,7 +67,6 @@ namespace NVConso
             IStartupManager startupManager,
             IAppUpdater appUpdater,
             IGpuTelemetryService telemetryService,
-            IDisplayManager displayManager,
             ITelemetryRecorder telemetryRecorder,
             ITelemetryLogReader telemetryLogReader,
             ICaniculeGuard caniculeGuard,
@@ -81,8 +80,7 @@ namespace NVConso
             IAppUpdater resolvedAppUpdater = appUpdater ?? new VelopackAppUpdater();
             _startupController = new WindowsStartupController(resolvedStartupManager);
             _telemetryService = telemetryService ?? new GpuTelemetryService(nvml);
-            _displayManager = displayManager ?? new WindowsDisplayManager();
-            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder(_displayManager);
+            _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
             _telemetryLogReader = telemetryLogReader ?? new CsvTelemetryLogReader(_telemetryRecorder.TelemetryRootPath);
             _caniculeGuard = caniculeGuard ?? new CaniculeGuardService(telemetryRecorder: _telemetryRecorder);
             _themeService = themeService ?? new ThemeService();
@@ -90,7 +88,6 @@ namespace NVConso
             _logger = logger;
             _settingsService = settingsService ?? new AppSettingsService(new AppSettingsStore());
             _gpuProfiles = new GpuProfileController(_nvml, _settingsService, _telemetryService, _logger);
-            _displayProfiles = new DisplayProfileController(_displayManager, _logger);
             _launchOptions = launchOptions ?? StartupLaunchOptions.Default;
             _settings = _settingsService.Current;
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -108,7 +105,6 @@ namespace NVConso
             _trayMenu = trayMenuView.Menu;
             _gpuProfileSummaryItem = trayMenuView.GpuProfileSummaryItem;
             _powerTemperatureSummaryItem = trayMenuView.PowerTemperatureSummaryItem;
-            _displaySummaryItem = trayMenuView.DisplaySummaryItem;
             _statusItem = trayMenuView.StatusItem;
             _openDashboardItem = trayMenuView.OpenDashboardItem;
             _preferencesItem = trayMenuView.PreferencesItem;
@@ -125,11 +121,15 @@ namespace NVConso
             _preferencesItem.Click += (_, _) => OpenPreferences();
             trayMenuView.QuitItem.Click += (_, _) => System.Windows.Forms.Application.Exit();
 
+            Icon trayIcon = AppIcon.Load();
+            if (AppIcon.LastLoadSource == AppIconLoadSource.SystemDefault)
+                _logger?.LogWarning("Icône tray par défaut utilisée : {Diagnostic}", AppIcon.LastDiagnostic);
+
             _icon = new NotifyIcon
             {
                 Visible = true,
                 Text = $"{ProductNames.DisplayName} - Gestion GPU",
-                Icon = AppIcon.Load(),
+                Icon = trayIcon,
                 ContextMenuStrip = _trayMenu,
             };
 
@@ -158,7 +158,6 @@ namespace NVConso
                 logger: _logger);
             _updateController.Initialize();
             InitializeRuntime();
-            RefreshDisplayStatusItems();
 
             if (_settings.ShowDashboardOnStartup)
                 OpenDashboard();
@@ -183,70 +182,80 @@ namespace NVConso
 
         private void OpenDashboard()
         {
-            DashboardForm dashboard = EnsureDashboard();
-            if (!dashboard.Visible)
+            DashboardWindow dashboard = EnsureDashboard();
+            if (!dashboard.IsVisible)
                 dashboard.Show();
 
-            if (dashboard.WindowState == FormWindowState.Minimized)
-                dashboard.WindowState = FormWindowState.Normal;
+            if (dashboard.WindowState == WindowState.Minimized)
+                dashboard.WindowState = WindowState.Normal;
 
             dashboard.Activate();
         }
 
         private void ToggleDashboard()
         {
-            if (_dashboardForm?.Visible == true)
+            if (_dashboardWindow?.IsVisible == true)
             {
-                _dashboardForm.Hide();
+                _dashboardWindow.Hide();
                 return;
             }
 
             OpenDashboard();
         }
 
-        private DashboardForm EnsureDashboard()
+        private DashboardWindow EnsureDashboard()
         {
-            if (_dashboardForm is { IsDisposed: false })
-                return _dashboardForm;
+            if (_dashboardWindow is not null)
+                return _dashboardWindow;
 
-            _dashboardForm = new DashboardForm(
+            var viewModel = new DashboardViewModel(
                 _telemetryService,
-                _displayManager,
                 _telemetryRecorder,
                 _telemetryLogReader,
                 _caniculeGuard,
                 _themeService,
                 _settingsService,
+                _updateWorkflow,
                 mode => ApplyProfile(mode, persistSelection: true, showBalloon: true),
                 () => ApplyProfile(GpuPowerMode.Stock, persistSelection: false, showBalloon: true),
                 ShowCustomPowerLimitDialog,
                 OpenPreferences,
-                _logger,
-                _updateWorkflow);
+                _logger);
 
-            return _dashboardForm;
+            _dashboardWindow = new DashboardWindow(viewModel);
+            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dashboardWindow);
+            _dashboardWindow.Closed += (_, _) => _dashboardWindow = null;
+
+            return _dashboardWindow;
         }
 
         private void OpenPreferences()
         {
-            if (_settingsForm is { IsDisposed: false })
+            if (_preferencesWindow is not null)
             {
-                _settingsForm.Show();
-                _settingsForm.Activate();
+                if (!_preferencesWindow.IsVisible)
+                    _preferencesWindow.Show();
+
+                if (_preferencesWindow.WindowState == WindowState.Minimized)
+                    _preferencesWindow.WindowState = WindowState.Normal;
+
+                _preferencesWindow.Activate();
                 return;
             }
 
-            _settingsForm = new SettingsForm(
+            var viewModel = new PreferencesViewModel(
                 _settingsService,
                 _startupController,
                 _updateWorkflow,
                 _nvml,
                 _telemetryService,
-                _displayManager,
                 _telemetryRecorder);
-            _settingsForm.FormClosed += (_, _) => _settingsForm = null;
-            _settingsForm.Show();
-            _settingsForm.Activate();
+
+            _preferencesWindow = new PreferencesWindow(viewModel);
+            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_preferencesWindow);
+            _preferencesWindow.Closed += (_, _) => _preferencesWindow = null;
+            _preferencesWindow.Show();
+            _preferencesWindow.Activate();
         }
 
         private void OnSettingsChanged(object sender, AppSettings settings)
@@ -256,7 +265,6 @@ namespace NVConso
             _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(_settings));
             _updateController.ApplySettings(_settings);
 
-            _dashboardForm?.ApplySettings(_settings);
         }
 
         private void OnCaniculeGuardAlertRaised(object sender, CaniculeGuardAlert alert)
@@ -277,7 +285,7 @@ namespace NVConso
 
             _notifications.SetStatus(alert.Message);
             _notifications.ShowWarning("Canicule Guard", alert.Message, 3500);
-            _dashboardForm?.RefreshCaniculeGuardSummary();
+            _dashboardWindow?.ViewModel.RefreshCaniculeGuardSummary();
         }
 
         private void OnTelemetryRecorderWarning(object sender, string message)
@@ -381,12 +389,8 @@ namespace NVConso
                 UpdateGpuProfileSummary();
             }
 
-            ApplyDisplayProfile(mode, showBalloon);
-
             if (showBalloon)
                 _notifications.ShowInfo("GPU", result.Message);
-
-            ShowDisplayAdvisoriesIfNeeded(mode, showBalloon);
         }
 
         private void ApplySavedPowerLimit()
@@ -403,8 +407,6 @@ namespace NVConso
             {
                 _activeProfileLabel = ProfileLabels.GetDisplayName(result.Mode.Value);
                 UpdateGpuProfileSummary();
-                ApplyDisplayProfile(result.Mode.Value, showBalloon: false);
-                RefreshDisplayStatusItems();
             }
         }
 
@@ -450,79 +452,11 @@ namespace NVConso
             _notifications.SetStatus(result.Message);
             _activeProfileLabel = ProfileLabels.GetDisplayName(GpuPowerMode.Custom);
             UpdateGpuProfileSummary();
-            ApplyDisplayProfile(GpuPowerMode.Custom, showBalloon);
-            RefreshDisplayStatusItems();
 
             if (showBalloon)
                 _notifications.ShowInfo("GPU", result.Message);
 
             return true;
-        }
-
-        private void ApplyDisplayProfile(GpuPowerMode mode, bool showBalloon)
-        {
-            DisplayProfileOperationResult result = _displayProfiles.ApplyProfile(_settings, mode);
-            if (result.Skipped)
-                return;
-
-            if (!result.Success)
-            {
-                _notifications.SetStatus(result.Message);
-                if (showBalloon)
-                    _notifications.ShowWarning("Affichage", result.Message);
-
-                return;
-            }
-
-            _notifications.SetStatus(result.Message);
-            _dashboardForm?.RefreshDisplaySummary();
-            RefreshDisplayStatusItems();
-            if (showBalloon && result.Actions.Count > 0)
-                _notifications.ShowInfo("Affichage", result.Message);
-        }
-
-        private void ShowDisplayAdvisoriesIfNeeded(GpuPowerMode mode, bool showBalloon)
-        {
-            DisplayRuntimeState state = _displayManager.GetRuntimeState();
-            UpdateDisplayStatusItems(state);
-
-            if (!showBalloon || !DisplayHdrAdvisory.ShouldWarn(mode, state))
-            {
-                ShowVrrAdvisoryIfNeeded(mode, state, showBalloon);
-                return;
-            }
-
-            _notifications.SetStatus(DisplayHdrAdvisory.WarningMessage);
-            _notifications.ShowWarning("Affichage", DisplayHdrAdvisory.WarningMessage, 3500);
-            ShowVrrAdvisoryIfNeeded(mode, state, showBalloon);
-        }
-
-        private void ShowVrrAdvisoryIfNeeded(GpuPowerMode mode, DisplayRuntimeState state, bool showBalloon)
-        {
-            if (!showBalloon || !DisplayVrrAdvisory.ShouldWarn(mode, state))
-                return;
-
-            _notifications.SetStatus(DisplayVrrAdvisory.WarningMessage);
-            _notifications.ShowWarning("Affichage", DisplayVrrAdvisory.WarningMessage, 3500);
-        }
-
-        private void RefreshDisplayStatusItems()
-        {
-            try
-            {
-                UpdateDisplayStatusItems(_displayManager.GetRuntimeState());
-            }
-            catch
-            {
-                _displaySummaryItem.Available = false;
-            }
-        }
-
-        private void UpdateDisplayStatusItems(DisplayRuntimeState state)
-        {
-            string displaySummary = TrayMenuLabels.FormatDisplaySummary(state);
-            _displaySummaryItem.Text = displaySummary;
-            _displaySummaryItem.Available = !string.IsNullOrWhiteSpace(displaySummary);
         }
 
         private void OnIconMouseUp(object sender, MouseEventArgs e)
@@ -539,7 +473,6 @@ namespace NVConso
                 return;
 
             _telemetryService.RefreshNow();
-            RefreshDisplayStatusItems();
             _trayMenu.Hide();
             SetForegroundWindow(_trayMenu.Handle);
             _trayMenu.Show(Cursor.Position);
@@ -558,7 +491,7 @@ namespace NVConso
         {
             _telemetryRecorder.Enqueue(snapshot);
             CaniculeGuardEvaluationResult guardResult = _caniculeGuard.Evaluate(snapshot, _settings, snapshot?.ActivePowerMode);
-            _dashboardForm?.RefreshCaniculeGuardSummary();
+            _dashboardWindow?.ViewModel.RefreshCaniculeGuardSummary();
 
             if (guardResult.State?.Status == CaniculeGuardStatus.Watching)
                 _notifications.SetStatus(guardResult.State.Message);
@@ -642,11 +575,12 @@ namespace NVConso
                     _gpuProfiles.Shutdown();
                 }
 
-                _displayProfiles.TryRestoreOnExit(_settings);
                 _telemetryRecorder.Dispose();
 
                 _icon.Dispose();
-                _dashboardForm?.Dispose();
+                _dashboardWindow?.CloseForApplicationExit();
+                _preferencesWindow?.Close();
+                System.Windows.Application.Current?.Shutdown();
                 _trayMenu.Dispose();
             }
 
