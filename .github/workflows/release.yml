@@ -26,6 +26,7 @@ env:
   VELOPACK_VERSION: 1.2.0
   PRODUCT_DISPLAY_NAME: WattPilot
   VELOPACK_PACK_ID: WattPilot
+  SETUP_EXE_NAME: WattPilot-Setup.exe
   PORTABLE_ZIP_NAME: WattPilot-win-x64.zip
   MAIN_EXE_NAME: WattPilot.exe
 
@@ -272,11 +273,36 @@ jobs:
         run: |
           $releaseDir = Join-Path $pwd "artifacts/release"
           $velopackDir = Join-Path $pwd "artifacts/velopack/${{ env.RUNTIME_IDENTIFIER }}"
+          $expectedSetupName = "${{ env.SETUP_EXE_NAME }}"
           $expectedPortableZipName = "${{ env.PORTABLE_ZIP_NAME }}"
+          $expectedFeedName = "releases.stable.json"
+          $setupPath = Join-Path $releaseDir $expectedSetupName
           $portableZipPath = Join-Path $releaseDir $expectedPortableZipName
+          $feedPath = Join-Path $releaseDir $expectedFeedName
           $checksumPath = Join-Path $releaseDir "SHA256SUMS.txt"
 
           Copy-Item -Path (Join-Path $velopackDir '*') -Destination $releaseDir -Force
+
+          $setupAssets = @(
+            Get-ChildItem -Path $releaseDir -File |
+              Where-Object {
+                $_.Extension -ieq ".exe" `
+                  -and $_.Name -match "Setup" `
+                  -and $_.Name -match "${{ env.PRODUCT_DISPLAY_NAME }}"
+              }
+          )
+          if ($setupAssets.Count -eq 0) {
+            throw "Aucun installeur Velopack ${{ env.PRODUCT_DISPLAY_NAME }} trouvé dans les assets de release."
+          }
+
+          if (-not (Test-Path $setupPath)) {
+            if ($setupAssets.Count -gt 1) {
+              $names = ($setupAssets | ForEach-Object Name) -join ", "
+              throw "Plusieurs installeurs Velopack détectés avant renommage : $names."
+            }
+
+            Rename-Item -Path $setupAssets[0].FullName -NewName $expectedSetupName -Force
+          }
 
           $redundantVelopackPortableZips = @(Get-ChildItem -Path $releaseDir -File -Filter "*-Portable.zip")
           if ($redundantVelopackPortableZips.Count -gt 0) {
@@ -287,6 +313,19 @@ jobs:
 
           if (-not (Test-Path $portableZipPath)) {
             throw "Asset portable absent : $expectedPortableZipName."
+          }
+
+          $unexpectedSetupAssets = @(
+            Get-ChildItem -Path $releaseDir -File |
+              Where-Object {
+                $_.Extension -ieq ".exe" `
+                  -and $_.Name -match "Setup" `
+                  -and $_.Name -ne $expectedSetupName
+              }
+          )
+          if ($unexpectedSetupAssets.Count -gt 0) {
+            $names = ($unexpectedSetupAssets | ForEach-Object Name) -join ", "
+            throw "Installeur Velopack inattendu détecté : $names."
           }
 
           $unexpectedPortableZips = @(
@@ -313,16 +352,8 @@ jobs:
             throw "ZIP portable Velopack redondant détecté : $names."
           }
 
-          $setupAssets = @(
-            Get-ChildItem -Path $releaseDir -File |
-              Where-Object {
-                $_.Extension -ieq ".exe" `
-                  -and $_.Name -match "Setup" `
-                  -and $_.Name -match "${{ env.PRODUCT_DISPLAY_NAME }}"
-              }
-          )
-          if ($setupAssets.Count -eq 0) {
-            throw "Aucun installeur Velopack ${{ env.PRODUCT_DISPLAY_NAME }} trouvé dans les assets de release."
+          if (-not (Test-Path $setupPath)) {
+            throw "Asset installateur absent : $expectedSetupName."
           }
 
           $velopackPackages = @(Get-ChildItem -Path $releaseDir -File -Filter "*.nupkg")
@@ -330,12 +361,20 @@ jobs:
             throw "Aucun paquet Velopack .nupkg trouvé dans les assets de release."
           }
 
-          $velopackFeeds = @(
+          if (-not (Test-Path $feedPath)) {
+            throw "Feed Velopack absent : $expectedFeedName."
+          }
+
+          $unexpectedVelopackFeeds = @(
             Get-ChildItem -Path $releaseDir -File |
-              Where-Object { $_.Name -match "(?i)^releases(\..*)?$" }
+              Where-Object {
+                $_.Name -match "(?i)^releases(\..*)?$" `
+                  -and $_.Name -ne $expectedFeedName
+              }
           )
-          if ($velopackFeeds.Count -eq 0) {
-            throw "Aucun feed Velopack releases.* trouvé dans les assets de release."
+          if ($unexpectedVelopackFeeds.Count -gt 0) {
+            $names = ($unexpectedVelopackFeeds | ForEach-Object Name) -join ", "
+            throw "Feed Velopack inattendu détecté : $names."
           }
 
           $files = @(

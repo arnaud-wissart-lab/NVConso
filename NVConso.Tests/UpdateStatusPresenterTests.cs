@@ -88,6 +88,22 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void FromCheckResult_ShouldReturnUnavailableForNotInstalledWithoutErrorState()
+        {
+            UpdateUiState state = UpdateStatusPresenter.FromCheckResult(
+                new AppSettings(),
+                AppUpdateOperationResult.Succeeded(
+                    AppUpdateStatus.NotInstalled,
+                    VelopackAppUpdater.NotInstalledMessage),
+                AppExecutionModeInfo.InstalledVelopack());
+
+            Assert.Equal(UpdateUiStatus.Unavailable, state.Status);
+            Assert.Equal(VelopackAppUpdater.NotInstalledMessage, state.Message);
+            Assert.Equal(VelopackAppUpdater.NotInstalledMessage, state.DetailMessage);
+            Assert.False(state.CanRunPrimaryAction);
+        }
+
+        [Fact]
         public void FromStoredState_ShouldReturnDeveloperUnavailableWithoutErrorAction()
         {
             var settings = new AppSettings

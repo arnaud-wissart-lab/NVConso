@@ -10,7 +10,18 @@ Ce document décrit le processus de publication actuel de WattPilot.
 - GitHub Actions activé.
 - Tag au format strict `vX.Y.Z`.
 
-Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.0.0`.
+Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.0`.
+
+## Version de la prochaine release
+
+Le projet est actuellement en version `2.0.1` dans le `.csproj`. La release publiée doit être pilotée par le tag Git : le workflow injecte `Version`, `AssemblyVersion`, `FileVersion` et `InformationalVersion` depuis `vX.Y.Z` pendant le build et le publish.
+
+Ne pas modifier le `.csproj` uniquement pour publier une release si le tag reste la source de vérité. Éviter toute combinaison où le tag, le titre GitHub Release et les propriétés MSBuild indiqueraient des versions différentes.
+
+Choix recommandé :
+
+- `v2.0.2` uniquement pour un hotfix limité au bug d'élévation de Setup ;
+- `v2.1.0` pour la release actuelle, car elle ajoute aussi le helper élevé dédié, le flux admin au clic et l'UX installation/update.
 
 ## Commandes locales avant tag
 
@@ -24,8 +35,8 @@ dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained tru
 ## Déclencher une release
 
 ```powershell
-git tag v2.0.0
-git push origin v2.0.0
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 Le workflow [../.github/workflows/release.yml](../.github/workflows/release.yml) dérive la version depuis le tag. Il échoue si le tag ne respecte pas `vX.Y.Z`.
@@ -51,23 +62,25 @@ Le workflow exécute :
 
 ## Artefacts attendus
 
+- `WattPilot-Setup.exe` : installateur Velopack one-click recommandé pour bénéficier de l'auto-update.
 - `WattPilot-win-x64.zip` : version portable self-contained.
-- Installeur Velopack WattPilot.
 - Paquets Velopack `stable` nécessaires à la mise à jour automatique.
-- Feed Velopack `releases.stable.json` ou fichier `releases.*` équivalent.
+- Feed Velopack `releases.stable.json`.
 - `SHA256SUMS.txt` : checksums SHA-256 de tous les fichiers publiés.
 
-Le ZIP portable n'a pas besoin d'installation du runtime .NET. Il ne bénéficie pas de la mise à jour automatique Velopack complète.
+Le ZIP portable n'a pas besoin d'installation du runtime .NET. Il ne bénéficie pas de la mise à jour automatique Velopack complète. Pour l'auto-update, utilisez `WattPilot-Setup.exe`. Le ZIP portable ne s'auto-update pas.
 
 Les assets principaux publiés ne doivent plus utiliser le nom `NVConso`. Ce nom reste acceptable uniquement pour le chemin du projet dans le dépôt, les namespaces C# et les éléments de migration depuis l'ancien nom technique.
 
 Le workflow échoue si :
 
 - `WattPilot-win-x64.zip` est absent ;
+- `WattPilot-Setup.exe` est absent ;
 - `SHA256SUMS.txt` est absent ou incomplet ;
 - aucun installeur Velopack WattPilot n'est présent ;
 - aucun paquet Velopack `.nupkg` n'est présent ;
-- aucun feed `releases.*` n'est présent ;
+- `releases.stable.json` est absent ;
+- un autre feed `releases.*` ambigu est présent ;
 - un ZIP portable `win-x64` inattendu est présent.
 - un asset public commence par `NVConso-`.
 - un ZIP portable Velopack redondant `*-Portable.zip` reste dans les assets collectés.
@@ -121,6 +134,28 @@ Le canal par défaut est `stable`.
 
 Le message affiché hors installation Velopack doit rester explicite sans être présenté comme une erreur : l'auto-update complet nécessite l'installation WattPilot via Velopack, la version ZIP portable doit être mise à jour depuis GitHub Releases, et un build développeur `bin\Debug` ou `bin\Release` ne s'auto-update pas.
 
+`WattPilot-Setup.exe` est un installateur one-click avec personnalisation limitée. Les options officielles documentées portent notamment sur `--silent`, `--verbose`, `--log` et `--installto`, ainsi que sur des éléments de packaging comme le titre, l'icône et l'image de démarrage. La documentation consultée ne fournit pas d'option officielle pour remplacer finement l'interface native de réparation. Ne pas ajouter de contournement fragile dans WattPilot pour ce cas.
+
+Si une UI installateur plus complète devient un objectif produit, évaluer la génération MSI Velopack avec WiX plutôt que de bricoler `Setup.exe`.
+
+Références :
+
+- [Installers Velopack](https://docs.velopack.io/packaging/installer)
+- [Options Setup.exe](https://docs.velopack.io/reference/cli/content/setup-windows)
+- [Packaging Windows](https://docs.velopack.io/packaging/operating-systems/windows)
+
+## Setup déjà installé
+
+Relancer `WattPilot-Setup.exe` sur une machine où WattPilot est déjà installé laisse Velopack gérer son comportement natif.
+
+Règles produit :
+
+- même version : documenter que Velopack peut proposer une réparation ou une réinstallation ;
+- version supérieure : recommander l'update intégré de WattPilot, ou relancer `WattPilot-Setup.exe` depuis la nouvelle release ;
+- version inférieure : ne pas proposer de downgrade silencieux.
+
+Ce comportement doit rester documenté plutôt que remplacé par une logique locale fragile.
+
 ## Packaging local Velopack
 
 Exemple de packaging local :
@@ -133,13 +168,13 @@ dotnet publish NVConso/NVConso.csproj `
   -o artifacts/publish/win-x64 `
   -p:PublishSingleFile=true `
   -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:Version=2.0.0
+  -p:Version=2.1.0
 
 dotnet tool install --global vpk --version 1.2.0
 
 vpk pack `
   --packId WattPilot `
-  --packVersion 2.0.0 `
+  --packVersion 2.1.0 `
   --packDir artifacts/publish/win-x64 `
   --mainExe WattPilot.exe `
   --channel stable `
@@ -171,16 +206,16 @@ Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise
 Pour publier une version standard après merge, créer puis pousser le tag cible :
 
 ```powershell
-git tag v1.2.0
-git push origin v1.2.0
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
-Remplacer `v1.2.0` par la version décidée pour la release. Pour le changement de PackId et d'exécutable lié au renommage complet, `v2.0.0` reste la version recommandée.
+Remplacer `v2.1.0` par la version décidée pour la release. Pour cette passe, `v2.1.0` est recommandé si le helper élevé et l'UX installation/update sont inclus ; `v2.0.2` ne convient que pour un hotfix strict du bug d'élévation de Setup.
 
 Après le push :
 
 1. attendre la fin du workflow `Release` ;
-2. vérifier que GitHub Releases contient `WattPilot-win-x64.zip`, l'installateur Velopack WattPilot, les paquets Velopack, le feed `releases.*` et `SHA256SUMS.txt` ;
+2. vérifier que GitHub Releases contient `WattPilot-Setup.exe`, `WattPilot-win-x64.zip`, les paquets Velopack `.nupkg`, `releases.stable.json` et `SHA256SUMS.txt` ;
 3. télécharger l'installateur ;
 4. installer WattPilot ;
 5. tester le lancement ;
@@ -191,9 +226,27 @@ Après le push :
 Après publication :
 
 - télécharger le ZIP portable `WattPilot-win-x64.zip` et lancer `WattPilot.exe` sur une machine Windows ;
+- télécharger `WattPilot-Setup.exe`, installer WattPilot et vérifier que l'application démarre en mode utilisateur standard ;
 - vérifier que le runtime .NET n'est pas requis séparément pour le ZIP ;
 - vérifier que les artefacts Velopack WattPilot sont présents dans la release ;
 - vérifier `SHA256SUMS.txt` ;
 - vérifier que la mise à jour automatique est indisponible proprement depuis le ZIP ;
 - vérifier la mise à jour automatique depuis une installation Velopack quand un feed de test est disponible ;
 - vérifier qu'aucun asset principal nommé `NVConso-win-x64.zip` n'est publié.
+
+## Smoke test local Setup
+
+Ce smoke test doit rester manuel. Ne pas tenter d'installer réellement `WattPilot-Setup.exe` dans GitHub Actions tant que l'environnement n'est pas dédié à ce scénario.
+
+1. Désinstaller l'ancienne version de WattPilot ou NVConso depuis Windows.
+2. Supprimer ou migrer l'ancienne tâche planifiée `NVConso` si elle existe.
+3. Télécharger `WattPilot-Setup.exe` depuis la release candidate.
+4. Lancer `WattPilot-Setup.exe`.
+5. Vérifier que l'installation puis le lancement de WattPilot ne demandent pas d'élévation.
+6. Vérifier que WattPilot démarre et que l'icône tray apparaît.
+7. Ouvrir le dashboard.
+8. Vérifier que le mode affiché est `Mode : installé via Velopack`.
+9. Vérifier que le statut de mise à jour ne signale pas une erreur en mode installé.
+10. Cliquer sur un profil GPU qui écrit le power limit.
+11. Vérifier que l'UAC apparaît uniquement à ce moment-là.
+12. Accepter l'UAC sur une machine de test avec GPU NVIDIA et vérifier que le profil est appliqué, ou refuser l'UAC et vérifier que WattPilot ne plante pas et n'enregistre pas le profil comme appliqué.

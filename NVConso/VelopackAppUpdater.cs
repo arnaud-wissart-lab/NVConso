@@ -8,11 +8,13 @@ namespace NVConso
     public sealed class VelopackAppUpdater : IAppUpdater
     {
         public const string StableChannel = "stable";
+        public const string AutoUpdateUnavailableMessage = "Auto-update indisponible dans ce mode.";
+        public const string ChecksumFailedMessage = "Mise à jour refusée : intégrité invalide.";
+        public const string NetworkUnavailableMessage = "Réseau indisponible.";
         public static string RepositoryUrl => ProductNames.RepositoryUrl;
         public static string TechnicalIdentityCompatibilityMessage =>
             $"{ProductNames.LegacyTechnicalName} était l'ancien nom technique. {ProductNames.DisplayName} utilise désormais l'identité produit {ProductNames.VelopackPackId}.";
-        public static string NotInstalledMessage =>
-            $"Application non installée via Velopack : l'auto-update complet nécessite l'installation {ProductNames.DisplayName} via Velopack. Les installations {ProductNames.LegacyTechnicalName} <= 1.1.1 peuvent nécessiter une réinstallation manuelle. Téléchargements : {ProductNames.LatestReleaseUrl}";
+        public static string NotInstalledMessage => AutoUpdateUnavailableMessage;
 
         private readonly ILogger<VelopackAppUpdater> _logger;
         private readonly Func<string, bool, UpdateManager> _updateManagerFactory;
@@ -69,7 +71,7 @@ namespace NVConso
             }
             catch (Exception exception)
             {
-                return HandleException(exception, "vérification de mise à jour");
+                return HandleException(exception, "vérification de mise à jour", _logger);
             }
         }
 
@@ -115,7 +117,7 @@ namespace NVConso
             }
             catch (Exception exception)
             {
-                return HandleException(exception, "téléchargement de mise à jour");
+                return HandleException(exception, "téléchargement de mise à jour", _logger);
             }
         }
 
@@ -159,7 +161,7 @@ namespace NVConso
             }
             catch (Exception exception)
             {
-                return Task.FromResult(HandleException(exception, "application de mise à jour"));
+                return Task.FromResult(HandleException(exception, "application de mise à jour", _logger));
             }
         }
 
@@ -173,7 +175,7 @@ namespace NVConso
 
                 UpdateManager manager = CreateManager(channel, includePrerelease);
                 if (!manager.IsInstalled || manager.IsPortable)
-                    return PendingUpdateStatus.None(NotInstalledMessage);
+                    return PendingUpdateStatus.None(AutoUpdateUnavailableMessage);
 
                 VelopackAsset pendingUpdate = manager.UpdatePendingRestart;
                 return pendingUpdate is null
@@ -227,9 +229,9 @@ namespace NVConso
             if (manager.IsInstalled && !manager.IsPortable)
                 return null;
 
-            return AppUpdateOperationResult.Failed(
+            return AppUpdateOperationResult.Succeeded(
                 AppUpdateStatus.NotInstalled,
-                NotInstalledMessage);
+                AutoUpdateUnavailableMessage);
         }
 
         private static string NormalizeChannel(string channel)
@@ -239,37 +241,40 @@ namespace NVConso
                 : channel.Trim();
         }
 
-        private AppUpdateOperationResult HandleException(Exception exception, string operation)
+        internal static AppUpdateOperationResult HandleException(
+            Exception exception,
+            string operation,
+            ILogger<VelopackAppUpdater> logger = null)
         {
             switch (exception)
             {
                 case NotInstalledException:
-                    _logger?.LogWarning(exception, "Velopack indisponible : application non installée.");
-                    return AppUpdateOperationResult.Failed(
+                    logger?.LogWarning(exception, "Velopack indisponible : application non installée.");
+                    return AppUpdateOperationResult.Succeeded(
                         AppUpdateStatus.NotInstalled,
-                        NotInstalledMessage);
+                        AutoUpdateUnavailableMessage);
 
                 case ChecksumFailedException:
-                    _logger?.LogError(exception, "Checksum Velopack invalide pendant {Operation}.", operation);
+                    logger?.LogError(exception, "Checksum Velopack invalide pendant {Operation}.", operation);
                     return AppUpdateOperationResult.Failed(
                         AppUpdateStatus.ChecksumFailed,
-                        "Le checksum du paquet de mise à jour est invalide. La mise à jour a été refusée.");
+                        ChecksumFailedMessage);
 
                 case AcquireLockFailedException:
-                    _logger?.LogWarning(exception, "Un verrou Velopack existe déjà pendant {Operation}.", operation);
+                    logger?.LogWarning(exception, "Un verrou Velopack existe déjà pendant {Operation}.", operation);
                     return AppUpdateOperationResult.Failed(
                         AppUpdateStatus.UpdateInProgress,
                         "Une autre opération de mise à jour est déjà en cours.");
 
                 case HttpRequestException:
                 case IOException:
-                    _logger?.LogWarning(exception, "Réseau indisponible pendant {Operation}.", operation);
+                    logger?.LogWarning(exception, "Réseau indisponible pendant {Operation}.", operation);
                     return AppUpdateOperationResult.Failed(
                         AppUpdateStatus.NetworkUnavailable,
-                        $"Réseau indisponible pendant la {operation}.");
+                        NetworkUnavailableMessage);
 
                 default:
-                    _logger?.LogWarning(exception, "Échec Velopack pendant {Operation}.", operation);
+                    logger?.LogWarning(exception, "Échec Velopack pendant {Operation}.", operation);
                     return AppUpdateOperationResult.Failed(
                         AppUpdateStatus.Failed,
                         $"Échec de {operation} : {exception.Message}");

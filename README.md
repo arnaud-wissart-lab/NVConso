@@ -13,11 +13,13 @@ WattPilot est le nom public du produit. `NVConso` était l'ancien nom technique 
 
 [**Télécharger WattPilot**](https://github.com/arnaud-wissart-lab/NVConso/releases/latest)
 
-- Installateur : recommandé pour bénéficier de l'auto-update Velopack.
-- ZIP portable : `WattPilot-win-x64.zip`, mise à jour manuelle depuis GitHub Releases. Il embarque le runtime .NET et ne demande pas d'installer le runtime sur la machine.
-- Vérification manuelle : `SHA256SUMS.txt` est publié avec les artefacts de release.
+- Pour l'auto-update, utilisez `WattPilot-Setup.exe`.
+- Le ZIP portable `WattPilot-win-x64.zip` ne s'auto-update pas. Il embarque le runtime .NET et se met à jour manuellement depuis GitHub Releases.
+- `SHA256SUMS.txt` permet de vérifier les fichiers téléchargés.
 
 Chaque tag Git `vX.Y.Z` déclenche le workflow de release et produit une nouvelle version téléchargeable dans GitHub Releases. Le tag reste la source de vérité pour la version publiée, la version Velopack et les métadonnées d'assembly.
+
+Voir [docs/installation.md](./docs/installation.md) pour choisir entre installation Velopack, ZIP portable et build développeur.
 
 ## Mise à jour
 
@@ -29,7 +31,9 @@ WattPilot détecte le mode d'exécution et adapte l'interface de mise à jour :
 
 Si une version existe pour une installation Velopack, une seule action est proposée : `Mettre à jour vers vX.Y.Z...`. WattPilot enchaîne alors confirmation, téléchargement, application Velopack et redémarrage avec `--tray`. Si la mise à jour est déjà téléchargée, l'action devient `Installer et redémarrer...`.
 
-L'auto-update est disponible uniquement pour les installations Velopack compatibles. À partir de `v2.0.0`, le PackId Velopack et l'exécutable utilisent `WattPilot`. Les installations `NVConso` `<= 1.1.1` peuvent nécessiter une réinstallation manuelle depuis GitHub Releases.
+L'auto-update est disponible uniquement pour les installations Velopack compatibles. À partir de `v2.0.0`, le PackId Velopack et l'exécutable utilisent `WattPilot`. Les installations `NVConso` `<= 1.1.1` peuvent nécessiter une réinstallation manuelle depuis GitHub Releases. Si `WattPilot-Setup.exe` est relancé sur une version déjà installée, Velopack peut proposer une réparation ou une réinstallation ; utilisez l'update intégré ou le Setup de la nouvelle release pour monter de version.
+
+WattPilot démarre en mode utilisateur standard après installation. Les droits administrateur ne sont demandés qu'au moment d'appliquer un profil GPU, une limite personnalisée, une restauration `Stock` ou une opération de tâche planifiée qui nécessite une élévation. L'élévation exécute une commande interne dédiée, puis rend la main au dashboard sans relancer toute l'application.
 
 Depuis le ZIP portable ou une exécution développeur `bin\Debug` / `bin\Release`, la mise à jour reste manuelle. L'interface affiche un message clair et renvoie vers [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest). Aucun fichier arbitraire n'est exécuté.
 
@@ -59,6 +63,8 @@ Les profils sont calculés depuis la plage NVML du GPU actif :
 | `Custom` | Réglage manuel | Valide une limite en watts contre la plage NVML. |
 
 `Stock` et `Max` restent volontairement distincts. `Stock` revient au comportement normal du constructeur. `Max` pousse le plafond au maximum autorisé par le BIOS GPU.
+
+En mode non administrateur, le dashboard reste lisible et la télémétrie continue quand NVML l'autorise. Les actions qui modifient le power limit affichent une demande UAC limitée à l'action ; si l'utilisateur annule ou si la commande élevée échoue, aucun profil n'est enregistré comme appliqué.
 
 ## Menu tray
 
@@ -146,35 +152,49 @@ WattPilot utilise une tâche planifiée utilisateur déclenchée à l'ouverture 
 
 Cette tâche ne stocke pas de mot de passe. Elle ne remplace pas l'UAC. Elle peut devoir être réparée si l'exécutable a été déplacé.
 
+La création, la réparation ou la suppression de cette tâche peut demander une élévation administrateur dédiée. WattPilot ne demande pas cette élévation au démarrage.
+
 ## Mises à jour et packaging
 
 Velopack est utilisé pour les installations mises à jour automatiquement. Le ZIP portable reste une distribution simple, self-contained, sans installation du runtime .NET, mais la mise à jour automatique complète n'y est pas supportée.
 
+L'installation et l'auto-update Velopack ne nécessitent pas que toute l'application soit lancée en administrateur. Les hooks Velopack s'exécutent avant l'initialisation de l'interface et ne déclenchent pas d'UAC.
+
+Les actions privilégiées utilisent le même exécutable avec un mode interne `--elevated-command`. Ce mode accepte uniquement une liste blanche stricte :
+
+- `set-power-limit` ;
+- `restore-stock` ;
+- `configure-startup-task` ;
+- `delete-startup-task`.
+
+Les paramètres GPU, limites, profils et chemins de résultat sont validés avant exécution. Aucun argument ne permet de lancer une commande shell arbitraire.
+
 Le workflow de release publie :
 
+- `WattPilot-Setup.exe` ;
 - `WattPilot-win-x64.zip` ;
-- l'installeur Velopack WattPilot ;
 - les paquets Velopack `stable` pour `win-x64` ;
-- le feed Velopack `releases.*` ;
+- le feed Velopack `releases.stable.json` ;
 - `SHA256SUMS.txt`.
 
-Voir [docs/release.md](./docs/release.md) pour le processus de release et les commandes locales de packaging.
+Voir [docs/installation.md](./docs/installation.md) pour l'expérience d'installation et [docs/release.md](./docs/release.md) pour le processus de release et les commandes locales de packaging.
 
 Procédure après merge :
 
 ```powershell
-git tag v1.2.0
-git push origin v1.2.0
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 Attendre le workflow `Release`, vérifier les assets publiés, télécharger l'installateur, installer WattPilot, tester le lancement puis contrôler le statut de mise à jour dans le dashboard ou les préférences.
 
 ## Sécurité
 
-- L'écriture du power limit passe par NVML et peut demander les droits administrateur.
+- WattPilot démarre sans droits administrateur.
+- L'écriture du power limit passe par NVML et demande les droits administrateur seulement au clic sur une action de modification, via une commande élevée dédiée.
 - Les limites sont calculées depuis la plage NVML du GPU actif, pas depuis des valeurs codées pour un modèle précis.
 - La restauration `Stock` à la fermeture est optionnelle et activée par défaut.
-- Les mises à jour Velopack demandent une action explicite avant installation/redémarrage.
+- Les mises à jour Velopack demandent une action explicite avant installation/redémarrage, sans imposer un lancement global en administrateur.
 - L'historique GPU ne journalise pas les fenêtres ni les processus.
 
 ## Limitations
@@ -226,6 +246,7 @@ La cible principale est `net10.0-windows` en `x64`. Nullable reste désactivé g
 ## Documentation
 
 - [Architecture](./docs/architecture.md)
+- [Installation et mise à jour](./docs/installation.md)
 - [Publication et packaging](./docs/release.md)
 - [Télémétrie persistante](./docs/telemetry.md)
 - [Fonctionnalité Display Profiles retirée](./docs/display-profiles.md)

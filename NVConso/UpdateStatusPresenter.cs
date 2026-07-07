@@ -52,7 +52,10 @@ namespace NVConso
             if (result is null)
                 return Error(settings, "Résultat de mise à jour indisponible.", executionMode);
 
-            if (result.Status is AppUpdateStatus.UpdateUnavailable or AppUpdateStatus.NotInstalled)
+            if (result.Status == AppUpdateStatus.NotInstalled)
+                return Unavailable(settings, executionMode, result.Message, useDetailAsMessage: true);
+
+            if (result.Status == AppUpdateStatus.UpdateUnavailable)
                 return Unavailable(settings, executionMode, result.Message);
 
             if (!result.Success)
@@ -78,7 +81,10 @@ namespace NVConso
             if (result is null)
                 return Error(settings, "Résultat de téléchargement indisponible.", executionMode);
 
-            if (result.Status is AppUpdateStatus.UpdateUnavailable or AppUpdateStatus.NotInstalled)
+            if (result.Status == AppUpdateStatus.NotInstalled)
+                return Unavailable(settings, executionMode, result.Message, useDetailAsMessage: true);
+
+            if (result.Status == AppUpdateStatus.UpdateUnavailable)
                 return Unavailable(settings, executionMode, result.Message);
 
             if (!result.Success)
@@ -202,18 +208,23 @@ namespace NVConso
         private static UpdateUiState Unavailable(
             AppSettings settings,
             AppExecutionModeInfo executionMode,
-            string detailMessage = null)
+            string detailMessage = null,
+            bool useDetailAsMessage = false)
         {
+            string resolvedDetailMessage = string.IsNullOrWhiteSpace(detailMessage)
+                ? executionMode.DetailMessage
+                : detailMessage;
+
             return Create(
                 UpdateUiStatus.Unavailable,
                 settings,
                 latestVersion: string.Empty,
-                message: executionMode.UpdateStatusMessage,
+                message: useDetailAsMessage
+                    ? resolvedDetailMessage
+                    : executionMode.UpdateStatusMessage,
                 canRunPrimaryAction: false,
                 primaryActionLabel: string.Empty,
-                detailMessage: string.IsNullOrWhiteSpace(detailMessage)
-                    ? executionMode.DetailMessage
-                    : detailMessage,
+                detailMessage: resolvedDetailMessage,
                 executionMode: executionMode);
         }
 

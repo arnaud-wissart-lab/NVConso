@@ -111,7 +111,7 @@ namespace NVConso.Tests
             {
                 DownloadResult = AppUpdateOperationResult.Failed(
                     AppUpdateStatus.ChecksumFailed,
-                    "Le checksum du paquet de mise à jour est invalide.")
+                    VelopackAppUpdater.ChecksumFailedMessage)
             };
             var settings = new AppSettings();
             var workflow = new AppUpdateWorkflow(updater);
@@ -122,11 +122,11 @@ namespace NVConso.Tests
 
             Assert.False(result.Success);
             Assert.Equal(AppUpdateStatus.ChecksumFailed, result.Status);
-            Assert.Equal("Le checksum du paquet de mise à jour est invalide.", settings.LastUpdateError);
+            Assert.Equal(VelopackAppUpdater.ChecksumFailedMessage, settings.LastUpdateError);
         }
 
         [Fact]
-        public async Task CheckForUpdatesAsync_ShouldStoreNotInstalledError()
+        public async Task CheckForUpdatesAsync_ShouldNotStoreNotInstalledAsError()
         {
             var updater = new FakeAppUpdater
             {
@@ -145,10 +145,7 @@ namespace NVConso.Tests
             Assert.False(result.Success);
             Assert.Equal(AppUpdateStatus.NotInstalled, result.Status);
             Assert.NotNull(settings.LastUpdateCheckUtc);
-            Assert.Equal(VelopackAppUpdater.NotInstalledMessage, settings.LastUpdateError);
-            Assert.Contains(ProductNames.DisplayName, settings.LastUpdateError);
-            Assert.Contains(ProductNames.LegacyTechnicalName, settings.LastUpdateError);
-            Assert.Contains(ProductNames.LatestReleaseUrl, settings.LastUpdateError);
+            Assert.Null(settings.LastUpdateError);
         }
 
         [Theory]
@@ -192,7 +189,7 @@ namespace NVConso.Tests
             {
                 CheckResult = AppUpdateOperationResult.Failed(
                     AppUpdateStatus.NetworkUnavailable,
-                    "Réseau indisponible pendant la vérification de mise à jour.")
+                    VelopackAppUpdater.NetworkUnavailableMessage)
             };
             var settings = new AppSettings();
             var workflow = new AppUpdateWorkflow(updater);
@@ -203,7 +200,7 @@ namespace NVConso.Tests
 
             Assert.False(result.Success);
             Assert.Equal(AppUpdateStatus.NetworkUnavailable, result.Status);
-            Assert.Equal("Réseau indisponible pendant la vérification de mise à jour.", settings.LastUpdateError);
+            Assert.Equal(VelopackAppUpdater.NetworkUnavailableMessage, settings.LastUpdateError);
         }
 
         [Fact]

@@ -31,7 +31,7 @@ namespace NVConso
                 .ConfigureAwait(false);
 
             settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;
-            settings.LastUpdateError = result.Success ? null : result.Message;
+            settings.LastUpdateError = GetPersistedError(result);
             return result;
         }
 
@@ -57,7 +57,7 @@ namespace NVConso
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            settings.LastUpdateError = result.Success ? null : result.Message;
+            settings.LastUpdateError = GetPersistedError(result);
             return result;
         }
 
@@ -81,7 +81,7 @@ namespace NVConso
                     restartArgs)
                 .ConfigureAwait(false);
 
-            settings.LastUpdateError = result.Success ? null : result.Message;
+            settings.LastUpdateError = GetPersistedError(result);
             return result;
         }
 
@@ -106,6 +106,16 @@ namespace NVConso
             return string.IsNullOrWhiteSpace(settings.UpdateChannel)
                 ? VelopackAppUpdater.StableChannel
                 : settings.UpdateChannel.Trim();
+        }
+
+        private static string GetPersistedError(AppUpdateOperationResult result)
+        {
+            if (result is null || result.Success)
+                return null;
+
+            return result.Status is AppUpdateStatus.NotInstalled or AppUpdateStatus.UpdateUnavailable
+                ? null
+                : result.Message;
         }
     }
 }

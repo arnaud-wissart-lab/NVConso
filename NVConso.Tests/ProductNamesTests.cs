@@ -53,6 +53,7 @@ namespace NVConso.Tests
             Assert.Contains("Package Velopack stable", workflow);
             Assert.Contains("PRODUCT_DISPLAY_NAME: WattPilot", workflow);
             Assert.Contains("VELOPACK_PACK_ID: WattPilot", workflow);
+            Assert.Contains("SETUP_EXE_NAME: WattPilot-Setup.exe", workflow);
             Assert.Contains("PORTABLE_ZIP_NAME: WattPilot-win-x64.zip", workflow);
             Assert.Contains("MAIN_EXE_NAME: WattPilot.exe", workflow);
             Assert.Contains("--packId \"${{ env.VELOPACK_PACK_ID }}\"", workflow);
@@ -60,12 +61,14 @@ namespace NVConso.Tests
             Assert.Contains("--packTitle \"${{ env.PRODUCT_DISPLAY_NAME }}\"", workflow);
             Assert.Contains("Collect and validate release assets", workflow);
             Assert.Contains("Asset portable absent", workflow);
+            Assert.Contains("Asset installateur absent", workflow);
             Assert.Contains("Paquets Velopack ignorés car incompatibles", workflow);
             Assert.Contains("Asset public au nom hérité confus détecté", workflow);
             Assert.Contains("ZIP portable Velopack redondant détecté", workflow);
             Assert.Contains("Aucun installeur Velopack", workflow);
             Assert.Contains("Aucun paquet Velopack .nupkg", workflow);
-            Assert.Contains("Aucun feed Velopack releases.*", workflow);
+            Assert.Contains("$expectedFeedName = \"releases.stable.json\"", workflow);
+            Assert.Contains("Feed Velopack absent", workflow);
             Assert.Contains("SHA256SUMS.txt absent", workflow);
             Assert.Contains("Assets de release validés", workflow);
             Assert.Contains("name: ${{ env.PRODUCT_DISPLAY_NAME }} ${{ steps.version.outputs.tag }}", workflow);
@@ -82,10 +85,12 @@ namespace NVConso.Tests
             string readme = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "README.md"));
 
             Assert.Contains("[**Télécharger WattPilot**]", readme);
-            Assert.Contains("Installateur : recommandé pour bénéficier de l'auto-update Velopack.", readme);
-            Assert.Contains("ZIP portable : `WattPilot-win-x64.zip`, mise à jour manuelle", readme);
-            Assert.Contains("git tag v1.2.0", readme);
-            Assert.Contains("git push origin v1.2.0", readme);
+            Assert.Contains("Pour l'auto-update, utilisez `WattPilot-Setup.exe`.", readme);
+            Assert.Contains("Le ZIP portable `WattPilot-win-x64.zip` ne s'auto-update pas.", readme);
+            Assert.Contains("le feed Velopack `releases.stable.json`", readme);
+            Assert.Contains("`SHA256SUMS.txt` permet de vérifier les fichiers téléchargés.", readme);
+            Assert.Contains("git tag v2.1.0", readme);
+            Assert.Contains("git push origin v2.1.0", readme);
             Assert.DoesNotContain("NVConso-win-x64.zip", readme);
         }
 
@@ -94,11 +99,9 @@ namespace NVConso.Tests
         {
             Assert.Equal("stable", VelopackAppUpdater.StableChannel);
             Assert.Equal(ProductNames.RepositoryUrl, VelopackAppUpdater.RepositoryUrl);
-            Assert.Contains(ProductNames.DisplayName, VelopackAppUpdater.NotInstalledMessage);
-            Assert.Contains(ProductNames.LegacyTechnicalName, VelopackAppUpdater.NotInstalledMessage);
-            Assert.Contains(ProductNames.LatestReleaseUrl, VelopackAppUpdater.NotInstalledMessage);
-            Assert.Contains("<= 1.1.1", VelopackAppUpdater.NotInstalledMessage);
-            Assert.Contains("installation WattPilot via Velopack", VelopackAppUpdater.NotInstalledMessage);
+            Assert.Equal("Auto-update indisponible dans ce mode.", VelopackAppUpdater.NotInstalledMessage);
+            Assert.Equal("Réseau indisponible.", VelopackAppUpdater.NetworkUnavailableMessage);
+            Assert.Equal("Mise à jour refusée : intégrité invalide.", VelopackAppUpdater.ChecksumFailedMessage);
             Assert.Contains("ancien nom technique", VelopackAppUpdater.TechnicalIdentityCompatibilityMessage);
             Assert.Contains(ProductNames.VelopackPackId, VelopackAppUpdater.TechnicalIdentityCompatibilityMessage);
         }
