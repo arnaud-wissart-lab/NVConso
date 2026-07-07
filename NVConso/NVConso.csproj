@@ -12,10 +12,10 @@
     <ApplicationIcon>Assets\WattPilot.ico</ApplicationIcon>
     <AssemblyName>WattPilot</AssemblyName>
     <RootNamespace>NVConso</RootNamespace>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
-    <InformationalVersion>2.0.0</InformationalVersion>
+    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
+    <InformationalVersion>2.0.1</InformationalVersion>
     <Product>WattPilot</Product>
     <AssemblyTitle>WattPilot</AssemblyTitle>
     <Description>WattPilot - Gestion GPU NVIDIA</Description>
