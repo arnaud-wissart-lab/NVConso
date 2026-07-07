@@ -73,6 +73,12 @@ Actions :
 - télécharger manuellement la nouvelle archive depuis [GitHub Releases](https://github.com/arnaud-wissart-lab/NVConso/releases/latest) ;
 - ou installer WattPilot via les artefacts Velopack de release.
 
+## Icône Windows par défaut après build local
+
+Action :
+
+- exécuter `dotnet clean Tools.sln`, puis reconstruire en Release.
+
 ## Tâche planifiée cassée
 
 Symptômes :

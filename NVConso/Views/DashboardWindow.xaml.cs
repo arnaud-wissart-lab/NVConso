@@ -1,8 +1,10 @@
 using Microsoft.Win32;
 using NVConso.ViewModels;
 using System.ComponentModel;
+using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace NVConso.Views
@@ -126,13 +128,35 @@ namespace NVConso.Views
 
     internal static class WpfIconLoader
     {
-        public static BitmapSource LoadWindowIcon()
+        public static ImageSource LoadWindowIcon()
         {
+            string iconPath = AppIcon.GetPhysicalIconPath();
+            if (File.Exists(iconPath))
+                return LoadFromUri(new Uri(iconPath, UriKind.Absolute));
+
+            using Stream stream = AppIcon.TryOpenEmbeddedIconResource();
+            if (stream is not null)
+                return LoadFromStream(stream);
+
             using Icon icon = AppIcon.Load();
             BitmapSource source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
                 icon.Handle,
                 Int32Rect.Empty,
                 BitmapSizeOptions.FromEmptyOptions());
+            source.Freeze();
+            return source;
+        }
+
+        private static BitmapSource LoadFromUri(Uri uri)
+        {
+            BitmapSource source = BitmapFrame.Create(uri, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            source.Freeze();
+            return source;
+        }
+
+        private static BitmapSource LoadFromStream(Stream stream)
+        {
+            BitmapSource source = BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
             source.Freeze();
             return source;
         }

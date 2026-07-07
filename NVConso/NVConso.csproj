@@ -9,6 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\WattPilot.ico</ApplicationIcon>
     <AssemblyName>WattPilot</AssemblyName>
     <RootNamespace>NVConso</RootNamespace>
     <Version>2.0.0</Version>
@@ -25,16 +26,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\WattPilot.ico">
+    <Content Include="Assets\WattPilot.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </EmbeddedResource>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <EmbeddedResource Include="Assets\WattPilot.ico" LogicalName="NVConso.Assets.WattPilot.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.9" />
-    <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
     <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
