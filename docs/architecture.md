@@ -28,7 +28,7 @@ flowchart LR
 
 ## Entrée applicative
 
-[Program.cs](../NVConso/Program.cs) initialise l'application WinForms pour le tray, prépare les services et lance [TrayApplicationContext.cs](../NVConso/TrayApplicationContext.cs). L'application demande l'élévation administrateur, car l'écriture du power limit via NVML peut être refusée sans droits élevés.
+[Program.cs](../NVConso/Program.cs) initialise l'application WinForms pour le tray, prépare les services et lance [TrayApplicationContext.cs](../NVConso/TrayApplicationContext.cs). L'application démarre en droits utilisateur standard ; l'élévation administrateur est demandée uniquement lors d'une action explicite qui doit écrire une limite de puissance GPU ou gérer la tâche de démarrage Windows.
 
 WattPilot n'a pas de fenêtre principale obligatoire. Le menu tray est le point d'entrée principal. Le dashboard et les préférences sont des fenêtres WPF optionnelles.
 
