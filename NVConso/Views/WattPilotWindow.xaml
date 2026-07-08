@@ -214,32 +214,32 @@
                                 <TextBlock Text="{Binding HistoryStatus}"
                                            Style="{StaticResource MutedText}" />
                             </StackPanel>
-                            <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                            <WrapPanel Grid.Column="1" Style="{StaticResource CompactToolbar}">
                                 <Button Content=""
                                         Tag="&#xEDE1;"
                                         Click="ExportHistory_Click"
-                                        Style="{StaticResource IconButton}"
+                                        Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Exporter CSV"
                                         AutomationProperties.Name="Exporter CSV"
                                         Margin="0,0,6,0" />
                                 <Button Content=""
                                         Tag="&#xE8C8;"
                                         Click="CopyHistorySummary_Click"
-                                        Style="{StaticResource IconButton}"
+                                        Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Copier le résumé"
                                         AutomationProperties.Name="Copier le résumé"
                                         Margin="0,0,6,0" />
                                 <Button Content=""
                                         Tag="&#xE72C;"
                                         Command="{Binding RefreshHistoryCommand}"
-                                        Style="{StaticResource IconButton}"
+                                        Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Actualiser"
                                         AutomationProperties.Name="Actualiser"
                                         Margin="0,0,6,0" />
                                 <Button Content=""
                                         Tag="&#xE8B7;"
                                         Command="{Binding OpenTelemetryFolderCommand}"
-                                        Style="{StaticResource IconButton}"
+                                        Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Ouvrir le dossier"
                                         AutomationProperties.Name="Ouvrir le dossier" />
                             </WrapPanel>
@@ -249,36 +249,28 @@
                             <StackPanel Width="132" Margin="0,0,8,8">
                                 <TextBlock Text="Date" Style="{StaticResource MutedText}" />
                                 <DatePicker SelectedDate="{Binding HistoryDate}"
-                                            Height="30"
-                                            MinHeight="30"
-                                            Padding="6,2" />
+                                            Style="{StaticResource CompactDatePicker}" />
                             </StackPanel>
                             <StackPanel Width="178" Margin="0,0,8,8">
                                 <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
                                 <ComboBox ItemsSource="{Binding HistoryGpus}"
                                           SelectedItem="{Binding SelectedHistoryGpu}"
                                           DisplayMemberPath="Label"
-                                          Height="30"
-                                          MinHeight="30"
-                                          Padding="6,2" />
+                                          Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
                             <StackPanel Width="178" Margin="0,0,8,8">
                                 <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
                                 <ComboBox ItemsSource="{Binding HistoryProfiles}"
                                           SelectedItem="{Binding SelectedHistoryProfile}"
                                           DisplayMemberPath="Label"
-                                          Height="30"
-                                          MinHeight="30"
-                                          Padding="6,2" />
+                                          Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
                             <StackPanel Width="178" Margin="0,0,8,8">
                                 <TextBlock Text="Mesure" Style="{StaticResource MutedText}" />
                                 <ComboBox ItemsSource="{Binding HistoryMetrics}"
                                           SelectedItem="{Binding SelectedHistoryMetric}"
                                           DisplayMemberPath="Label"
-                                          Height="30"
-                                          MinHeight="30"
-                                          Padding="6,2" />
+                                          Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
                         </WrapPanel>
 
@@ -301,35 +293,7 @@
                             <Grid Margin="0,8,0,0">
                                 <DataGrid ItemsSource="{Binding HistoryPeaks}"
                                           AutoGenerateColumns="False"
-                                          HeadersVisibility="Column"
-                                          IsReadOnly="True"
-                                          CanUserAddRows="False"
-                                          CanUserDeleteRows="False"
-                                          GridLinesVisibility="None"
-                                          AlternationCount="2"
-                                          RowHeight="34"
-                                          ColumnHeaderHeight="34"
-                                          MinHeight="156"
-                                          Background="{DynamicResource SurfaceBrush}"
-                                          Foreground="{DynamicResource PrimaryTextBrush}"
-                                          BorderBrush="{DynamicResource BorderBrush}"
-                                          BorderThickness="1"
-                                          RowBackground="{DynamicResource SurfaceBrush}"
-                                          AlternatingRowBackground="{DynamicResource SurfaceMutedBrush}">
-                                    <DataGrid.Resources>
-                                        <Style TargetType="{x:Type DataGridColumnHeader}">
-                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                            <Setter Property="Padding" Value="10,6" />
-                                            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-                                            <Setter Property="BorderThickness" Value="0,0,0,1" />
-                                        </Style>
-                                        <Style TargetType="{x:Type DataGridCell}">
-                                            <Setter Property="Padding" Value="10,4" />
-                                            <Setter Property="BorderThickness" Value="0" />
-                                            <Setter Property="VerticalContentAlignment" Value="Center" />
-                                        </Style>
-                                    </DataGrid.Resources>
+                                          Style="{StaticResource ModernDataGrid}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="86" />
                                         <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="145" />

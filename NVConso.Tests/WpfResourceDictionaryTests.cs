@@ -102,7 +102,13 @@ public sealed class WpfResourceDictionaryTests
         AssertStyle<Button>(resources, "ButtonSecondary");
         AssertStyle<Button>(resources, "ButtonGhost");
         AssertStyle<Button>(resources, "IconButton");
+        AssertStyle<Button>(resources, "IconOnlyButton");
         AssertStyle<Button>(resources, "IconTextButton");
+        AssertStyle<ComboBox>(resources, "CompactComboBox");
+        AssertStyle<DatePicker>(resources, "CompactDatePicker");
+        AssertStyle<WrapPanel>(resources, "CompactToolbar");
+        AssertStyle<DataGrid>(resources, "ModernDataGrid");
+        AssertStyle<Border>(resources, "UpdateStatusBlock");
         AssertStyle<RadioButton>(resources, "SegmentedRadioButton");
         AssertStyle<Border>(resources, "Card");
         AssertStyle<TextBlock>(resources, "SectionHeader");
