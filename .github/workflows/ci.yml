@@ -17,6 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check startup elevation policy
+        shell: pwsh
+        run: ./scripts/Assert-StartupElevationPolicy.ps1
+
       - name: Setup .NET from global.json
         if: ${{ hashFiles('global.json') != '' }}
         uses: actions/setup-dotnet@v5

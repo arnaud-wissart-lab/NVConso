@@ -113,6 +113,10 @@ jobs:
           Write-Host "AssemblyVersion/FileVersion : $assemblyVersion"
           Write-Host "InformationalVersion : $informationalVersion"
 
+      - name: Check release source elevation policy
+        shell: pwsh
+        run: ./scripts/Assert-StartupElevationPolicy.ps1 -RequireExactTag
+
       - name: Generate release notes
         shell: pwsh
         run: |
