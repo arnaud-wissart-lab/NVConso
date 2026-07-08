@@ -395,33 +395,13 @@ namespace NVConso.ViewModels
         public async Task<bool> SaveAsync(bool closeAfterSave)
         {
             AppSettings settings = BuildSettings();
-            bool startupTaskHandledByHelper = false;
 
-            if (RequiresStartupTaskWrite(settings) && !_privilegeService.CanManageStartupTask)
+            StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
+            if (!startupResult.Success)
             {
-                PrivilegeOperationResult helperResult = settings.StartWithWindows
-                    ? await _privilegeService.ConfigureStartupTaskAsync(settings.StartMinimized).ConfigureAwait(true)
-                    : await _privilegeService.DeleteStartupTaskAsync().ConfigureAwait(true);
-
-                StatusMessage = helperResult.Message;
-                if (!helperResult.Success)
-                {
-                    RefreshStartupStatus();
-                    return false;
-                }
-
-                startupTaskHandledByHelper = true;
-            }
-
-            if (!startupTaskHandledByHelper)
-            {
-                StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
-                if (!startupResult.Success)
-                {
-                    StatusMessage = startupResult.Message;
-                    RefreshStartupStatus(startupResult.Status);
-                    return false;
-                }
+                StatusMessage = startupResult.Message;
+                RefreshStartupStatus(startupResult.Status);
+                return false;
             }
 
             if (!_settingsService.TrySave(settings, out string message))
@@ -667,6 +647,15 @@ namespace NVConso.ViewModels
 
         private async Task RepairStartupTaskAsync()
         {
+            StartupOperationResult result = _startupController.Repair(StartMinimized);
+            StatusMessage = result.Message;
+            if (result.Success)
+            {
+                PersistStartupState(startWithWindows: true);
+                RefreshStartupStatus(result.Status);
+                return;
+            }
+
             if (!_privilegeService.CanManageStartupTask)
             {
                 PrivilegeOperationResult helperResult = await _privilegeService
@@ -681,15 +670,20 @@ namespace NVConso.ViewModels
                 return;
             }
 
-            StartupOperationResult result = _startupController.Repair(StartMinimized);
-            StatusMessage = result.Message;
-            if (result.Success)
-                PersistStartupState(startWithWindows: true);
             RefreshStartupStatus(result.Status);
         }
 
         private async Task DeleteStartupTaskAsync()
         {
+            StartupOperationResult result = _startupController.Delete();
+            StatusMessage = result.Message;
+            if (result.Success)
+            {
+                PersistStartupState(startWithWindows: false);
+                RefreshStartupStatus(result.Status);
+                return;
+            }
+
             if (!_privilegeService.CanManageStartupTask)
             {
                 PrivilegeOperationResult helperResult = await _privilegeService
@@ -704,10 +698,6 @@ namespace NVConso.ViewModels
                 return;
             }
 
-            StartupOperationResult result = _startupController.Delete();
-            StatusMessage = result.Message;
-            if (result.Success)
-                PersistStartupState(startWithWindows: false);
             RefreshStartupStatus(result.Status);
         }
 
@@ -749,15 +739,6 @@ namespace NVConso.ViewModels
         private void RefreshStartupStatus(StartupTaskStatus status = null)
         {
             StartupStatus = (status ?? _startupController.GetStatus()).Message;
-        }
-
-        private bool RequiresStartupTaskWrite(AppSettings settings)
-        {
-            StartupTaskStatus status = _startupController.GetStatus();
-            if (settings.StartWithWindows)
-                return !status.IsAvailable || !status.IsEnabledForCurrentExecutable;
-
-            return status.IsAvailable && status.Exists;
         }
 
         private void OpenTelemetryFolder()

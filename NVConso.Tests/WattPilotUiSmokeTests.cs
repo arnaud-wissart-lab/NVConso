@@ -267,7 +267,7 @@ namespace NVConso.Tests
                         StartupLaunchOptions.TrayArgument,
                         "C:\\",
                         "S-1-5-21-test",
-                        runWithHighestPrivileges: true,
+                        runWithHighestPrivileges: false,
                         hasLogonTrigger: true)));
             }
 
