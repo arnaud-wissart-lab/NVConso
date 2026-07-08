@@ -8,7 +8,7 @@ namespace NVConso.Tests
         private const string ShortUserId = "arnaud";
 
         [Fact]
-        public void Enable_ShouldCreateTask_ForCurrentUserWithHighestPrivileges()
+        public void Enable_ShouldCreateTask_ForCurrentUserWithStandardPrivileges()
         {
             var scheduler = new FakeStartupTaskScheduler();
             WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
@@ -22,7 +22,7 @@ namespace NVConso.Tests
             Assert.Equal(StartupLaunchOptions.TrayArgument, scheduler.Task.Arguments);
             Assert.Equal(CurrentWorkingDirectory, scheduler.Task.WorkingDirectory);
             Assert.Equal(UserId, scheduler.Task.UserId);
-            Assert.True(scheduler.Task.RunWithHighestPrivileges);
+            Assert.False(scheduler.Task.RunWithHighestPrivileges);
             Assert.True(scheduler.Task.HasLogonTrigger);
             Assert.True(result.Status.IsEnabledForCurrentExecutable);
         }
@@ -102,7 +102,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     @"D:\Ancien dossier",
                     UserId,
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true)
             };
             WindowsTaskSchedulerStartupManager manager = CreateManager(scheduler);
@@ -126,7 +126,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
                     ShortUserId,
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true,
                     logonTriggerUserId: UserId)
             };
@@ -151,7 +151,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
                     UserId,
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true,
                     logonTriggerUserId: ShortUserId)
             };
@@ -176,7 +176,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
                     @"TEST\autre",
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true,
                     logonTriggerUserId: UserId)
             };
@@ -353,7 +353,7 @@ namespace NVConso.Tests
                 arguments,
                 CurrentWorkingDirectory,
                 UserId,
-                runWithHighestPrivileges: true,
+                runWithHighestPrivileges: false,
                 hasLogonTrigger: true);
         }
 
@@ -367,7 +367,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
                     UserId,
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true),
                 "ancien chemin"
             ];
@@ -385,8 +385,21 @@ namespace NVConso.Tests
                     CurrentExecutablePath,
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
-                    @"TEST\autre",
+                    UserId,
                     runWithHighestPrivileges: true,
+                    hasLogonTrigger: true),
+                "privilèges les plus élevés"
+            ];
+
+            yield return
+            [
+                new StartupTaskInfo(
+                    WindowsTaskSchedulerStartupManager.TaskName,
+                    CurrentExecutablePath,
+                    StartupLaunchOptions.TrayArgument,
+                    CurrentWorkingDirectory,
+                    @"TEST\autre",
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true,
                     logonTriggerUserId: UserId),
                 "autre compte Windows"
@@ -400,7 +413,7 @@ namespace NVConso.Tests
                     StartupLaunchOptions.TrayArgument,
                     CurrentWorkingDirectory,
                     UserId,
-                    runWithHighestPrivileges: true,
+                    runWithHighestPrivileges: false,
                     hasLogonTrigger: true,
                     logonTriggerUserId: @"TEST\autre"),
                 "déclencheur cible un autre compte Windows"

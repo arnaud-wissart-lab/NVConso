@@ -26,6 +26,7 @@ namespace NVConso
             ?? "version inconnue";
 
         public static string ShortDisplayVersion => FormatShortVersion(DisplayVersion);
+        public static string TrayTooltip => $"{DisplayName} {ShortDisplayVersion} - Gestion GPU";
 
         public static string FormatShortVersion(string version)
         {

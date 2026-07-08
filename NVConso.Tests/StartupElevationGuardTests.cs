@@ -26,6 +26,15 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void StartupTask_ShouldNotRequestHighestPrivileges()
+        {
+            string startupManager = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "NVConso", "WindowsTaskSchedulerStartupManager.cs"));
+
+            Assert.Contains("runWithHighestPrivileges: false", startupManager);
+            Assert.DoesNotContain("runWithHighestPrivileges: true", startupManager, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void Runas_ShouldOnlyBeUsedByExplicitPrivilegeService()
         {
             string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");

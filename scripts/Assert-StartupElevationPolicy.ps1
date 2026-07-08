@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $manifestPath = Join-Path $repositoryRoot "NVConso/app.manifest"
 $programPath = Join-Path $repositoryRoot "NVConso/Program.cs"
+$startupManagerPath = Join-Path $repositoryRoot "NVConso/WindowsTaskSchedulerStartupManager.cs"
 $sourceRoot = Join-Path $repositoryRoot "NVConso"
 $viewsRoot = Join-Path $sourceRoot "Views"
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
@@ -43,6 +44,15 @@ try {
     if ($requireAdministratorMatches.Count -gt 0) {
         $requireAdministratorMatches | ForEach-Object { Write-Host $_ }
         throw "Le manifeste ne doit pas demander requireAdministrator."
+    }
+
+    Write-Host "Aucun résultat."
+
+    Write-Host "Recherche de tâche de démarrage élevée dans NVConso/WindowsTaskSchedulerStartupManager.cs"
+    $highestPrivilegeStartupMatches = @(Select-String -Path $startupManagerPath -Pattern 'runWithHighestPrivileges:\s*true')
+    if ($highestPrivilegeStartupMatches.Count -gt 0) {
+        $highestPrivilegeStartupMatches | ForEach-Object { Write-Host $_ }
+        throw "La tâche de démarrage WattPilot ne doit pas demander les privilèges les plus élevés."
     }
 
     Write-Host "Aucun résultat."

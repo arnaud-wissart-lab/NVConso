@@ -5,8 +5,13 @@ using System.Windows.Input;
 
 namespace NVConso.ViewModels
 {
-    public sealed class PreferencesViewModel : ObservableObject
+    public sealed class PreferencesViewModel : ObservableObject, IDisposable
     {
+        private const string CaniculePresetDiscrete = "Discret";
+        private const string CaniculePresetBalanced = "Équilibré";
+        private const string CaniculePresetSensitive = "Sensible";
+        private const string CaniculePresetCustom = "Personnalisé";
+
         private readonly AppSettingsService _settingsService;
         private readonly WindowsStartupController _startupController;
         private readonly AppUpdateWorkflow _updateWorkflow;
@@ -14,8 +19,10 @@ namespace NVConso.ViewModels
         private readonly IGpuTelemetryService _telemetryService;
         private readonly ITelemetryRecorder _telemetryRecorder;
         private readonly IPrivilegeService _privilegeService;
-        private bool _syncingTheme;
+        private readonly TimeSpan _autoSaveDelay = TimeSpan.FromMilliseconds(400);
+        private CancellationTokenSource _autoSaveCancellation;
         private bool _loadingSettings;
+        private bool _savingSettings;
         private bool _hasUnsavedChanges;
         private bool _showDashboardOnStartup;
         private bool _autoApplySavedMode;
@@ -37,6 +44,7 @@ namespace NVConso.ViewModels
         private int _peakPowerThresholdWatts = 100;
         private int _peakTemperatureThresholdCelsius = 70;
         private string _statusMessage = "Préférences prêtes.";
+        private string _saveStatusMessage = "Enregistré";
         private string _startupStatus = "--";
         private string _gpuRange = "--";
         private string _telemetryPath = "--";
@@ -49,10 +57,10 @@ namespace NVConso.ViewModels
         private readonly string _telemetryHistoryRecommendation = $"Recommandé : {GpuTelemetryHistory.DefaultCapacitySeconds} secondes";
         private readonly string _peakPowerRecommendation = "Recommandé : 100 W";
         private readonly string _peakTemperatureRecommendation = "Recommandé : 70 °C";
-        private SelectionOption<UiTheme> _selectedTheme;
+        private SelectionOption<string> _selectedCaniculePreset;
         private SelectionOption<GpuPowerMode> _selectedStartupProfile;
         private SelectionOption<PreferenceSection> _selectedPreferenceSection;
-        private UiTheme _resolvedTheme = UiTheme.Light;
+        private bool _syncingCaniculePreset;
 
         public PreferencesViewModel(
             AppSettingsService settingsService,
@@ -71,17 +79,17 @@ namespace NVConso.ViewModels
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
             _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
 
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System, "\uE977", "Utiliser le thème système"));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light, "\uE706", "Forcer le thème clair"));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark, "\uE708", "Forcer le thème sombre"));
-
-            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Général", PreferenceSection.General));
-            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Modes GPU", PreferenceSection.Profiles));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Surveillance chaleur", PreferenceSection.HeatMonitoring));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Historique", PreferenceSection.History));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Mise à jour", PreferenceSection.Update));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Avancé", PreferenceSection.Advanced));
             SelectedPreferenceSection = PreferenceSections[0];
+
+            CaniculePresetOptions.Add(new SelectionOption<string>("Discret", CaniculePresetDiscrete));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Équilibré", CaniculePresetBalanced));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Sensible", CaniculePresetSensitive));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Personnalisé", CaniculePresetCustom));
+            SelectedCaniculePreset = CaniculePresetOptions.First(option => option.Value == CaniculePresetBalanced);
 
             foreach (GpuPowerMode mode in new[]
             {
@@ -96,7 +104,6 @@ namespace NVConso.ViewModels
                 StartupProfileOptions.Add(new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(mode), mode));
             }
 
-            SaveCommand = new AsyncRelayCommand(() => SaveAsync(closeAfterSave: false));
             CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesNowAsync);
             PrimaryUpdateCommand = new AsyncRelayCommand(RunPrimaryUpdateActionAsync);
             OpenGitHubReleasesCommand = new RelayCommand(OpenGitHubReleases);
@@ -113,11 +120,10 @@ namespace NVConso.ViewModels
             RefreshUpdateStatus();
         }
 
-        public ObservableCollection<SelectionOption<UiTheme>> ThemeOptions { get; } = [];
         public ObservableCollection<SelectionOption<GpuPowerMode>> StartupProfileOptions { get; } = [];
         public ObservableCollection<SelectionOption<PreferenceSection>> PreferenceSections { get; } = [];
+        public ObservableCollection<SelectionOption<string>> CaniculePresetOptions { get; } = [];
         public UpdateStatusViewModel UpdateStatus { get; } = new();
-        public AsyncRelayCommand SaveCommand { get; }
         public AsyncRelayCommand CheckForUpdatesCommand { get; }
         public AsyncRelayCommand PrimaryUpdateCommand { get; }
         public ICommand OpenGitHubReleasesCommand { get; }
@@ -208,25 +214,41 @@ namespace NVConso.ViewModels
         public int CaniculePowerThresholdWatts
         {
             get => _caniculePowerThresholdWatts;
-            set => SetPreferenceProperty(ref _caniculePowerThresholdWatts, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculePowerThresholdWatts, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeTemperatureThresholdCelsius
         {
             get => _caniculeTemperatureThresholdCelsius;
-            set => SetPreferenceProperty(ref _caniculeTemperatureThresholdCelsius, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeTemperatureThresholdCelsius, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeAlertDelaySeconds
         {
             get => _caniculeAlertDelaySeconds;
-            set => SetPreferenceProperty(ref _caniculeAlertDelaySeconds, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeAlertDelaySeconds, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeCooldownSeconds
         {
             get => _caniculeCooldownSeconds;
-            set => SetPreferenceProperty(ref _caniculeCooldownSeconds, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeCooldownSeconds, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int RecordingIntervalSeconds
@@ -253,21 +275,6 @@ namespace NVConso.ViewModels
             set => SetPreferenceProperty(ref _peakTemperatureThresholdCelsius, value);
         }
 
-        public SelectionOption<UiTheme> SelectedTheme
-        {
-            get => _selectedTheme;
-            set
-            {
-                if (!SetProperty(ref _selectedTheme, value))
-                    return;
-
-                if (!_syncingTheme)
-                    UpdateResolvedTheme(value?.Value ?? UiTheme.System);
-
-                RefreshUnsavedChanges();
-            }
-        }
-
         public SelectionOption<GpuPowerMode> SelectedStartupProfile
         {
             get => _selectedStartupProfile;
@@ -283,6 +290,19 @@ namespace NVConso.ViewModels
 
         public bool IsCustomPowerLimitEnabled => SelectedStartupProfile?.Value == GpuPowerMode.Custom;
 
+        public SelectionOption<string> SelectedCaniculePreset
+        {
+            get => _selectedCaniculePreset;
+            set
+            {
+                if (!SetProperty(ref _selectedCaniculePreset, value) || value is null)
+                    return;
+
+                if (!_syncingCaniculePreset)
+                    ApplyCaniculePreset(value.Value);
+            }
+        }
+
         public SelectionOption<PreferenceSection> SelectedPreferenceSection
         {
             get => _selectedPreferenceSection;
@@ -291,8 +311,6 @@ namespace NVConso.ViewModels
                 if (!SetProperty(ref _selectedPreferenceSection, value))
                     return;
 
-                OnPropertyChanged(nameof(IsGeneralSectionSelected));
-                OnPropertyChanged(nameof(IsProfilesSectionSelected));
                 OnPropertyChanged(nameof(IsHeatMonitoringSectionSelected));
                 OnPropertyChanged(nameof(IsHistorySectionSelected));
                 OnPropertyChanged(nameof(IsUpdateSectionSelected));
@@ -300,27 +318,21 @@ namespace NVConso.ViewModels
             }
         }
 
-        public bool IsGeneralSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.General;
-        public bool IsProfilesSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Profiles;
         public bool IsHeatMonitoringSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.HeatMonitoring;
         public bool IsHistorySectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.History;
         public bool IsUpdateSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Update;
         public bool IsAdvancedSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Advanced;
 
-        public UiTheme ResolvedTheme
-        {
-            get => _resolvedTheme;
-            private set
-            {
-                if (SetProperty(ref _resolvedTheme, value))
-                    ThemeChanged?.Invoke(this, value);
-            }
-        }
-
         public string StatusMessage
         {
             get => _statusMessage;
             private set => SetProperty(ref _statusMessage, value);
+        }
+
+        public string SaveStatusMessage
+        {
+            get => _saveStatusMessage;
+            private set => SetProperty(ref _saveStatusMessage, value);
         }
 
         public string StartupStatus
@@ -347,17 +359,13 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _hasUnsavedChanges, value);
         }
 
-        public event EventHandler<UiTheme> ThemeChanged;
-
         public void LoadFromSettings(AppSettings settings)
         {
             settings ??= _settingsService.Current;
-            _syncingTheme = true;
             _loadingSettings = true;
             try
             {
                 ShowDashboardOnStartup = settings.ShowDashboardOnStartup;
-                SelectedTheme = ThemeOptions.FirstOrDefault(option => option.Value == settings.DashboardTheme) ?? ThemeOptions[0];
                 AutoApplySavedMode = settings.AutoApplySavedMode;
                 SelectedStartupProfile = StartupProfileOptions.FirstOrDefault(option => option.Value == settings.LastSelectedMode)
                     ?? StartupProfileOptions.First(option => option.Value == GpuPowerMode.Stock);
@@ -383,61 +391,57 @@ namespace NVConso.ViewModels
             }
             finally
             {
-                _syncingTheme = false;
                 _loadingSettings = false;
             }
 
-            UpdateResolvedTheme(settings.DashboardTheme);
+            RefreshCaniculePresetSelection();
             RefreshUpdateStatus();
             HasUnsavedChanges = false;
+            SaveStatusMessage = "Enregistré";
+            CancelPendingAutoSave();
         }
 
         public async Task<bool> SaveAsync(bool closeAfterSave)
         {
+            if (_savingSettings)
+                return false;
+
+            _savingSettings = true;
+            SaveStatusMessage = "Enregistrement...";
             AppSettings settings = BuildSettings();
-            bool startupTaskHandledByHelper = false;
-
-            if (RequiresStartupTaskWrite(settings) && !_privilegeService.CanManageStartupTask)
-            {
-                PrivilegeOperationResult helperResult = settings.StartWithWindows
-                    ? await _privilegeService.ConfigureStartupTaskAsync(settings.StartMinimized).ConfigureAwait(true)
-                    : await _privilegeService.DeleteStartupTaskAsync().ConfigureAwait(true);
-
-                StatusMessage = helperResult.Message;
-                if (!helperResult.Success)
-                {
-                    RefreshStartupStatus();
-                    return false;
-                }
-
-                startupTaskHandledByHelper = true;
-            }
-
-            if (!startupTaskHandledByHelper)
+            try
             {
                 StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
                 if (!startupResult.Success)
                 {
                     StatusMessage = startupResult.Message;
+                    SaveStatusMessage = "Enregistrement impossible";
                     RefreshStartupStatus(startupResult.Status);
                     return false;
                 }
-            }
 
-            if (!_settingsService.TrySave(settings, out string message))
+                if (!_settingsService.TrySave(settings, out string message))
+                {
+                    StatusMessage = message;
+                    SaveStatusMessage = "Enregistrement impossible";
+                    return false;
+                }
+
+                _telemetryService?.SetHistoryCapacitySeconds(settings.TelemetryHistorySeconds);
+                _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(settings));
+                RefreshStartupStatus();
+                RefreshUpdateStatus();
+                StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
+                HasUnsavedChanges = false;
+                SaveStatusMessage = "Enregistré automatiquement";
+                CancelPendingAutoSave();
+                await Task.CompletedTask.ConfigureAwait(true);
+                return true;
+            }
+            finally
             {
-                StatusMessage = message;
-                return false;
+                _savingSettings = false;
             }
-
-            _telemetryService?.SetHistoryCapacitySeconds(settings.TelemetryHistorySeconds);
-            _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(settings));
-            RefreshStartupStatus();
-            RefreshUpdateStatus();
-            StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
-            HasUnsavedChanges = false;
-            await Task.CompletedTask.ConfigureAwait(true);
-            return true;
         }
 
         public async Task ExportTelemetrySessionAsync(string destinationZipPath)
@@ -488,7 +492,7 @@ namespace NVConso.ViewModels
         {
             AppSettings settings = _settingsService.CreateEditableCopy();
             settings.ShowDashboardOnStartup = ShowDashboardOnStartup;
-            settings.DashboardTheme = SelectedTheme?.Value ?? UiTheme.System;
+            settings.DashboardTheme = UiTheme.System;
             settings.AutoApplySavedMode = AutoApplySavedMode;
             settings.LastSelectedMode = SelectedStartupProfile?.Value ?? GpuPowerMode.Stock;
             settings.HasSavedMode = AutoApplySavedMode;
@@ -667,6 +671,15 @@ namespace NVConso.ViewModels
 
         private async Task RepairStartupTaskAsync()
         {
+            StartupOperationResult result = _startupController.Repair(StartMinimized);
+            StatusMessage = result.Message;
+            if (result.Success)
+            {
+                PersistStartupState(startWithWindows: true);
+                RefreshStartupStatus(result.Status);
+                return;
+            }
+
             if (!_privilegeService.CanManageStartupTask)
             {
                 PrivilegeOperationResult helperResult = await _privilegeService
@@ -681,15 +694,20 @@ namespace NVConso.ViewModels
                 return;
             }
 
-            StartupOperationResult result = _startupController.Repair(StartMinimized);
-            StatusMessage = result.Message;
-            if (result.Success)
-                PersistStartupState(startWithWindows: true);
             RefreshStartupStatus(result.Status);
         }
 
         private async Task DeleteStartupTaskAsync()
         {
+            StartupOperationResult result = _startupController.Delete();
+            StatusMessage = result.Message;
+            if (result.Success)
+            {
+                PersistStartupState(startWithWindows: false);
+                RefreshStartupStatus(result.Status);
+                return;
+            }
+
             if (!_privilegeService.CanManageStartupTask)
             {
                 PrivilegeOperationResult helperResult = await _privilegeService
@@ -704,10 +722,6 @@ namespace NVConso.ViewModels
                 return;
             }
 
-            StartupOperationResult result = _startupController.Delete();
-            StatusMessage = result.Message;
-            if (result.Success)
-                PersistStartupState(startWithWindows: false);
             RefreshStartupStatus(result.Status);
         }
 
@@ -733,6 +747,81 @@ namespace NVConso.ViewModels
             StatusMessage = "Valeurs recommandées de surveillance chaleur appliquées dans le formulaire.";
         }
 
+        private void ApplyCaniculePreset(string preset)
+        {
+            if (string.Equals(preset, CaniculePresetCustom, StringComparison.Ordinal))
+                return;
+
+            (int powerWatts, int temperatureCelsius, int alertDelaySeconds, int cooldownSeconds) = preset switch
+            {
+                CaniculePresetDiscrete => (260, 88, 60, 600),
+                CaniculePresetSensitive => (180, 76, 15, 180),
+                _ => (
+                    CaniculeGuardDefaults.PowerThresholdWatts,
+                    CaniculeGuardDefaults.TemperatureThresholdCelsius,
+                    CaniculeGuardDefaults.AlertDelaySeconds,
+                    CaniculeGuardDefaults.CooldownSeconds)
+            };
+
+            _syncingCaniculePreset = true;
+            try
+            {
+                CaniculePowerThresholdWatts = powerWatts;
+                CaniculeTemperatureThresholdCelsius = temperatureCelsius;
+                CaniculeAlertDelaySeconds = alertDelaySeconds;
+                CaniculeCooldownSeconds = cooldownSeconds;
+            }
+            finally
+            {
+                _syncingCaniculePreset = false;
+            }
+
+            RefreshCaniculePresetSelection();
+        }
+
+        private void RefreshCaniculePresetSelection()
+        {
+            if (_syncingCaniculePreset || CaniculePresetOptions.Count == 0)
+                return;
+
+            string preset = ResolveCaniculePreset();
+            SelectionOption<string> option = CaniculePresetOptions.FirstOrDefault(item => item.Value == preset)
+                ?? CaniculePresetOptions.First(item => item.Value == CaniculePresetCustom);
+
+            _syncingCaniculePreset = true;
+            try
+            {
+                SelectedCaniculePreset = option;
+            }
+            finally
+            {
+                _syncingCaniculePreset = false;
+            }
+        }
+
+        private string ResolveCaniculePreset()
+        {
+            if (CaniculePowerThresholdWatts == 260
+                && CaniculeTemperatureThresholdCelsius == 88
+                && CaniculeAlertDelaySeconds == 60
+                && CaniculeCooldownSeconds == 600)
+                return CaniculePresetDiscrete;
+
+            if (CaniculePowerThresholdWatts == CaniculeGuardDefaults.PowerThresholdWatts
+                && CaniculeTemperatureThresholdCelsius == CaniculeGuardDefaults.TemperatureThresholdCelsius
+                && CaniculeAlertDelaySeconds == CaniculeGuardDefaults.AlertDelaySeconds
+                && CaniculeCooldownSeconds == CaniculeGuardDefaults.CooldownSeconds)
+                return CaniculePresetBalanced;
+
+            if (CaniculePowerThresholdWatts == 180
+                && CaniculeTemperatureThresholdCelsius == 76
+                && CaniculeAlertDelaySeconds == 15
+                && CaniculeCooldownSeconds == 180)
+                return CaniculePresetSensitive;
+
+            return CaniculePresetCustom;
+        }
+
         private void ResetToDefaults()
         {
             if (!_settingsService.TryResetToDefaults(out string message))
@@ -749,15 +838,6 @@ namespace NVConso.ViewModels
         private void RefreshStartupStatus(StartupTaskStatus status = null)
         {
             StartupStatus = (status ?? _startupController.GetStatus()).Message;
-        }
-
-        private bool RequiresStartupTaskWrite(AppSettings settings)
-        {
-            StartupTaskStatus status = _startupController.GetStatus();
-            if (settings.StartWithWindows)
-                return !status.IsAvailable || !status.IsEnabledForCurrentExecutable;
-
-            return status.IsAvailable && status.Exists;
         }
 
         private void OpenTelemetryFolder()
@@ -790,11 +870,6 @@ namespace NVConso.ViewModels
             }
         }
 
-        private void UpdateResolvedTheme(UiTheme theme)
-        {
-            ResolvedTheme = new ThemeService().ResolveTheme(theme);
-        }
-
         private bool SetPreferenceProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
         {
             if (!SetProperty(ref field, value, propertyName))
@@ -806,10 +881,57 @@ namespace NVConso.ViewModels
 
         private void RefreshUnsavedChanges()
         {
-            if (_loadingSettings)
+            if (_loadingSettings || _savingSettings)
                 return;
 
             HasUnsavedChanges = !HasSameEditableSettings(BuildSettings(), _settingsService.Current);
+            if (!HasUnsavedChanges)
+            {
+                SaveStatusMessage = "Enregistré";
+                CancelPendingAutoSave();
+                return;
+            }
+
+            SaveStatusMessage = "Enregistrement automatique en attente";
+            ScheduleAutoSave();
+        }
+
+        private void ScheduleAutoSave()
+        {
+            CancelPendingAutoSave();
+            _autoSaveCancellation = new CancellationTokenSource();
+            _ = AutoSaveAfterDelayAsync(_autoSaveCancellation.Token);
+        }
+
+        private async Task AutoSaveAfterDelayAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(_autoSaveDelay, cancellationToken).ConfigureAwait(true);
+                if (cancellationToken.IsCancellationRequested || !HasUnsavedChanges)
+                    return;
+
+                await SaveAsync(closeAfterSave: false).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private void CancelPendingAutoSave()
+        {
+            CancellationTokenSource cancellation = _autoSaveCancellation;
+            if (cancellation is null)
+                return;
+
+            _autoSaveCancellation = null;
+            cancellation.Cancel();
+            cancellation.Dispose();
+        }
+
+        public void Dispose()
+        {
+            CancelPendingAutoSave();
         }
 
         private static bool HasSameEditableSettings(AppSettings left, AppSettings right)

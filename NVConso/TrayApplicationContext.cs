@@ -123,7 +123,7 @@ namespace NVConso
             _icon = new NotifyIcon
             {
                 Visible = true,
-                Text = $"{ProductNames.DisplayName} - Gestion GPU",
+                Text = ProductNames.TrayTooltip,
                 Icon = trayIcon,
                 ContextMenuStrip = _trayMenu,
             };
@@ -391,12 +391,14 @@ namespace NVConso
             if (!_gpuProfiles.IsReady)
                 return;
 
-            using var dialog = new CustomPowerLimitDialog(
+            var dialog = new CustomPowerLimitDialog(
                 _nvml.MinimumPowerLimit,
                 _nvml.MaximumPowerLimit,
                 ResolveInitialCustomPowerLimit());
+            if (_wattPilotWindow?.IsVisible == true)
+                dialog.Owner = _wattPilotWindow;
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            if (dialog.ShowDialog() != true)
                 return;
 
             await ApplyCustomPowerLimitAsync(

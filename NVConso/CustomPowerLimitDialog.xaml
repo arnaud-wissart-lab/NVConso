@@ -1,0 +1,81 @@
+<Window x:Class="NVConso.CustomPowerLimitDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Limite personnalisée"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Background="{DynamicResource AppBackgroundBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/WattPilot;component/Themes/LightTheme.xaml" />
+                <ResourceDictionary Source="/WattPilot;component/Themes/CommonStyles.xaml" />
+                <ResourceDictionary Source="/WattPilot;component/Themes/WattPilotWindowStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Width="420" Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Limite personnalisée" Style="{StaticResource SectionTitleText}" />
+            <TextBlock Text="Choisissez une limite adaptée à votre GPU. WattPilot appliquera cette valeur après confirmation."
+                       Style="{StaticResource PreferenceSectionHelp}" />
+            <TextBlock x:Name="RangeTextBlock" Style="{StaticResource PreferenceInfoLine}" />
+        </StackPanel>
+
+        <Slider x:Name="PowerLimitSlider"
+                Grid.Row="1"
+                Margin="0,16,0,8"
+                IsSnapToTickEnabled="False"
+                ValueChanged="PowerLimitSlider_ValueChanged" />
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="120" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Limite en watts"
+                       Style="{StaticResource PreferenceFieldLabel}"
+                       VerticalAlignment="Center"
+                       Margin="0" />
+            <TextBox x:Name="PowerLimitTextBox"
+                     Grid.Column="1"
+                     HorizontalContentAlignment="Right"
+                     PreviewTextInput="PowerLimitTextBox_PreviewTextInput"
+                     TextChanged="PowerLimitTextBox_TextChanged"
+                     LostFocus="PowerLimitTextBox_LostFocus" />
+        </Grid>
+
+        <TextBlock x:Name="ErrorTextBlock"
+                   Grid.Row="3"
+                   Foreground="{DynamicResource CriticalBrush}"
+                   Style="{StaticResource PreferenceInfoLine}"
+                   MinHeight="24" />
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,14,0,0">
+            <Button Content="Annuler"
+                    IsCancel="True"
+                    Style="{StaticResource IconTextButton}"
+                    Margin="0,0,8,0" />
+            <Button Content="Appliquer"
+                    IsDefault="True"
+                    Click="ApplyButton_Click"
+                    Style="{StaticResource ButtonPrimary}" />
+        </StackPanel>
+    </Grid>
+</Window>

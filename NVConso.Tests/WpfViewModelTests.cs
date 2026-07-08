@@ -57,6 +57,9 @@ namespace NVConso.Tests
             Assert.Equal(
                 "Mode portable ZIP — mise à jour manuelle",
                 DashboardHeaderLabels.FormatUpdateMode("Mode : portable ZIP — mise à jour manuelle"));
+            Assert.Equal(
+                $"{ProductNames.DisplayName} {ProductNames.ShortDisplayVersion}",
+                DashboardHeaderLabels.FormatProductVersion());
         }
 
         [Fact]
@@ -259,11 +262,28 @@ namespace NVConso.Tests
             model.ShowDashboardOnStartup = true;
 
             Assert.True(model.HasUnsavedChanges);
+            Assert.Equal("Enregistrement automatique en attente", model.SaveStatusMessage);
 
             bool saved = await model.SaveAsync(closeAfterSave: false);
 
             Assert.True(saved);
             Assert.False(model.HasUnsavedChanges);
+            Assert.Equal("Enregistré automatiquement", model.SaveStatusMessage);
+        }
+
+        [Fact]
+        public async Task PreferencesViewModel_ShouldAutoSaveChangedSettings()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            model.RecordingIntervalSeconds = 2;
+
+            await Task.Delay(700, Xunit.TestContext.Current.CancellationToken);
+
+            Assert.False(model.HasUnsavedChanges);
+            Assert.Equal(2, context.SettingsService.Current.RecordingIntervalSeconds);
+            Assert.Equal("Enregistré automatiquement", model.SaveStatusMessage);
         }
 
         [Fact]
@@ -272,7 +292,6 @@ namespace NVConso.Tests
             using ViewModelTestContext context = ViewModelTestContext.Create();
             AppSettings settings = context.SettingsService.CreateEditableCopy();
             settings.ShowDashboardOnStartup = true;
-            settings.DashboardTheme = UiTheme.Dark;
             settings.LastSelectedMode = GpuPowerMode.Canicule;
             settings.CaniculeGuardEnabled = true;
             settings.CaniculeGuardPowerThresholdWatts = 55;
@@ -280,14 +299,13 @@ namespace NVConso.Tests
 
             var model = context.CreatePreferencesViewModel();
 
-            Assert.Equal(["Général", "Modes GPU", "Surveillance chaleur", "Historique", "Mise à jour", "Avancé"], model.PreferenceSections.Select(section => section.Label).ToArray());
-            Assert.True(model.IsGeneralSectionSelected);
-            model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.Profiles);
-            Assert.True(model.IsProfilesSectionSelected);
+            Assert.Equal(["Surveillance chaleur", "Historique", "Mise à jour", "Avancé"], model.PreferenceSections.Select(section => section.Label).ToArray());
+            Assert.True(model.IsHeatMonitoringSectionSelected);
+            model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.History);
+            Assert.True(model.IsHistorySectionSelected);
             model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.HeatMonitoring);
             Assert.True(model.IsHeatMonitoringSectionSelected);
             Assert.True(model.ShowDashboardOnStartup);
-            Assert.Equal(UiTheme.Dark, model.SelectedTheme.Value);
             Assert.Equal(GpuPowerMode.Canicule, model.SelectedStartupProfile.Value);
             Assert.True(model.CaniculeGuardEnabled);
             Assert.Equal(55, model.CaniculePowerThresholdWatts);
@@ -309,7 +327,26 @@ namespace NVConso.Tests
             Assert.Equal(CaniculeGuardDefaults.TemperatureThresholdCelsius, model.CaniculeTemperatureThresholdCelsius);
             Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, model.CaniculeAlertDelaySeconds);
             Assert.Equal(CaniculeGuardDefaults.CooldownSeconds, model.CaniculeCooldownSeconds);
+            Assert.Equal("Équilibré", model.SelectedCaniculePreset.Label);
             Assert.Contains("Valeurs recommandées", model.StatusMessage);
+        }
+
+        [Fact]
+        public void PreferencesViewModel_ShouldApplyHeatMonitoringPresets()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            model.SelectedCaniculePreset = model.CaniculePresetOptions.First(option => option.Label == "Sensible");
+
+            Assert.Equal(180, model.CaniculePowerThresholdWatts);
+            Assert.Equal(76, model.CaniculeTemperatureThresholdCelsius);
+            Assert.Equal(15, model.CaniculeAlertDelaySeconds);
+            Assert.Equal(180, model.CaniculeCooldownSeconds);
+
+            model.CaniculePowerThresholdWatts = 181;
+
+            Assert.Equal("Personnalisé", model.SelectedCaniculePreset.Label);
         }
 
         [Fact]
@@ -362,39 +399,20 @@ namespace NVConso.Tests
             Assert.Equal(50, NumericBox.NormalizeValue(50, 100, 10));
         }
 
-        [Theory]
-        [InlineData(UiTheme.System, "Système", "Utiliser le thème système")]
-        [InlineData(UiTheme.Light, "Clair", "Forcer le thème clair")]
-        [InlineData(UiTheme.Dark, "Sombre", "Forcer le thème sombre")]
-        public void PreferencesViewModel_ShouldExposeSegmentedThemeOptions(UiTheme theme, string expectedLabel, string expectedToolTip)
-        {
-            using ViewModelTestContext context = ViewModelTestContext.Create();
-            var model = context.CreatePreferencesViewModel();
-
-            SelectionOption<UiTheme> option = model.ThemeOptions.First(option => option.Value == theme);
-            model.SelectedTheme = option;
-
-            Assert.Equal(theme, model.SelectedTheme.Value);
-            Assert.Equal(expectedLabel, option.Label);
-            Assert.Equal(expectedToolTip, option.ToolTip);
-            Assert.False(string.IsNullOrWhiteSpace(option.IconGlyph));
-        }
-
         [Fact]
-        public void PreferencesViewModel_ShouldRaiseThemeChanged_WhenThemeSelectionChanges()
+        public async Task PreferencesViewModel_ShouldSaveSystemThemeWithoutVisibleOptions()
         {
             using ViewModelTestContext context = ViewModelTestContext.Create();
             AppSettings settings = context.SettingsService.CreateEditableCopy();
-            settings.DashboardTheme = UiTheme.Light;
+            settings.DashboardTheme = UiTheme.Dark;
             Assert.True(context.SettingsService.TrySave(settings, out _));
             var model = context.CreatePreferencesViewModel();
-            UiTheme changedTheme = UiTheme.System;
+            model.RecordingIntervalSeconds = 2;
 
-            model.ThemeChanged += (_, theme) => changedTheme = theme;
-            model.SelectedTheme = model.ThemeOptions.First(option => option.Value == UiTheme.Dark);
+            bool saved = await model.SaveAsync(closeAfterSave: false);
 
-            Assert.Equal(UiTheme.Dark, model.SelectedTheme.Value);
-            Assert.Equal(UiTheme.Dark, changedTheme);
+            Assert.True(saved);
+            Assert.Equal(UiTheme.System, context.SettingsService.Current.DashboardTheme);
         }
 
         [Fact]
@@ -451,14 +469,15 @@ namespace NVConso.Tests
             Assert.Contains("NavigateHistoryCommand", xaml);
             Assert.Contains("NavigateSettingsCommand", xaml);
             Assert.Contains("CloseSettingsPanelCommand", xaml);
-            Assert.Contains("Modifications non enregistrées", xaml);
+            Assert.Contains("SaveStatusMessage", xaml);
+            Assert.Contains("Enregistrement automatique en attente", xaml);
             Assert.Contains("PreferenceSections", xaml);
-            Assert.Contains("<controls:ThemeOptionControl", xaml);
             Assert.Contains("<controls:NumericBox", xaml);
-            Assert.Contains("Modes GPU", xaml);
+            Assert.Contains("ProductVersion", xaml);
+            Assert.Contains("Bornes :", File.ReadAllText(Path.Combine(Path.GetDirectoryName(xamlPath)!, "..", "Controls", "NumericBox.xaml")));
+            Assert.Contains("Réglage des alertes", xaml);
+            Assert.Contains("CaniculePresetOptions", xaml);
             Assert.Contains("Surveillance chaleur", xaml);
-            Assert.Contains("Personnalisez l'apparence et le comportement général de WattPilot.", xaml);
-            Assert.Contains("Choisissez comment WattPilot limite la carte graphique selon votre usage.", xaml);
             Assert.Contains("WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps.", xaml);
             Assert.Contains("Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics.", xaml);
             Assert.Contains("Les mises à jour automatiques fonctionnent avec la version installée de WattPilot.", xaml);
@@ -475,7 +494,15 @@ namespace NVConso.Tests
             Assert.Contains("Dossier de données local", xaml);
             Assert.Contains("Copier le chemin", xaml);
             Assert.Contains("Copier diagnostic", xaml);
+            Assert.DoesNotContain("Chemin complet", xaml);
             Assert.Equal(2, CountOccurrences(xaml, "Content=\"Paramètres\""));
+            Assert.DoesNotContain("Content=\"Enregistrer\"", xaml);
+            Assert.DoesNotContain("SaveCommand", xaml);
+            Assert.DoesNotContain("<controls:ThemeOptionControl", xaml);
+            Assert.DoesNotContain("ThemeOptions", xaml);
+            Assert.DoesNotContain("IsGeneralSectionSelected", xaml);
+            Assert.DoesNotContain("IsProfilesSectionSelected", xaml);
+            Assert.DoesNotContain("Modes GPU", xaml);
             Assert.DoesNotContain("Content=\"Fermer\"", xaml);
             Assert.DoesNotContain("Fermer", xaml);
             Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", xaml);
@@ -832,7 +859,7 @@ namespace NVConso.Tests
                         StartupLaunchOptions.TrayArgument,
                         "C:\\",
                         "S-1-5-21-test",
-                        runWithHighestPrivileges: true,
+                        runWithHighestPrivileges: false,
                         hasLogonTrigger: true)));
             }
 

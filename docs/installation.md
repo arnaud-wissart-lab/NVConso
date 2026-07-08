@@ -28,6 +28,7 @@ Comportement attendu :
 
 - l'application démarre en droits utilisateur standard ;
 - l'installation ne force pas de lancement administrateur ;
+- la tâche de démarrage Windows lance WattPilot en droits utilisateur standard ;
 - WattPilot vérifie les mises à jour au lancement si `Vérifier automatiquement` est activé ;
 - les actions GPU privilégiées demandent l'UAC seulement au moment du clic ;
 - l'update intégré peut télécharger puis appliquer une nouvelle version après confirmation.
@@ -55,8 +56,10 @@ Sur une machine Windows de test :
 2. Vérifier que WattPilot démarre sans demande UAC immédiate.
 3. Ouvrir la fenêtre depuis le tray.
 4. Vérifier que le mode affiché est `Mode : installé via Velopack`.
-5. Appliquer un profil GPU et vérifier que l'UAC apparaît seulement à ce moment si l'écriture NVML exige une élévation.
-6. Ouvrir `Paramètres > Mise à jour` et vérifier la dernière vérification, le mode et le bouton `Ouvrir GitHub Releases`.
+5. Vérifier que la version courte est visible dans l'accueil et dans `Paramètres > Mise à jour`.
+6. Modifier un paramètre simple et vérifier qu'il est enregistré automatiquement.
+7. Appliquer un profil GPU et vérifier que l'UAC apparaît seulement à ce moment si l'écriture NVML exige une élévation.
+8. Ouvrir `Paramètres > Mise à jour` et vérifier la dernière vérification, le mode et le bouton `Ouvrir GitHub Releases`.
 
 ## Migration depuis l'ancien nom
 

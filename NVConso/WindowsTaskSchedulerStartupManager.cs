@@ -161,11 +161,11 @@ namespace NVConso
                     $"La tâche planifiée {task.TaskName} existe mais son déclencheur cible un autre compte Windows : {FormatAccountForMessage(task.LogonTriggerUserId)}. Compte courant : {FormatAccountForMessage(_applicationInfo.UserId)}.");
             }
 
-            if (!task.RunWithHighestPrivileges)
+            if (task.RunWithHighestPrivileges)
             {
                 return StartupTaskStatus.NeedsUpdate(
                     task,
-                    $"La tâche planifiée {TaskName} existe mais n'est pas configurée avec les privilèges les plus élevés.");
+                    $"La tâche planifiée {TaskName} existe mais se lance avec les privilèges les plus élevés.");
             }
 
             if (IsLegacyTask(task))
@@ -186,7 +186,7 @@ namespace NVConso
                 StartupLaunchOptions.TrayArgument,
                 _applicationInfo.WorkingDirectory,
                 _applicationInfo.UserId,
-                runWithHighestPrivileges: true,
+                runWithHighestPrivileges: false,
                 hasLogonTrigger: true,
                 logonTriggerUserId: _applicationInfo.UserId);
         }

@@ -38,6 +38,26 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void CustomPowerLimitDialog_ShouldInstantiateAsWpfWindow()
+        {
+            RunOnStaThread(() =>
+            {
+                Program.EnsureWpfApplication();
+                var dialog = new CustomPowerLimitDialog(100000, 300000, 180000);
+
+                try
+                {
+                    Assert.Equal("Limite personnalisée", dialog.Title);
+                    Assert.NotNull(dialog.Content);
+                }
+                finally
+                {
+                    dialog.Close();
+                }
+            });
+        }
+
+        [Fact]
         public void CriticalCommands_ShouldBeAvailable()
         {
             using UiSmokeTestContext context = UiSmokeTestContext.Create();
@@ -54,7 +74,6 @@ namespace NVConso.Tests
             Assert.NotNull(dashboard.RefreshHistoryCommand);
             Assert.NotNull(dashboard.OpenTelemetryFolderCommand);
 
-            Assert.NotNull(preferences.SaveCommand);
             Assert.NotNull(preferences.CheckForUpdatesCommand);
             Assert.NotNull(preferences.PrimaryUpdateCommand);
             Assert.NotNull(preferences.OpenGitHubReleasesCommand);
@@ -75,8 +94,6 @@ namespace NVConso.Tests
 
             Assert.Equal(
                 [
-                    PreferenceSection.General,
-                    PreferenceSection.Profiles,
                     PreferenceSection.HeatMonitoring,
                     PreferenceSection.History,
                     PreferenceSection.Update,
@@ -85,7 +102,7 @@ namespace NVConso.Tests
                 preferences.PreferenceSections.Select(section => section.Value).ToArray());
 
             Assert.Equal(
-                ["Général", "Modes GPU", "Surveillance chaleur", "Historique", "Mise à jour", "Avancé"],
+                ["Surveillance chaleur", "Historique", "Mise à jour", "Avancé"],
                 preferences.PreferenceSections.Select(section => section.Label).ToArray());
         }
 
@@ -267,7 +284,7 @@ namespace NVConso.Tests
                         StartupLaunchOptions.TrayArgument,
                         "C:\\",
                         "S-1-5-21-test",
-                        runWithHighestPrivileges: true,
+                        runWithHighestPrivileges: false,
                         hasLogonTrigger: true)));
             }
 

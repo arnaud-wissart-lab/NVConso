@@ -39,8 +39,8 @@ Avant de pousser le tag final, vérifier la candidate installée depuis l'artefa
 - [ ] Changer de profil GPU.
 - [ ] Vérifier que l'UAC apparaît seulement si une action privilégiée est nécessaire.
 - [ ] Ouvrir les paramètres.
-- [ ] Sauvegarder les paramètres.
-- [ ] Vérifier le thème clair et le thème sombre.
+- [ ] Modifier un paramètre et vérifier l'enregistrement automatique.
+- [ ] Vérifier que la version courte est visible dans l'accueil, les paramètres de mise à jour et le tooltip tray.
 - [ ] Vérifier le statut de mise à jour dans le dashboard ou les paramètres.
 - [ ] Exécuter la checklist UI : [ui-checklist.md](./ui-checklist.md).
 

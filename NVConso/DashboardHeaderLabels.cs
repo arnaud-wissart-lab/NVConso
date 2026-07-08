@@ -4,7 +4,7 @@ namespace NVConso
     {
         public static string FormatProductVersion()
         {
-            return $"{ProductNames.DisplayName} {ProductNames.DisplayVersion}";
+            return $"{ProductNames.DisplayName} {ProductNames.ShortDisplayVersion}";
         }
 
         public static string FormatExecutionMode(AppExecutionModeInfo executionMode)

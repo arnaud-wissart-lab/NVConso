@@ -5,9 +5,12 @@ namespace NVConso.Tests
     public class PreferencesPrivilegeTests
     {
         [Fact]
-        public async Task SaveAsync_ShouldRequestElevationAndSkipStartupWrite_WhenStartupTaskNeedsAdmin()
+        public async Task SaveAsync_ShouldNotRequestElevation_WhenStartupTaskWriteFails()
         {
             using TestContext context = TestContext.Create();
+            context.StartupManager.EnableResult = StartupOperationResult.Failed(
+                "Création standard refusée.",
+                StartupTaskStatus.Unavailable("Création standard refusée."));
             var model = new PreferencesViewModel(
                 context.SettingsService,
                 new WindowsStartupController(context.StartupManager),
@@ -21,8 +24,8 @@ namespace NVConso.Tests
             bool saved = await model.SaveAsync(closeAfterSave: false);
 
             Assert.False(saved);
-            Assert.Equal(1, context.PrivilegeService.ConfigureStartupTaskCallCount);
-            Assert.False(context.StartupManager.EnableCalled);
+            Assert.Equal(0, context.PrivilegeService.ConfigureStartupTaskCallCount);
+            Assert.True(context.StartupManager.EnableCalled);
             Assert.False(context.SettingsService.Current.StartWithWindows);
         }
 
@@ -103,6 +106,7 @@ namespace NVConso.Tests
         private sealed class FakeStartupManager : IStartupManager
         {
             public bool EnableCalled { get; private set; }
+            public StartupOperationResult EnableResult { get; set; }
 
             public StartupTaskStatus GetStatus()
             {
@@ -112,7 +116,7 @@ namespace NVConso.Tests
             public StartupOperationResult Enable(bool startMinimized)
             {
                 EnableCalled = true;
-                return StartupOperationResult.Succeeded("Démarrage activé.", StartupTaskStatus.Disabled());
+                return EnableResult ?? StartupOperationResult.Succeeded("Démarrage activé.", StartupTaskStatus.Disabled());
             }
 
             public StartupOperationResult Disable()
