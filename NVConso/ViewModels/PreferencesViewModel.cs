@@ -40,6 +40,7 @@ namespace NVConso.ViewModels
         private string _telemetryPath = "--";
         private SelectionOption<UiTheme> _selectedTheme;
         private SelectionOption<GpuPowerMode> _selectedStartupProfile;
+        private SelectionOption<PreferenceSection> _selectedPreferenceSection;
         private UiTheme _resolvedTheme = UiTheme.Light;
 
         public PreferencesViewModel(
@@ -62,6 +63,13 @@ namespace NVConso.ViewModels
             ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System));
             ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light));
             ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark));
+
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Général", PreferenceSection.General));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Profils", PreferenceSection.Profiles));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Historique", PreferenceSection.History));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Mise à jour", PreferenceSection.Update));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Avancé", PreferenceSection.Advanced));
+            SelectedPreferenceSection = PreferenceSections[0];
 
             foreach (GpuPowerMode mode in new[]
             {
@@ -93,6 +101,7 @@ namespace NVConso.ViewModels
 
         public ObservableCollection<SelectionOption<UiTheme>> ThemeOptions { get; } = [];
         public ObservableCollection<SelectionOption<GpuPowerMode>> StartupProfileOptions { get; } = [];
+        public ObservableCollection<SelectionOption<PreferenceSection>> PreferenceSections { get; } = [];
         public UpdateStatusViewModel UpdateStatus { get; } = new();
         public AsyncRelayCommand SaveCommand { get; }
         public AsyncRelayCommand CheckForUpdatesCommand { get; }
@@ -241,6 +250,28 @@ namespace NVConso.ViewModels
         }
 
         public bool IsCustomPowerLimitEnabled => SelectedStartupProfile?.Value == GpuPowerMode.Custom;
+
+        public SelectionOption<PreferenceSection> SelectedPreferenceSection
+        {
+            get => _selectedPreferenceSection;
+            set
+            {
+                if (!SetProperty(ref _selectedPreferenceSection, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsGeneralSectionSelected));
+                OnPropertyChanged(nameof(IsProfilesSectionSelected));
+                OnPropertyChanged(nameof(IsHistorySectionSelected));
+                OnPropertyChanged(nameof(IsUpdateSectionSelected));
+                OnPropertyChanged(nameof(IsAdvancedSectionSelected));
+            }
+        }
+
+        public bool IsGeneralSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.General;
+        public bool IsProfilesSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Profiles;
+        public bool IsHistorySectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.History;
+        public bool IsUpdateSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Update;
+        public bool IsAdvancedSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Advanced;
 
         public UiTheme ResolvedTheme
         {

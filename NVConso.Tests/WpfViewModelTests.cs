@@ -216,6 +216,84 @@ namespace NVConso.Tests
             Assert.Equal(300, context.TelemetryService.LastCapacitySeconds);
         }
 
+        [Fact]
+        public void PreferencesViewModel_ShouldLoadSettingsIntoIntegratedSections()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            AppSettings settings = context.SettingsService.CreateEditableCopy();
+            settings.ShowDashboardOnStartup = true;
+            settings.DashboardTheme = UiTheme.Dark;
+            settings.LastSelectedMode = GpuPowerMode.Canicule;
+            settings.CaniculeGuardEnabled = true;
+            settings.CaniculeGuardPowerThresholdWatts = 55;
+            Assert.True(context.SettingsService.TrySave(settings, out _));
+
+            var model = context.CreatePreferencesViewModel();
+
+            Assert.Equal(["Général", "Profils", "Historique", "Mise à jour", "Avancé"], model.PreferenceSections.Select(section => section.Label).ToArray());
+            Assert.True(model.IsGeneralSectionSelected);
+            model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.Profiles);
+            Assert.True(model.IsProfilesSectionSelected);
+            Assert.True(model.ShowDashboardOnStartup);
+            Assert.Equal(UiTheme.Dark, model.SelectedTheme.Value);
+            Assert.Equal(GpuPowerMode.Canicule, model.SelectedStartupProfile.Value);
+            Assert.True(model.CaniculeGuardEnabled);
+            Assert.Equal(55, model.CaniculePowerThresholdWatts);
+        }
+
+        [Fact]
+        public async Task PreferencesViewModel_ShouldRejectInvalidNumericSettings()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+            model.TelemetryRetentionDays = 0;
+
+            bool saved = await model.SaveAsync(closeAfterSave: false);
+
+            Assert.False(saved);
+            Assert.Equal(30, context.SettingsService.Current.TelemetryRetentionDays);
+            Assert.Contains("La rétention de l'historique GPU doit être compris", model.StatusMessage);
+        }
+
+        [Fact]
+        public void PreferencesViewModel_ShouldDisplayPortableUpdateModeWithoutError()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            context.Updater.ExecutionMode = AppExecutionModeInfo.PortableZip();
+            AppSettings settings = context.SettingsService.CreateEditableCopy();
+            settings.LastUpdateCheckUtc = new DateTimeOffset(2026, 7, 6, 14, 32, 0, TimeSpan.Zero);
+            settings.LastUpdateError = "Ancienne erreur Velopack.";
+            Assert.True(context.SettingsService.TrySave(settings, out _));
+
+            var model = context.CreatePreferencesViewModel();
+
+            Assert.Equal(UpdateUiStatus.Unavailable, model.UpdateStatus.Status);
+            Assert.Equal("Mode : portable ZIP — mise à jour manuelle", model.UpdateStatus.ExecutionModeLabel);
+            Assert.StartsWith("Dernière vérification :", model.UpdateStatus.LastCheckedLabel);
+            Assert.Equal(UpdateLabels.PortableManualStatus, model.UpdateStatus.Message);
+        }
+
+        [Fact]
+        public void WattPilotWindow_ShouldUseIntegratedPreferencePanelWithoutTabControl()
+        {
+            string xamlPath = Path.GetFullPath(Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "NVConso",
+                "Views",
+                "WattPilotWindow.xaml"));
+            string xaml = File.ReadAllText(xamlPath);
+
+            Assert.Contains("x:Name=\"PreferencesPanel\"", xaml);
+            Assert.Contains("PreferenceSections", xaml);
+            Assert.DoesNotContain("<TabControl", xaml);
+            Assert.DoesNotContain("<TabItem", xaml);
+            Assert.DoesNotContain("PreferencesWindow", xaml);
+        }
+
         private static TelemetryLogReadResult CreateHistoryResult()
         {
             var entries = new[]
@@ -292,7 +370,8 @@ namespace NVConso.Tests
                 TelemetryService = new FakeGpuTelemetryService();
                 Recorder = new FakeTelemetryRecorder(tempDirectory);
                 LogReader = new FakeTelemetryLogReader(tempDirectory);
-                UpdateWorkflow = new AppUpdateWorkflow(new FakeAppUpdater());
+                Updater = new FakeAppUpdater();
+                UpdateWorkflow = new AppUpdateWorkflow(Updater);
             }
 
             public string TempDirectory { get; }
@@ -301,6 +380,7 @@ namespace NVConso.Tests
             public FakeGpuTelemetryService TelemetryService { get; }
             public FakeTelemetryRecorder Recorder { get; }
             public FakeTelemetryLogReader LogReader { get; }
+            public FakeAppUpdater Updater { get; }
             public AppUpdateWorkflow UpdateWorkflow { get; }
 
             public static ViewModelTestContext Create()
@@ -354,7 +434,7 @@ namespace NVConso.Tests
                 CurrentSnapshot = new GpuTelemetrySnapshot(
                     DateTimeOffset.UtcNow,
                     isAvailable: true,
-                    "NVML prêt.",
+                    "GPU prêt.",
                     selectedGpuIndex: 0,
                     selectedGpuName: "Mock GPU",
                     minimumPowerLimitMilliwatt: 100000,
@@ -435,6 +515,8 @@ namespace NVConso.Tests
 
         private sealed class FakeAppUpdater : IAppUpdater
         {
+            public AppExecutionModeInfo ExecutionMode { get; set; } = AppExecutionModeInfo.InstalledVelopack();
+
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(string channel, bool includePrerelease, CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, $"{ProductNames.DisplayName} est à jour."));
@@ -457,7 +539,7 @@ namespace NVConso.Tests
 
             public AppExecutionModeInfo GetExecutionMode()
             {
-                return AppExecutionModeInfo.InstalledVelopack();
+                return ExecutionMode;
             }
         }
 

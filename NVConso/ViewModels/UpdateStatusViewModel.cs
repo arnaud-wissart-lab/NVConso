@@ -9,6 +9,7 @@ namespace NVConso.ViewModels
         private string _latestVersion = string.Empty;
         private string _primaryActionLabel = string.Empty;
         private string _executionModeLabel = UpdateLabels.FormatExecutionMode(AppExecutionMode.InstalledVelopack);
+        private string _lastCheckedLabel = "Dernière vérification : jamais";
         private string _releaseUrl = ProductNames.LatestReleaseUrl;
         private bool _canRunPrimaryAction;
 
@@ -54,6 +55,12 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _executionModeLabel, value);
         }
 
+        public string LastCheckedLabel
+        {
+            get => _lastCheckedLabel;
+            private set => SetProperty(ref _lastCheckedLabel, value);
+        }
+
         public string ReleaseUrl
         {
             get => _releaseUrl;
@@ -78,8 +85,17 @@ namespace NVConso.ViewModels
             LatestVersion = state.LatestVersion;
             PrimaryActionLabel = state.PrimaryActionLabel ?? string.Empty;
             ExecutionModeLabel = state.ExecutionModeLabel;
+            LastCheckedLabel = FormatLastChecked(state.LastCheckedAt);
             ReleaseUrl = state.ReleaseUrl;
             CanRunPrimaryAction = state.CanRunPrimaryAction;
+        }
+
+        private static string FormatLastChecked(DateTimeOffset? lastCheckedAt)
+        {
+            if (!lastCheckedAt.HasValue)
+                return "Dernière vérification : jamais";
+
+            return $"Dernière vérification : {lastCheckedAt.Value.ToLocalTime():dd/MM/yyyy HH:mm}";
         }
     }
 }
