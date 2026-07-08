@@ -25,7 +25,6 @@ namespace NVConso.Views
             ApplyTheme(_dashboardViewModel.ResolvedTheme);
             ApplySavedBounds();
             _dashboardViewModel.ThemeChanged += OnThemeChanged;
-            _preferencesViewModel.ThemeChanged += OnThemeChanged;
         }
 
         public DashboardViewModel DashboardViewModel => _dashboardViewModel;
@@ -53,7 +52,6 @@ namespace NVConso.Views
         protected override void OnClosed(EventArgs e)
         {
             _dashboardViewModel.ThemeChanged -= OnThemeChanged;
-            _preferencesViewModel.ThemeChanged -= OnThemeChanged;
             _dashboardViewModel.Dispose();
             base.OnClosed(e);
         }

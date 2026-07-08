@@ -292,7 +292,6 @@ namespace NVConso.Tests
             using ViewModelTestContext context = ViewModelTestContext.Create();
             AppSettings settings = context.SettingsService.CreateEditableCopy();
             settings.ShowDashboardOnStartup = true;
-            settings.DashboardTheme = UiTheme.Dark;
             settings.LastSelectedMode = GpuPowerMode.Canicule;
             settings.CaniculeGuardEnabled = true;
             settings.CaniculeGuardPowerThresholdWatts = 55;
@@ -307,7 +306,6 @@ namespace NVConso.Tests
             model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.HeatMonitoring);
             Assert.True(model.IsHeatMonitoringSectionSelected);
             Assert.True(model.ShowDashboardOnStartup);
-            Assert.Equal(UiTheme.System, model.SelectedTheme.Value);
             Assert.Equal(GpuPowerMode.Canicule, model.SelectedStartupProfile.Value);
             Assert.True(model.CaniculeGuardEnabled);
             Assert.Equal(55, model.CaniculePowerThresholdWatts);
@@ -402,16 +400,19 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void PreferencesViewModel_ShouldUseSystemThemeWithoutVisibleOptions()
+        public async Task PreferencesViewModel_ShouldSaveSystemThemeWithoutVisibleOptions()
         {
             using ViewModelTestContext context = ViewModelTestContext.Create();
             AppSettings settings = context.SettingsService.CreateEditableCopy();
             settings.DashboardTheme = UiTheme.Dark;
             Assert.True(context.SettingsService.TrySave(settings, out _));
             var model = context.CreatePreferencesViewModel();
+            model.RecordingIntervalSeconds = 2;
 
-            Assert.Equal(UiTheme.System, model.SelectedTheme.Value);
-            Assert.Equal(UiTheme.Light, model.ResolvedTheme);
+            bool saved = await model.SaveAsync(closeAfterSave: false);
+
+            Assert.True(saved);
+            Assert.Equal(UiTheme.System, context.SettingsService.Current.DashboardTheme);
         }
 
         [Fact]

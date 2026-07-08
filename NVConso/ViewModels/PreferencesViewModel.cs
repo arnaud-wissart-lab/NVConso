@@ -21,7 +21,6 @@ namespace NVConso.ViewModels
         private readonly IPrivilegeService _privilegeService;
         private readonly TimeSpan _autoSaveDelay = TimeSpan.FromMilliseconds(400);
         private CancellationTokenSource _autoSaveCancellation;
-        private bool _syncingTheme;
         private bool _loadingSettings;
         private bool _savingSettings;
         private bool _hasUnsavedChanges;
@@ -58,11 +57,9 @@ namespace NVConso.ViewModels
         private readonly string _telemetryHistoryRecommendation = $"Recommandé : {GpuTelemetryHistory.DefaultCapacitySeconds} secondes";
         private readonly string _peakPowerRecommendation = "Recommandé : 100 W";
         private readonly string _peakTemperatureRecommendation = "Recommandé : 70 °C";
-        private SelectionOption<UiTheme> _selectedTheme;
         private SelectionOption<string> _selectedCaniculePreset;
         private SelectionOption<GpuPowerMode> _selectedStartupProfile;
         private SelectionOption<PreferenceSection> _selectedPreferenceSection;
-        private UiTheme _resolvedTheme = UiTheme.Light;
         private bool _syncingCaniculePreset;
 
         public PreferencesViewModel(
@@ -278,21 +275,6 @@ namespace NVConso.ViewModels
             set => SetPreferenceProperty(ref _peakTemperatureThresholdCelsius, value);
         }
 
-        public SelectionOption<UiTheme> SelectedTheme
-        {
-            get => _selectedTheme;
-            set
-            {
-                if (!SetProperty(ref _selectedTheme, value))
-                    return;
-
-                if (!_syncingTheme)
-                    UpdateResolvedTheme(value?.Value ?? UiTheme.System);
-
-                RefreshUnsavedChanges();
-            }
-        }
-
         public SelectionOption<GpuPowerMode> SelectedStartupProfile
         {
             get => _selectedStartupProfile;
@@ -341,16 +323,6 @@ namespace NVConso.ViewModels
         public bool IsUpdateSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Update;
         public bool IsAdvancedSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Advanced;
 
-        public UiTheme ResolvedTheme
-        {
-            get => _resolvedTheme;
-            private set
-            {
-                if (SetProperty(ref _resolvedTheme, value))
-                    ThemeChanged?.Invoke(this, value);
-            }
-        }
-
         public string StatusMessage
         {
             get => _statusMessage;
@@ -387,17 +359,13 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _hasUnsavedChanges, value);
         }
 
-        public event EventHandler<UiTheme> ThemeChanged;
-
         public void LoadFromSettings(AppSettings settings)
         {
             settings ??= _settingsService.Current;
-            _syncingTheme = true;
             _loadingSettings = true;
             try
             {
                 ShowDashboardOnStartup = settings.ShowDashboardOnStartup;
-                SelectedTheme = new SelectionOption<UiTheme>("Système", UiTheme.System);
                 AutoApplySavedMode = settings.AutoApplySavedMode;
                 SelectedStartupProfile = StartupProfileOptions.FirstOrDefault(option => option.Value == settings.LastSelectedMode)
                     ?? StartupProfileOptions.First(option => option.Value == GpuPowerMode.Stock);
@@ -423,11 +391,9 @@ namespace NVConso.ViewModels
             }
             finally
             {
-                _syncingTheme = false;
                 _loadingSettings = false;
             }
 
-            UpdateResolvedTheme(UiTheme.System);
             RefreshCaniculePresetSelection();
             RefreshUpdateStatus();
             HasUnsavedChanges = false;
@@ -526,7 +492,7 @@ namespace NVConso.ViewModels
         {
             AppSettings settings = _settingsService.CreateEditableCopy();
             settings.ShowDashboardOnStartup = ShowDashboardOnStartup;
-            settings.DashboardTheme = SelectedTheme?.Value ?? UiTheme.System;
+            settings.DashboardTheme = UiTheme.System;
             settings.AutoApplySavedMode = AutoApplySavedMode;
             settings.LastSelectedMode = SelectedStartupProfile?.Value ?? GpuPowerMode.Stock;
             settings.HasSavedMode = AutoApplySavedMode;
@@ -902,11 +868,6 @@ namespace NVConso.ViewModels
             {
                 StatusMessage = $"Copie du chemin impossible : {exception.Message}";
             }
-        }
-
-        private void UpdateResolvedTheme(UiTheme theme)
-        {
-            ResolvedTheme = new ThemeService().ResolveTheme(theme);
         }
 
         private bool SetPreferenceProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
