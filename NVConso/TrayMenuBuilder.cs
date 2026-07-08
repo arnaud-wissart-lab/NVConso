@@ -4,70 +4,82 @@ namespace NVConso
     {
         public static TrayMenuView Create()
         {
-            var menu = new ContextMenuStrip
+            TrayMenuViewModel viewModel = CreateViewModel(out IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> profileItems);
+            return new TrayMenuView(viewModel, profileItems);
+        }
+
+        public static TrayMenuViewModel CreateViewModel(out IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> profileItems)
+        {
+            TrayMenuActionItem statusItem = CreateInfoItem("Statut : initialisation...");
+            TrayMenuActionItem openDashboardItem = new("Ouvrir WattPilot", "\uE8A7")
             {
-                ShowItemToolTips = true
+                ToolTipText = "Ouvrir WattPilot"
             };
-
-            ToolStripMenuItem statusItem = CreateInfoItem("Statut : initialisation...");
-
-            ToolStripMenuItem openDashboardItem = new("Ouvrir WattPilot");
-            ToolStripMenuItem profilesMenuItem = new("Modes GPU");
-            var profileItems = new Dictionary<GpuPowerMode, ToolStripMenuItem>();
+            TrayMenuActionItem profilesMenuItem = CreateInfoItem("Modes GPU");
+            var profileItemsDictionary = new Dictionary<GpuPowerMode, TrayMenuActionItem>();
 
             foreach (GpuPowerMode mode in GpuProfileController.ProfileOrder)
             {
-                var profileItem = new ToolStripMenuItem(ProfileLabels.GetDisplayName(mode))
+                var profileItem = new TrayMenuActionItem(ProfileLabels.GetDisplayName(mode), ResolveProfileIcon(mode))
                 {
-                    Enabled = false
+                    IsEnabled = false,
+                    ToolTipText = ProfileLabels.GetDescription(mode)
                 };
 
-                profileItems.Add(mode, profileItem);
-                profilesMenuItem.DropDownItems.Add(profileItem);
+                profileItemsDictionary.Add(mode, profileItem);
             }
 
-            ToolStripMenuItem customPowerLimitItem = new("Limite personnalisée...")
+            TrayMenuActionItem customPowerLimitItem = new("Personnalisé...", "\uE9E9")
             {
-                Enabled = false
-            };
-            profilesMenuItem.DropDownItems.Add(new ToolStripSeparator());
-            profilesMenuItem.DropDownItems.Add(customPowerLimitItem);
-
-            ToolStripMenuItem updateStatusItem = CreateInfoItem(UpdateLabels.FormatUpToDate(null));
-            ToolStripMenuItem updateActionItem = new("Mettre à jour maintenant...")
-            {
-                Available = false
+                IsEnabled = false,
+                ToolTipText = "Choisir une limite personnalisée"
             };
 
-            ToolStripMenuItem quitItem = new("Quitter");
+            TrayMenuActionItem updateStatusItem = CreateInfoItem(UpdateLabels.FormatUpToDate(null));
+            updateStatusItem.ToolTipText = "Ouvrir les paramètres de mise à jour";
+            TrayMenuActionItem updateActionItem = new("Mettre à jour maintenant...", "\uE895")
+            {
+                Available = false,
+                ToolTipText = "Installer la mise à jour disponible"
+            };
 
-            menu.Items.Add(openDashboardItem);
-            menu.Items.Add(profilesMenuItem);
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(updateStatusItem);
-            menu.Items.Add(updateActionItem);
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(quitItem);
+            TrayMenuActionItem quitItem = new("Quitter", "\uE8BB")
+            {
+                ToolTipText = "Fermer WattPilot"
+            };
 
-            return new TrayMenuView(
-                menu,
+            profileItems = profileItemsDictionary;
+            return new TrayMenuViewModel(
                 statusItem,
                 openDashboardItem,
                 profilesMenuItem,
-                profileItems,
+                profileItemsDictionary,
                 customPowerLimitItem,
                 updateStatusItem,
                 updateActionItem,
                 quitItem);
         }
 
-        private static ToolStripMenuItem CreateInfoItem(string text)
+        private static TrayMenuActionItem CreateInfoItem(string text)
         {
-            return new ToolStripMenuItem(text)
+            return new TrayMenuActionItem(text)
             {
-                Enabled = false
+                IsEnabled = false
             };
         }
 
+        private static string ResolveProfileIcon(GpuPowerMode mode)
+        {
+            return mode switch
+            {
+                GpuPowerMode.Canicule => "\uE706",
+                GpuPowerMode.VideoSurf => "\uE714",
+                GpuPowerMode.Indie2D => "\uE7FC",
+                GpuPowerMode.Stock => "\uE7C1",
+                GpuPowerMode.Max => "\uE945",
+                GpuPowerMode.Custom => "\uE9E9",
+                _ => "\uE7C1"
+            };
+        }
     }
 }

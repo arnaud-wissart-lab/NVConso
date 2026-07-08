@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing;
 using System.Security.Principal;
+using System.Windows;
 
 namespace NVConso
 {
@@ -139,7 +139,7 @@ namespace NVConso
             RefreshElevationState();
 
             if (IsElevationPromptSuppressed())
-                return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently);
+                return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus);
 
             if (!await _elevationRequestGate.WaitAsync(0, cancellationToken).ConfigureAwait(true))
                 return PrivilegeOperationResult.Failed(PrivilegeMessages.ElevationAlreadyInProgress);
@@ -153,7 +153,7 @@ namespace NVConso
                     return PrivilegeOperationResult.Failed("WattPilot est déjà en mode administrateur.");
 
                 if (IsElevationPromptSuppressed())
-                    return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently);
+                    return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus);
 
                 MarkElevationRequested();
 
@@ -217,7 +217,7 @@ namespace NVConso
             lock (_stateLock)
                 State.MarkElevationDenied(_utcNow(), _elevationPromptSuppressionDuration);
 
-            return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently);
+            return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus);
         }
 
         private void ClearElevationSuppression()
@@ -259,8 +259,10 @@ namespace NVConso
     {
         public bool Confirm(ElevationReason reason)
         {
-            using var dialog = new ElevationPromptDialog(PrivilegeMessages.GetElevationPrompt(reason));
-            return dialog.ShowDialog() == DialogResult.OK;
+            Window owner = System.Windows.Application.Current?.Windows
+                .OfType<Window>()
+                .FirstOrDefault(window => window.IsActive);
+            return ElevationPromptDialog.Confirm(reason, owner);
         }
     }
 
@@ -316,66 +318,4 @@ namespace NVConso
         }
     }
 
-    internal sealed class ElevationPromptDialog : Form
-    {
-        public ElevationPromptDialog(string message)
-        {
-            Text = ProductNames.DisplayName;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            StartPosition = FormStartPosition.CenterScreen;
-            MinimizeBox = false;
-            MaximizeBox = false;
-            ShowInTaskbar = false;
-            ClientSize = new Size(440, 150);
-
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(18)
-            };
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-
-            var messageLabel = new Label
-            {
-                Dock = DockStyle.Fill,
-                Text = message,
-                AutoSize = false,
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            var buttonsPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft
-            };
-
-            var restartButton = new Button
-            {
-                Text = PrivilegeMessages.RelaunchAsAdministratorButton,
-                DialogResult = DialogResult.OK,
-                AutoSize = true,
-                MinimumSize = new Size(180, 32)
-            };
-
-            var cancelButton = new Button
-            {
-                Text = PrivilegeMessages.CancelButton,
-                DialogResult = DialogResult.Cancel,
-                AutoSize = true,
-                MinimumSize = new Size(90, 32)
-            };
-
-            buttonsPanel.Controls.Add(restartButton);
-            buttonsPanel.Controls.Add(cancelButton);
-            layout.Controls.Add(messageLabel, 0, 0);
-            layout.Controls.Add(buttonsPanel, 0, 1);
-            Controls.Add(layout);
-
-            AcceptButton = restartButton;
-            CancelButton = cancelButton;
-        }
-    }
 }

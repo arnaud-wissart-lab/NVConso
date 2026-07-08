@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Windows;
 
 namespace NVConso
 {
@@ -12,8 +13,8 @@ namespace NVConso
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly UpdateStatusPresenter _presenter;
         private readonly ITrayNotificationService _notifications;
-        private readonly ToolStripMenuItem _updateStatusItem;
-        private readonly ToolStripMenuItem _updateActionItem;
+        private readonly TrayMenuActionItem _updateStatusItem;
+        private readonly TrayMenuActionItem _updateActionItem;
         private readonly Action _openUpdatePreferences;
         private readonly Func<string, string, bool> _confirmUpdate;
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
@@ -22,6 +23,7 @@ namespace NVConso
         private bool _updateOperationInProgress;
         private bool _downloadedUpdateReady;
         private bool _startupUpdateCheckPending = true;
+        private bool _updatePromptDeferredForSession;
         private AppUpdateInfo _availableUpdate;
         private UpdateUiState _currentState;
 
@@ -29,8 +31,8 @@ namespace NVConso
             AppSettingsService settingsService,
             AppUpdateWorkflow updateWorkflow,
             ITrayNotificationService notifications,
-            ToolStripMenuItem updateStatusItem,
-            ToolStripMenuItem updateActionItem,
+            TrayMenuActionItem updateStatusItem,
+            TrayMenuActionItem updateActionItem,
             Action openUpdatePreferences = null,
             Func<string, string, bool> confirmUpdate = null,
             Microsoft.Extensions.Logging.ILogger logger = null)
@@ -42,9 +44,10 @@ namespace NVConso
             _updateStatusItem = updateStatusItem ?? throw new ArgumentNullException(nameof(updateStatusItem));
             _updateActionItem = updateActionItem ?? throw new ArgumentNullException(nameof(updateActionItem));
             _openUpdatePreferences = openUpdatePreferences ?? (() => { });
-            _confirmUpdate = confirmUpdate ?? ConfirmWithMessageBox;
+            _confirmUpdate = confirmUpdate ?? ConfirmWithWpfDialog;
             _logger = logger;
 
+            _updateStatusItem.IsEnabled = true;
             _updateStatusItem.Click += (_, _) => _openUpdatePreferences();
             _updateActionItem.Click += async (_, _) => await RunVisibleUpdateActionAsync();
 
@@ -124,13 +127,9 @@ namespace NVConso
                     UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
                     ApplyState(state);
                     _notifications.SetStatus($"Nouvelle version disponible : {UpdateLabels.FormatVersion(result.Update.Version)}");
-                    _notifications.ShowInfo(
-                        $"Mise à jour {ProductNames.DisplayName}",
-                        $"La version {UpdateLabels.FormatVersion(result.Update.Version)} est disponible.",
-                        5000);
 
-                    if (isAutomatic && settings.AutoDownloadUpdates)
-                        await DownloadUpdateAsync(isAutomatic: true);
+                    if (isAutomatic)
+                        await HandleAutomaticUpdateAvailableAsync(settings, result.Update);
 
                     return;
                 }
@@ -240,8 +239,7 @@ namespace NVConso
             }
 
             string version = _availableUpdate.Version;
-            string message = $"{ProductNames.DisplayName} va télécharger, installer puis redémarrer vers {UpdateLabels.FormatVersion(version)}. Continuer ?";
-            if (!_confirmUpdate($"Mise à jour {ProductNames.DisplayName}", message))
+            if (!PromptForInstall())
                 return;
 
             await DownloadUpdateAsync(isAutomatic: false);
@@ -258,6 +256,40 @@ namespace NVConso
             {
                 SetUpdateOperationInProgress(false);
             }
+        }
+
+        private async Task HandleAutomaticUpdateAvailableAsync(AppSettings settings, AppUpdateInfo update)
+        {
+            if (update is null || _updatePromptDeferredForSession)
+                return;
+
+            string version = update.Version;
+
+            if (settings.AutoDownloadUpdates)
+            {
+                await DownloadUpdateAsync(isAutomatic: true);
+                if (!_downloadedUpdateReady)
+                    return;
+
+                if (!PromptForInstall())
+                {
+                    _updatePromptDeferredForSession = true;
+                    return;
+                }
+
+                await ApplyUpdateAsync(version);
+                return;
+            }
+
+            if (!PromptForInstall())
+            {
+                _updatePromptDeferredForSession = true;
+                return;
+            }
+
+            await DownloadUpdateAsync(isAutomatic: true);
+            if (_downloadedUpdateReady)
+                await ApplyUpdateAsync(version);
         }
 
         public void RefreshPendingUpdateState()
@@ -278,8 +310,7 @@ namespace NVConso
 
         private async Task ConfirmAndApplyUpdateAsync(string version)
         {
-            string message = $"{ProductNames.DisplayName} va installer la mise à jour puis redémarrer. Continuer ?";
-            if (!_confirmUpdate($"Mise à jour {ProductNames.DisplayName}", message))
+            if (!PromptForInstall())
                 return;
 
             try
@@ -291,6 +322,13 @@ namespace NVConso
             {
                 SetUpdateOperationInProgress(false);
             }
+        }
+
+        private bool PromptForInstall()
+        {
+            return _confirmUpdate(
+                $"Mise à jour {ProductNames.DisplayName}",
+                "Une nouvelle version de WattPilot est disponible. Installer maintenant ?");
         }
 
         private async Task ApplyUpdateAsync(string version)
@@ -354,8 +392,11 @@ namespace NVConso
         {
             _currentState = state ?? _presenter.GetStoredState(_settingsService.Current);
             _updateStatusItem.Text = _currentState.Message;
+            _updateStatusItem.DetailText = UpdateLabels.FormatLastChecked(_currentState.LastCheckedAt);
             _updateStatusItem.ToolTipText = string.IsNullOrWhiteSpace(_currentState.DetailMessage)
-                ? _currentState.Message
+                || string.Equals(_currentState.DetailMessage.Trim(), _currentState.Message.Trim(), StringComparison.Ordinal)
+                || string.Equals(_currentState.DetailMessage.Trim(), _updateStatusItem.DetailText.Trim(), StringComparison.Ordinal)
+                ? null
                 : _currentState.DetailMessage;
 
             _updateActionItem.Text = _currentState.PrimaryActionLabel;
@@ -389,14 +430,14 @@ namespace NVConso
             return DateTimeOffset.UtcNow - settings.LastUpdateCheckUtc.Value >= minimumInterval;
         }
 
-        private static bool ConfirmWithMessageBox(string title, string message)
+        private static bool ConfirmWithWpfDialog(string title, string message)
         {
-            return MessageBox.Show(
-                message,
-                title,
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question,
-                MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+            _ = title;
+            _ = message;
+            Window owner = System.Windows.Application.Current?.Windows
+                .OfType<Window>()
+                .FirstOrDefault(window => window.IsActive);
+            return UpdatePromptDialog.ConfirmInstall(owner);
         }
 
         private void SaveSettings(AppSettings settings)

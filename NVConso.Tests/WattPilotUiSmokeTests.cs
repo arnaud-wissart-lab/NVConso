@@ -58,6 +58,26 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void ElevationPromptDialog_ShouldInstantiateAsWpfWindow()
+        {
+            RunOnStaThread(() =>
+            {
+                Program.EnsureWpfApplication();
+                var dialog = new ElevationPromptDialog(ElevationReason.GpuPowerLimit);
+
+                try
+                {
+                    Assert.Equal("Autorisation requise", dialog.Title);
+                    Assert.NotNull(dialog.Content);
+                }
+                finally
+                {
+                    dialog.Close();
+                }
+            });
+        }
+
+        [Fact]
         public void CriticalCommands_ShouldBeAvailable()
         {
             using UiSmokeTestContext context = UiSmokeTestContext.Create();

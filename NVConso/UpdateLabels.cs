@@ -2,29 +2,43 @@ namespace NVConso
 {
     public static class UpdateLabels
     {
-        public const string CheckingStatus = "Mise à jour : vérification...";
-        public const string ErrorStatus = "Mise à jour : erreur";
-        public const string PreferencesStatus = "Mise à jour : détails dans Préférences";
-        public const string DeveloperUnavailableStatus = "Mise à jour : indisponible en mode développeur";
-        public const string PortableManualStatus = "Mise à jour : manuelle en mode portable";
-        public const string UnknownUnavailableStatus = "Mise à jour : mode d'exécution inconnu";
+        public const string CheckingStatus = "Vérification...";
+        public const string ErrorStatus = "Erreur";
+        public const string PreferencesStatus = "Voir les paramètres";
+        public const string DeveloperUnavailableStatus = "Indisponible en mode développeur";
+        public const string PortableManualStatus = "Mise à jour manuelle";
+        public const string UnknownUnavailableStatus = "Mise à jour indisponible";
 
         public static string FormatUpToDate(DateTimeOffset? checkedAtUtc)
         {
-            if (!checkedAtUtc.HasValue)
-                return "Mise à jour : à jour";
+            _ = checkedAtUtc;
+            return "À jour";
+        }
 
-            return $"Mise à jour : à jour — vérifiée à {checkedAtUtc.Value.ToLocalTime():HH:mm}";
+        public static string FormatLastChecked(DateTimeOffset? checkedAtUtc)
+        {
+            if (!checkedAtUtc.HasValue)
+                return "Dernière vérification : jamais";
+
+            DateTime local = checkedAtUtc.Value.ToLocalTime().DateTime;
+            DateTime today = DateTime.Today;
+            string dayLabel = local.Date == today
+                ? "aujourd’hui"
+                : local.Date == today.AddDays(-1)
+                    ? "hier"
+                    : local.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.CurrentCulture);
+
+            return $"Dernière vérification : {dayLabel} à {local:HH:mm}";
         }
 
         public static string FormatAvailableStatus(string version)
         {
-            return $"Mise à jour disponible : {FormatVersion(version)}";
+            return $"Nouvelle version disponible : {FormatVersion(version)}";
         }
 
         public static string FormatDownloadedStatus(string version)
         {
-            return $"Mise à jour prête : {FormatVersion(version)}";
+            return $"Prête à installer : {FormatVersion(version)}";
         }
 
         public static string FormatUpdateNowAction(string version)
@@ -34,7 +48,7 @@ namespace NVConso
 
         public static string FormatInstallAction(string version)
         {
-            return "Installer et redémarrer...";
+            return "Installer maintenant";
         }
 
         public static string FormatExecutionMode(AppExecutionMode mode)

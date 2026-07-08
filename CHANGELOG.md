@@ -6,6 +6,22 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+## 2.1.9 - 2026-07-08
+
+### Modifié
+
+- Remplace le menu visible de la zone de notification par une interface WPF cohérente avec WattPilot.
+- Clarifie l'affichage des mises à jour avec un statut court, la version installée et la dernière vérification séparée.
+- Simplifie l'accueil en lecture seule : l'état GPU reste visible, mais le changement de mode se fait hors de l'accueil.
+- Modernise la page Historique avec des filtres compacts, des actions accessibles par icône et un tableau plus lisible.
+- Ajoute des styles WPF compacts réutilisables pour les boutons, listes, sélecteurs et tableaux.
+
+### Corrigé
+
+- Remplace la demande de “relancer en administrateur” par une autorisation Windows ponctuelle pour appliquer un mode GPU.
+- Remplace la fenêtre WinForms d'élévation par une boîte WPF et garde WattPilot ouvert normalement pendant l'autorisation.
+- Empêche la réapparition des anciens messages d'élévation via des tests de garde-fou.
+
 ## 2.1.8 - 2026-07-08
 
 ### Note

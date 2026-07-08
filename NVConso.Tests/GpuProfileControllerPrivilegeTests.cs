@@ -8,6 +8,8 @@ namespace NVConso.Tests
             using TestContext context = TestContext.Create(isElevated: false, helperSuccess: true);
             context.InitializeController();
             AppSettings settings = context.SettingsService.CreateEditableCopy();
+            int refreshCount = 0;
+            context.TelemetryService.SnapshotUpdated += (_, _) => refreshCount++;
 
             GpuProfileOperationResult result = await context.Controller.ApplyProfileAsync(
                 settings,
@@ -20,6 +22,7 @@ namespace NVConso.Tests
             Assert.Equal(GpuPowerMode.Canicule, context.PrivilegeService.LastProfileMode);
             Assert.True(context.SettingsService.Current.HasSavedMode);
             Assert.Equal(GpuPowerMode.Canicule, context.SettingsService.Current.LastSelectedMode);
+            Assert.True(refreshCount > 0);
         }
 
         [Fact]
@@ -61,6 +64,26 @@ namespace NVConso.Tests
             Assert.Equal(0, context.Nvml.SetPowerLimitCallCount);
             Assert.Equal(1, context.PrivilegeService.SetPowerLimitCallCount);
             Assert.Null(context.SettingsService.Current.CustomPowerLimitMilliwatt);
+            Assert.Equal(GpuPowerMode.Stock, context.SettingsService.Current.LastSelectedMode);
+        }
+
+        [Fact]
+        public async Task ApplyProfile_ShouldNotPersist_WhenAuthorizationIsCancelled()
+        {
+            using TestContext context = TestContext.Create(isElevated: false, helperSuccess: false, helperCancelled: true);
+            context.InitializeController();
+            AppSettings settings = context.SettingsService.CreateEditableCopy();
+
+            GpuProfileOperationResult result = await context.Controller.ApplyProfileAsync(
+                settings,
+                GpuPowerMode.Canicule,
+                persistSelection: true);
+
+            Assert.False(result.Success);
+            Assert.False(result.RequiresElevation);
+            Assert.Equal(PrivilegeMessages.ElevationCancelledStatus, result.Message);
+            Assert.Equal(1, context.PrivilegeService.SetPowerLimitCallCount);
+            Assert.False(context.SettingsService.Current.HasSavedMode);
             Assert.Equal(GpuPowerMode.Stock, context.SettingsService.Current.LastSelectedMode);
         }
 
@@ -123,13 +146,13 @@ namespace NVConso.Tests
 
         private sealed class TestContext : IDisposable
         {
-            private TestContext(string tempDirectory, bool isElevated, bool helperSuccess)
+            private TestContext(string tempDirectory, bool isElevated, bool helperSuccess, bool helperCancelled)
             {
                 TempDirectory = tempDirectory;
                 Nvml = new MockNvmlManager(100000, 200000, 300000);
                 SettingsService = new AppSettingsService(new AppSettingsStore(Path.Combine(tempDirectory, "settings.json")));
                 TelemetryService = new GpuTelemetryService(Nvml);
-                PrivilegeService = new FakePrivilegeService(isElevated, helperSuccess);
+                PrivilegeService = new FakePrivilegeService(isElevated, helperSuccess, helperCancelled);
                 Controller = new GpuProfileController(
                     Nvml,
                     SettingsService,
@@ -144,11 +167,11 @@ namespace NVConso.Tests
             public FakePrivilegeService PrivilegeService { get; }
             public GpuProfileController Controller { get; }
 
-            public static TestContext Create(bool isElevated, bool helperSuccess = true)
+            public static TestContext Create(bool isElevated, bool helperSuccess = true, bool helperCancelled = false)
             {
                 string directory = Path.Combine(Path.GetTempPath(), "NVConso-tests", Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(directory);
-                return new TestContext(directory, isElevated, helperSuccess);
+                return new TestContext(directory, isElevated, helperSuccess, helperCancelled);
             }
 
             public void InitializeController()
@@ -164,7 +187,7 @@ namespace NVConso.Tests
             }
         }
 
-        private sealed class FakePrivilegeService(bool isElevated, bool helperSuccess) : IPrivilegeService
+        private sealed class FakePrivilegeService(bool isElevated, bool helperSuccess, bool helperCancelled) : IPrivilegeService
         {
             public bool IsElevated { get; } = isElevated;
             public PrivilegeState State { get; } = new(isElevated);
@@ -185,6 +208,9 @@ namespace NVConso.Tests
             {
                 SetPowerLimitCallCount++;
                 LastProfileMode = profileMode;
+                if (helperCancelled)
+                    return Task.FromResult(PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus));
+
                 return Task.FromResult(helperSuccess
                     ? PrivilegeOperationResult.Succeeded(
                         "Commande privilégiée exécutée.",
@@ -197,6 +223,9 @@ namespace NVConso.Tests
                 CancellationToken cancellationToken = default)
             {
                 RestoreStockCallCount++;
+                if (helperCancelled)
+                    return Task.FromResult(PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus));
+
                 return Task.FromResult(helperSuccess
                     ? PrivilegeOperationResult.Succeeded("Stock restauré.", 200000)
                     : PrivilegeOperationResult.Failed("Stock refusé."));

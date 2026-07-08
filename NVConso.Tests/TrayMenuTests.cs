@@ -7,10 +7,9 @@ namespace NVConso.Tests
         [Fact]
         public void CompactMenu_ShouldNotExposeLegacyPermanentActions()
         {
-            using TrayMenuView view = CreateMenuView();
+            TrayMenuViewModel view = CreateMenuView();
 
-            string[] topLevelTexts = view.Menu.Items
-                .OfType<ToolStripMenuItem>()
+            string[] topLevelTexts = view.TopLevelItems
                 .Select(item => item.Text)
                 .ToArray();
 
@@ -38,10 +37,9 @@ namespace NVConso.Tests
         [Fact]
         public void CompactMenu_ShouldKeepProfilesAccessible()
         {
-            using TrayMenuView view = CreateMenuView();
+            TrayMenuViewModel view = CreateMenuView();
 
-            string[] profileTexts = view.ProfilesMenuItem.DropDownItems
-                .OfType<ToolStripMenuItem>()
+            string[] profileTexts = view.ProfileItems
                 .Select(item => item.Text)
                 .ToArray();
 
@@ -50,7 +48,7 @@ namespace NVConso.Tests
             Assert.Contains("Indie 2D", profileTexts);
             Assert.Contains("Normal", profileTexts);
             Assert.Contains("Max", profileTexts);
-            Assert.Contains("Limite personnalisée...", profileTexts);
+            Assert.Equal("Personnalisé...", view.CustomPowerLimitItem.Text);
             Assert.DoesNotContain("Normal / Stock", profileTexts);
         }
 
@@ -64,9 +62,9 @@ namespace NVConso.Tests
             Assert.Equal(TrayIconMouseAction.None, TrayIconMouseActions.FromMouseDoubleClick(MouseButtons.Right));
         }
 
-        private static TrayMenuView CreateMenuView()
+        private static TrayMenuViewModel CreateMenuView()
         {
-            return TrayMenuBuilder.Create();
+            return TrayMenuBuilder.CreateViewModel(out _);
         }
     }
 }

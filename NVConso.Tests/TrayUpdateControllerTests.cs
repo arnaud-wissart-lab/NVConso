@@ -1,5 +1,3 @@
-using System.Windows.Forms;
-
 namespace NVConso.Tests
 {
     public class TrayUpdateControllerTests
@@ -14,7 +12,8 @@ namespace NVConso.Tests
 
             await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: true, isAutomatic: false);
 
-            Assert.StartsWith("Mise à jour : à jour — vérifiée à ", context.UpdateStatusItem.Text);
+            Assert.Equal("À jour", context.UpdateStatusItem.Text);
+            Assert.StartsWith("Dernière vérification : ", context.UpdateStatusItem.DetailText);
             Assert.False(context.UpdateActionItem.Available);
         }
 
@@ -29,7 +28,7 @@ namespace NVConso.Tests
 
             await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: false);
 
-            Assert.Equal("Mise à jour disponible : v1.2.3", context.UpdateStatusItem.Text);
+            Assert.Equal("Nouvelle version disponible : v1.2.3", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
             Assert.Equal("Mettre à jour vers v1.2.3...", context.UpdateActionItem.Text);
         }
@@ -67,9 +66,9 @@ namespace NVConso.Tests
 
             await context.Controller.DownloadUpdateAsync(isAutomatic: false);
 
-            Assert.Equal("Mise à jour prête : v1.2.3", context.UpdateStatusItem.Text);
+            Assert.Equal("Prête à installer : v1.2.3", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
-            Assert.Equal("Installer et redémarrer...", context.UpdateActionItem.Text);
+            Assert.Equal("Installer maintenant", context.UpdateActionItem.Text);
         }
 
         [Fact]
@@ -80,9 +79,9 @@ namespace NVConso.Tests
 
             context.Controller.RefreshPendingUpdateState();
 
-            Assert.Equal("Mise à jour prête : v1.2.3", context.UpdateStatusItem.Text);
+            Assert.Equal("Prête à installer : v1.2.3", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
-            Assert.Equal("Installer et redémarrer...", context.UpdateActionItem.Text);
+            Assert.Equal("Installer maintenant", context.UpdateActionItem.Text);
         }
 
         [Fact]
@@ -143,7 +142,102 @@ namespace NVConso.Tests
             Assert.False(context.UpdateActionItem.Available);
         }
 
-        private static TestContext CreateContext()
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldPromptWithoutDeadNotification_WhenAutomaticUpdateIsAvailable()
+        {
+            int confirmCount = 0;
+            using TestContext context = CreateContext(confirmUpdate: (_, _) =>
+            {
+                confirmCount++;
+                return false;
+            });
+            context.Updater.CheckResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.UpdateAvailable,
+                "Mise à jour disponible : 1.2.3",
+                CreateUpdate("1.2.3"));
+
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+
+            Assert.Equal(1, confirmCount);
+            Assert.Equal(0, context.Notifications.InfoCount);
+            Assert.Equal(0, context.Updater.DownloadCallCount);
+            Assert.Equal(0, context.Updater.ApplyCallCount);
+        }
+
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldAskAgainAfterNewController_WhenUserDeferred()
+        {
+            int confirmCount = 0;
+            using TestContext firstContext = CreateContext(confirmUpdate: (_, _) =>
+            {
+                confirmCount++;
+                return false;
+            });
+            firstContext.Updater.CheckResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.UpdateAvailable,
+                "Mise à jour disponible : 1.2.3",
+                CreateUpdate("1.2.3"));
+
+            await firstContext.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+
+            using TestContext secondContext = CreateContext(confirmUpdate: (_, _) =>
+            {
+                confirmCount++;
+                return false;
+            });
+            secondContext.Updater.CheckResult = firstContext.Updater.CheckResult;
+
+            await secondContext.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+
+            Assert.Equal(2, confirmCount);
+        }
+
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldDownloadThenPrompt_WhenAutomaticDownloadIsEnabled()
+        {
+            using TestContext context = CreateContext(confirmUpdate: (_, _) => false);
+            context.SettingsService.Current.AutoDownloadUpdates = true;
+            context.SettingsService.Save(context.SettingsService.Current);
+            context.Updater.CheckResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.UpdateAvailable,
+                "Mise à jour disponible : 1.2.3",
+                CreateUpdate("1.2.3"));
+            context.Updater.DownloadResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.Downloaded,
+                "Mise à jour téléchargée : 1.2.3",
+                CreateUpdate("1.2.3"));
+
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+
+            Assert.Equal(1, context.Updater.DownloadCallCount);
+            Assert.Equal(0, context.Updater.ApplyCallCount);
+        }
+
+        [Fact]
+        public async Task CheckForUpdatesAsync_ShouldDownloadApplyAndRestart_WhenAutomaticPromptIsAccepted()
+        {
+            using TestContext context = CreateContext(confirmUpdate: (_, _) => true);
+            context.Updater.CheckResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.UpdateAvailable,
+                "Mise à jour disponible : 1.2.3",
+                CreateUpdate("1.2.3"));
+            context.Updater.DownloadResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.Downloaded,
+                "Mise à jour téléchargée : 1.2.3",
+                CreateUpdate("1.2.3"));
+            context.Updater.ApplyResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.PendingRestart,
+                "Installation lancée.");
+
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
+
+            Assert.Equal(1, context.Updater.DownloadCallCount);
+            Assert.Equal(1, context.Updater.ApplyCallCount);
+            Assert.Equal(new[] { StartupLaunchOptions.TrayArgument }, context.Updater.LastRestartArgs);
+        }
+
+        private static TestContext CreateContext(Func<string, string, bool> confirmUpdate = null)
         {
             string settingsPath = Path.Combine(Path.GetTempPath(), "NVConso-tests", Guid.NewGuid().ToString("N"), "settings.json");
             var settingsService = new AppSettingsService(new AppSettingsStore(settingsPath));
@@ -153,25 +247,21 @@ namespace NVConso.Tests
             var updater = new FakeAppUpdater();
             var workflow = new AppUpdateWorkflow(updater);
             var notifications = new FakeTrayNotificationService();
-            var menu = new ContextMenuStrip();
-            var updateStatusItem = new ToolStripMenuItem();
-            var updateActionItem = new ToolStripMenuItem();
-            menu.Items.Add(updateStatusItem);
-            menu.Items.Add(updateActionItem);
+            var updateStatusItem = new TrayMenuActionItem(string.Empty);
+            var updateActionItem = new TrayMenuActionItem(string.Empty);
             var controller = new TrayUpdateController(
                 settingsService,
                 workflow,
                 notifications,
                 updateStatusItem,
                 updateActionItem,
-                confirmUpdate: (_, _) => true);
+                confirmUpdate: confirmUpdate ?? ((_, _) => true));
 
             return new TestContext(
                 settingsPath,
                 settingsService,
                 updater,
                 notifications,
-                menu,
                 updateStatusItem,
                 updateActionItem,
                 controller);
@@ -195,16 +285,14 @@ namespace NVConso.Tests
                 AppSettingsService settingsService,
                 FakeAppUpdater updater,
                 FakeTrayNotificationService notifications,
-                ContextMenuStrip menu,
-                ToolStripMenuItem updateStatusItem,
-                ToolStripMenuItem updateActionItem,
+                TrayMenuActionItem updateStatusItem,
+                TrayMenuActionItem updateActionItem,
                 TrayUpdateController controller)
             {
                 _settingsPath = settingsPath;
                 SettingsService = settingsService;
                 Updater = updater;
                 Notifications = notifications;
-                Menu = menu;
                 UpdateStatusItem = updateStatusItem;
                 UpdateActionItem = updateActionItem;
                 Controller = controller;
@@ -213,15 +301,13 @@ namespace NVConso.Tests
             public AppSettingsService SettingsService { get; }
             public FakeAppUpdater Updater { get; }
             public FakeTrayNotificationService Notifications { get; }
-            public ContextMenuStrip Menu { get; }
-            public ToolStripMenuItem UpdateStatusItem { get; }
-            public ToolStripMenuItem UpdateActionItem { get; }
+            public TrayMenuActionItem UpdateStatusItem { get; }
+            public TrayMenuActionItem UpdateActionItem { get; }
             public TrayUpdateController Controller { get; }
 
             public void Dispose()
             {
                 Controller.Dispose();
-                Menu.Dispose();
                 string directory = Path.GetDirectoryName(_settingsPath);
                 if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
                     Directory.Delete(directory, recursive: true);
@@ -231,6 +317,8 @@ namespace NVConso.Tests
         private sealed class FakeTrayNotificationService : ITrayNotificationService
         {
             public string LastStatus { get; private set; }
+            public int InfoCount { get; private set; }
+            public int WarningCount { get; private set; }
 
             public void SetStatus(string message)
             {
@@ -239,10 +327,12 @@ namespace NVConso.Tests
 
             public void ShowInfo(string title, string message, int timeoutMilliseconds = 1000)
             {
+                InfoCount++;
             }
 
             public void ShowWarning(string title, string message, int timeoutMilliseconds = 1500)
             {
+                WarningCount++;
             }
         }
 
@@ -267,6 +357,8 @@ namespace NVConso.Tests
             public string LastApplyChannel { get; private set; }
             public bool LastApplyIncludePrerelease { get; private set; }
             public string[] LastRestartArgs { get; private set; }
+            public int DownloadCallCount { get; private set; }
+            public int ApplyCallCount { get; private set; }
 
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(
                 string channel,
@@ -284,6 +376,7 @@ namespace NVConso.Tests
                 IProgress<int> progress = null,
                 CancellationToken cancellationToken = default)
             {
+                DownloadCallCount++;
                 LastDownloadChannel = channel;
                 LastDownloadIncludePrerelease = includePrerelease;
                 progress?.Report(100);
@@ -295,6 +388,7 @@ namespace NVConso.Tests
                 bool includePrerelease,
                 string[] restartArgs = null)
             {
+                ApplyCallCount++;
                 LastApplyChannel = channel;
                 LastApplyIncludePrerelease = includePrerelease;
                 LastRestartArgs = restartArgs?.ToArray();

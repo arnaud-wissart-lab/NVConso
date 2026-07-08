@@ -3,7 +3,7 @@ namespace NVConso.ViewModels
     public sealed class UpdateStatusViewModel : ObservableObject
     {
         private UpdateUiStatus _status = UpdateUiStatus.Unknown;
-        private string _message = "Mise à jour : non vérifiée";
+        private string _message = "Non vérifiée";
         private string _detail = string.Empty;
         private string _currentVersion = ProductNames.ShortDisplayVersion;
         private string _fullCurrentVersion = ProductNames.DisplayVersion;
@@ -175,10 +175,7 @@ namespace NVConso.ViewModels
 
         private static string FormatLastChecked(DateTimeOffset? lastCheckedAt)
         {
-            if (!lastCheckedAt.HasValue)
-                return "Dernière vérification : jamais";
-
-            return $"Dernière vérification : {lastCheckedAt.Value.ToLocalTime():dd/MM/yyyy HH:mm}";
+            return UpdateLabels.FormatLastChecked(lastCheckedAt);
         }
     }
 }

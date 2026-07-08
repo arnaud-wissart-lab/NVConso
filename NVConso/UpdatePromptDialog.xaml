@@ -1,0 +1,51 @@
+<Window x:Class="NVConso.UpdatePromptDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mise à jour WattPilot"
+        Width="420"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/WattPilot;component/Themes/LightTheme.xaml" />
+                <ResourceDictionary Source="/WattPilot;component/Themes/CommonStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Style="{StaticResource Card}" Margin="16">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Une nouvelle version de WattPilot est disponible."
+                       Style="{StaticResource SectionTitleText}"
+                       Margin="0,0,0,8" />
+            <TextBlock Grid.Row="1"
+                       Text="Installer maintenant ?"
+                       Style="{StaticResource MutedText}"
+                       Margin="0,0,0,18" />
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="Plus tard"
+                        Click="Later_Click"
+                        Style="{StaticResource ButtonSecondary}"
+                        MinWidth="96"
+                        Margin="0,0,8,0" />
+                <Button Content="Installer maintenant"
+                        Click="Install_Click"
+                        Style="{StaticResource ButtonPrimary}"
+                        MinWidth="150" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
