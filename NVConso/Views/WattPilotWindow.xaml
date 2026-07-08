@@ -384,20 +384,17 @@
                         <TextBlock Text="{Binding StatusMessage}"
                                    Style="{StaticResource MutedText}"
                                    Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding SaveStatusMessage}"
+                                   Style="{StaticResource PreferenceInfoLine}" />
                         <Border Style="{StaticResource StatusBadge}"
-                                Margin="0,6,0,0"
-                                Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Modifications non enregistrées"
+                                 Margin="0,6,0,0"
+                                 Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Enregistrement automatique en attente"
                                        Foreground="{DynamicResource AccentBrush}"
                                        FontWeight="SemiBold" />
                         </Border>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Enregistrer"
-                                Tag="&#xE73E;"
-                                Command="{Binding SaveCommand}"
-                                Style="{StaticResource ButtonPrimary}"
-                                Margin="0,0,8,0" />
                         <Button Content="Retour"
                                 Tag="&#xE72B;"
                                 Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}"
@@ -425,40 +422,6 @@
                             HorizontalAlignment="Center" />
 
                     <Grid Grid.Column="2">
-                        <StackPanel Visibility="{Binding IsGeneralSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Border Style="{StaticResource PanelSectionBorder}">
-                                <StackPanel>
-                                    <TextBlock Text="Général" Style="{StaticResource SectionTitleText}" />
-                                    <TextBlock Text="Personnalisez l'apparence et le comportement général de WattPilot."
-                                               Style="{StaticResource PreferenceSectionHelp}" />
-                                    <TextBlock Text="Thème" Style="{StaticResource PreferenceFieldLabel}" Margin="0,0,0,3" />
-                                    <controls:ThemeOptionControl ItemsSource="{Binding ThemeOptions}"
-                                                                 SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
-                                    <CheckBox Content="Afficher au démarrage" IsChecked="{Binding ShowDashboardOnStartup}" Margin="0,12,0,0" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <StackPanel Visibility="{Binding IsProfilesSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Border Style="{StaticResource PanelSectionBorder}">
-                                <StackPanel>
-                                    <TextBlock Text="Modes GPU" Style="{StaticResource SectionTitleText}" />
-                                    <TextBlock Text="Choisissez comment WattPilot limite la carte graphique selon votre usage."
-                                               Style="{StaticResource PreferenceSectionHelp}" />
-                                    <CheckBox Content="Appliquer le profil sauvegardé" IsChecked="{Binding AutoApplySavedMode}" />
-                                    <TextBlock Text="Mode au démarrage" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <ComboBox ItemsSource="{Binding StartupProfileOptions}" SelectedItem="{Binding SelectedStartupProfile}" DisplayMemberPath="Label" />
-                                    <TextBlock Text="Limite personnalisée" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding CustomPowerLimitWatts, Mode=TwoWay}"
-                                                         Minimum="0"
-                                                         Maximum="2000"
-                                                         Unit="W"
-                                                         RecommendationText="{Binding GpuRange}"
-                                                         IsEnabled="{Binding IsCustomPowerLimitEnabled}" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
                         <StackPanel Visibility="{Binding IsHeatMonitoringSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>

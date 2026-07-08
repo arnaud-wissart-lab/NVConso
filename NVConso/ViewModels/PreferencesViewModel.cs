@@ -5,7 +5,7 @@ using System.Windows.Input;
 
 namespace NVConso.ViewModels
 {
-    public sealed class PreferencesViewModel : ObservableObject
+    public sealed class PreferencesViewModel : ObservableObject, IDisposable
     {
         private readonly AppSettingsService _settingsService;
         private readonly WindowsStartupController _startupController;
@@ -14,8 +14,11 @@ namespace NVConso.ViewModels
         private readonly IGpuTelemetryService _telemetryService;
         private readonly ITelemetryRecorder _telemetryRecorder;
         private readonly IPrivilegeService _privilegeService;
+        private readonly TimeSpan _autoSaveDelay = TimeSpan.FromMilliseconds(400);
+        private CancellationTokenSource _autoSaveCancellation;
         private bool _syncingTheme;
         private bool _loadingSettings;
+        private bool _savingSettings;
         private bool _hasUnsavedChanges;
         private bool _showDashboardOnStartup;
         private bool _autoApplySavedMode;
@@ -37,6 +40,7 @@ namespace NVConso.ViewModels
         private int _peakPowerThresholdWatts = 100;
         private int _peakTemperatureThresholdCelsius = 70;
         private string _statusMessage = "Préférences prêtes.";
+        private string _saveStatusMessage = "Enregistré";
         private string _startupStatus = "--";
         private string _gpuRange = "--";
         private string _telemetryPath = "--";
@@ -71,12 +75,6 @@ namespace NVConso.ViewModels
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
             _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
 
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System, "\uE977", "Utiliser le thème système"));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light, "\uE706", "Forcer le thème clair"));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark, "\uE708", "Forcer le thème sombre"));
-
-            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Général", PreferenceSection.General));
-            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Modes GPU", PreferenceSection.Profiles));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Surveillance chaleur", PreferenceSection.HeatMonitoring));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Historique", PreferenceSection.History));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Mise à jour", PreferenceSection.Update));
@@ -96,7 +94,6 @@ namespace NVConso.ViewModels
                 StartupProfileOptions.Add(new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(mode), mode));
             }
 
-            SaveCommand = new AsyncRelayCommand(() => SaveAsync(closeAfterSave: false));
             CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesNowAsync);
             PrimaryUpdateCommand = new AsyncRelayCommand(RunPrimaryUpdateActionAsync);
             OpenGitHubReleasesCommand = new RelayCommand(OpenGitHubReleases);
@@ -113,11 +110,9 @@ namespace NVConso.ViewModels
             RefreshUpdateStatus();
         }
 
-        public ObservableCollection<SelectionOption<UiTheme>> ThemeOptions { get; } = [];
         public ObservableCollection<SelectionOption<GpuPowerMode>> StartupProfileOptions { get; } = [];
         public ObservableCollection<SelectionOption<PreferenceSection>> PreferenceSections { get; } = [];
         public UpdateStatusViewModel UpdateStatus { get; } = new();
-        public AsyncRelayCommand SaveCommand { get; }
         public AsyncRelayCommand CheckForUpdatesCommand { get; }
         public AsyncRelayCommand PrimaryUpdateCommand { get; }
         public ICommand OpenGitHubReleasesCommand { get; }
@@ -291,8 +286,6 @@ namespace NVConso.ViewModels
                 if (!SetProperty(ref _selectedPreferenceSection, value))
                     return;
 
-                OnPropertyChanged(nameof(IsGeneralSectionSelected));
-                OnPropertyChanged(nameof(IsProfilesSectionSelected));
                 OnPropertyChanged(nameof(IsHeatMonitoringSectionSelected));
                 OnPropertyChanged(nameof(IsHistorySectionSelected));
                 OnPropertyChanged(nameof(IsUpdateSectionSelected));
@@ -300,8 +293,6 @@ namespace NVConso.ViewModels
             }
         }
 
-        public bool IsGeneralSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.General;
-        public bool IsProfilesSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Profiles;
         public bool IsHeatMonitoringSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.HeatMonitoring;
         public bool IsHistorySectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.History;
         public bool IsUpdateSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Update;
@@ -321,6 +312,12 @@ namespace NVConso.ViewModels
         {
             get => _statusMessage;
             private set => SetProperty(ref _statusMessage, value);
+        }
+
+        public string SaveStatusMessage
+        {
+            get => _saveStatusMessage;
+            private set => SetProperty(ref _saveStatusMessage, value);
         }
 
         public string StartupStatus
@@ -357,7 +354,7 @@ namespace NVConso.ViewModels
             try
             {
                 ShowDashboardOnStartup = settings.ShowDashboardOnStartup;
-                SelectedTheme = ThemeOptions.FirstOrDefault(option => option.Value == settings.DashboardTheme) ?? ThemeOptions[0];
+                SelectedTheme = new SelectionOption<UiTheme>("Système", UiTheme.System);
                 AutoApplySavedMode = settings.AutoApplySavedMode;
                 SelectedStartupProfile = StartupProfileOptions.FirstOrDefault(option => option.Value == settings.LastSelectedMode)
                     ?? StartupProfileOptions.First(option => option.Value == GpuPowerMode.Stock);
@@ -387,37 +384,53 @@ namespace NVConso.ViewModels
                 _loadingSettings = false;
             }
 
-            UpdateResolvedTheme(settings.DashboardTheme);
+            UpdateResolvedTheme(UiTheme.System);
             RefreshUpdateStatus();
             HasUnsavedChanges = false;
+            SaveStatusMessage = "Enregistré";
         }
 
         public async Task<bool> SaveAsync(bool closeAfterSave)
         {
+            if (_savingSettings)
+                return false;
+
+            _savingSettings = true;
+            SaveStatusMessage = "Enregistrement...";
             AppSettings settings = BuildSettings();
-
-            StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
-            if (!startupResult.Success)
+            try
             {
-                StatusMessage = startupResult.Message;
-                RefreshStartupStatus(startupResult.Status);
-                return false;
-            }
+                StartupOperationResult startupResult = _startupController.ApplyPreference(settings);
+                if (!startupResult.Success)
+                {
+                    StatusMessage = startupResult.Message;
+                    SaveStatusMessage = "Enregistrement impossible";
+                    RefreshStartupStatus(startupResult.Status);
+                    return false;
+                }
 
-            if (!_settingsService.TrySave(settings, out string message))
+                if (!_settingsService.TrySave(settings, out string message))
+                {
+                    StatusMessage = message;
+                    SaveStatusMessage = "Enregistrement impossible";
+                    return false;
+                }
+
+                _telemetryService?.SetHistoryCapacitySeconds(settings.TelemetryHistorySeconds);
+                _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(settings));
+                RefreshStartupStatus();
+                RefreshUpdateStatus();
+                StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
+                HasUnsavedChanges = false;
+                SaveStatusMessage = "Enregistré automatiquement";
+                CancelPendingAutoSave();
+                await Task.CompletedTask.ConfigureAwait(true);
+                return true;
+            }
+            finally
             {
-                StatusMessage = message;
-                return false;
+                _savingSettings = false;
             }
-
-            _telemetryService?.SetHistoryCapacitySeconds(settings.TelemetryHistorySeconds);
-            _telemetryRecorder.ApplySettings(TelemetryLoggingSettings.FromAppSettings(settings));
-            RefreshStartupStatus();
-            RefreshUpdateStatus();
-            StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
-            HasUnsavedChanges = false;
-            await Task.CompletedTask.ConfigureAwait(true);
-            return true;
         }
 
         public async Task ExportTelemetrySessionAsync(string destinationZipPath)
@@ -787,10 +800,57 @@ namespace NVConso.ViewModels
 
         private void RefreshUnsavedChanges()
         {
-            if (_loadingSettings)
+            if (_loadingSettings || _savingSettings)
                 return;
 
             HasUnsavedChanges = !HasSameEditableSettings(BuildSettings(), _settingsService.Current);
+            if (!HasUnsavedChanges)
+            {
+                SaveStatusMessage = "Enregistré";
+                CancelPendingAutoSave();
+                return;
+            }
+
+            SaveStatusMessage = "Enregistrement automatique en attente";
+            ScheduleAutoSave();
+        }
+
+        private void ScheduleAutoSave()
+        {
+            CancelPendingAutoSave();
+            _autoSaveCancellation = new CancellationTokenSource();
+            _ = AutoSaveAfterDelayAsync(_autoSaveCancellation.Token);
+        }
+
+        private async Task AutoSaveAfterDelayAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(_autoSaveDelay, cancellationToken).ConfigureAwait(true);
+                if (cancellationToken.IsCancellationRequested || !HasUnsavedChanges)
+                    return;
+
+                await SaveAsync(closeAfterSave: false).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private void CancelPendingAutoSave()
+        {
+            CancellationTokenSource cancellation = _autoSaveCancellation;
+            if (cancellation is null)
+                return;
+
+            _autoSaveCancellation = null;
+            cancellation.Cancel();
+            cancellation.Dispose();
+        }
+
+        public void Dispose()
+        {
+            CancelPendingAutoSave();
         }
 
         private static bool HasSameEditableSettings(AppSettings left, AppSettings right)

@@ -54,7 +54,6 @@ namespace NVConso.Tests
             Assert.NotNull(dashboard.RefreshHistoryCommand);
             Assert.NotNull(dashboard.OpenTelemetryFolderCommand);
 
-            Assert.NotNull(preferences.SaveCommand);
             Assert.NotNull(preferences.CheckForUpdatesCommand);
             Assert.NotNull(preferences.PrimaryUpdateCommand);
             Assert.NotNull(preferences.OpenGitHubReleasesCommand);
@@ -75,8 +74,6 @@ namespace NVConso.Tests
 
             Assert.Equal(
                 [
-                    PreferenceSection.General,
-                    PreferenceSection.Profiles,
                     PreferenceSection.HeatMonitoring,
                     PreferenceSection.History,
                     PreferenceSection.Update,
@@ -85,7 +82,7 @@ namespace NVConso.Tests
                 preferences.PreferenceSections.Select(section => section.Value).ToArray());
 
             Assert.Equal(
-                ["Général", "Modes GPU", "Surveillance chaleur", "Historique", "Mise à jour", "Avancé"],
+                ["Surveillance chaleur", "Historique", "Mise à jour", "Avancé"],
                 preferences.PreferenceSections.Select(section => section.Label).ToArray());
         }
 
