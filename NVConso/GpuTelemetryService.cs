@@ -45,7 +45,7 @@ namespace NVConso
         {
             _nvmlReady = isReady;
             _statusMessage = string.IsNullOrWhiteSpace(statusMessage)
-                ? (isReady ? "NVML prêt." : "NVML indisponible.")
+                ? (isReady ? "GPU prêt." : "NVML indisponible.")
                 : statusMessage;
         }
 

@@ -271,7 +271,7 @@ namespace NVConso.Tests
             return new GpuTelemetrySnapshot(
                 timestampUtc,
                 isAvailable: true,
-                "NVML prêt.",
+                "GPU prêt.",
                 selectedGpuIndex: 0,
                 selectedGpuName: "Mock GPU",
                 minimumPowerLimitMilliwatt: 100000,

@@ -46,7 +46,7 @@ namespace NVConso
             }
 
             IsReady = true;
-            message = "NVML prêt.";
+            message = "GPU prêt.";
             _telemetryService.SetNvmlState(true, message);
             return true;
         }

@@ -8,7 +8,10 @@ $repositoryRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $manifestPath = Join-Path $repositoryRoot "NVConso/app.manifest"
 $programPath = Join-Path $repositoryRoot "NVConso/Program.cs"
 $sourceRoot = Join-Path $repositoryRoot "NVConso"
+$viewsRoot = Join-Path $sourceRoot "Views"
+$releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
 $allowedRunasFile = Join-Path $sourceRoot "WindowsPrivilegeService.cs"
+$allowedMainWindow = "NVConso.Views.WattPilotWindow"
 
 Push-Location $repositoryRoot
 try {
@@ -80,6 +83,46 @@ try {
     } else {
         $runasMatches | ForEach-Object { Write-Host $_ }
     }
+
+    Write-Host "Recherche des fenêtres WPF principales"
+    $windowDeclarations = @(
+        Get-ChildItem -Path $viewsRoot -Filter "*.xaml" -Recurse |
+            Where-Object {
+                $_.FullName -notmatch "\\bin\\" -and
+                $_.FullName -notmatch "\\obj\\"
+            } |
+            Select-String -Pattern '^\s*<Window\s+x:Class="([^"]+)"'
+    )
+
+    $unexpectedWindows = @(
+        $windowDeclarations |
+            Where-Object { $_.Matches[0].Groups[1].Value -ne $allowedMainWindow }
+    )
+
+    if ($windowDeclarations.Count -ne 1 -or $unexpectedWindows.Count -gt 0) {
+        $windowDeclarations | ForEach-Object { Write-Host $_ }
+        throw "WattPilot doit conserver une seule fenêtre principale WPF : $allowedMainWindow."
+    }
+
+    $windowDeclarations | ForEach-Object { Write-Host $_ }
+
+    Write-Host "Recherche de TabControl dans la fenêtre principale"
+    $tabControlMatches = @(Select-String -Path (Join-Path $viewsRoot "WattPilotWindow.xaml") -Pattern '<\s*Tab(Control|Item)\b')
+    if ($tabControlMatches.Count -gt 0) {
+        $tabControlMatches | ForEach-Object { Write-Host $_ }
+        throw "Le panneau Paramètres intégré ne doit pas réintroduire de TabControl."
+    }
+
+    Write-Host "Aucun résultat."
+
+    Write-Host "Recherche d'assets publics principaux NVConso dans le workflow de release"
+    $legacyAssetMatches = @(Select-String -Path $releaseWorkflowPath -Pattern '^\s*(SETUP_EXE_NAME|PORTABLE_ZIP_NAME|MAIN_EXE_NAME|VELOPACK_PACK_ID):\s*NVConso\b|NVConso-(Setup|win-x64)')
+    if ($legacyAssetMatches.Count -gt 0) {
+        $legacyAssetMatches | ForEach-Object { Write-Host $_ }
+        throw "Les assets publics principaux ne doivent pas reprendre le nom NVConso."
+    }
+
+    Write-Host "Aucun résultat."
 }
 finally {
     Pop-Location

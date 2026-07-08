@@ -20,7 +20,7 @@ namespace NVConso.Tests
             GpuTelemetrySnapshot received = null;
             service.SnapshotUpdated += (_, snapshot) => received = snapshot;
 
-            service.SetNvmlState(true, "NVML prêt.");
+            service.SetNvmlState(true, "GPU prêt.");
             service.RefreshNow();
 
             Assert.NotNull(received);
@@ -56,7 +56,7 @@ namespace NVConso.Tests
             };
             var service = new GpuTelemetryService(nvml);
 
-            service.SetNvmlState(true, "NVML prêt.");
+            service.SetNvmlState(true, "GPU prêt.");
             service.RefreshNow();
 
             GpuTelemetrySnapshot snapshot = service.CurrentSnapshot;

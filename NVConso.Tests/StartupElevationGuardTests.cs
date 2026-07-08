@@ -48,6 +48,44 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void WattPilot_ShouldKeepSingleIntegratedMainWindow()
+        {
+            string repositoryRoot = FindRepositoryRoot();
+            string viewsRoot = Path.Combine(repositoryRoot, "NVConso", "Views");
+            string[] windowDeclarations = Directory
+                .EnumerateFiles(viewsRoot, "*.xaml", SearchOption.AllDirectories)
+                .Select(path => Regex.Match(File.ReadAllText(path), "<Window\\s+x:Class=\"(?<class>[^\"]+)\""))
+                .Where(match => match.Success)
+                .Select(match => match.Groups["class"].Value)
+                .ToArray();
+            string windowXaml = File.ReadAllText(Path.Combine(viewsRoot, "WattPilotWindow.xaml"));
+
+            string windowClass = Assert.Single(windowDeclarations);
+            Assert.Equal("NVConso.Views.WattPilotWindow", windowClass);
+            Assert.Contains("x:Name=\"PreferencesPanel\"", windowXaml);
+            Assert.DoesNotContain("<TabControl", windowXaml, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("<TabItem", windowXaml, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("PreferencesWindow", windowXaml, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void ReleaseWorkflow_ShouldRejectLegacyPublicAssetNames()
+        {
+            string workflow = File.ReadAllText(Path.Combine(FindRepositoryRoot(), ".github", "workflows", "release.yml"));
+
+            Assert.Contains("PRODUCT_DISPLAY_NAME: WattPilot", workflow);
+            Assert.Contains("VELOPACK_PACK_ID: WattPilot", workflow);
+            Assert.Contains("SETUP_EXE_NAME: WattPilot-Setup.exe", workflow);
+            Assert.Contains("PORTABLE_ZIP_NAME: WattPilot-win-x64.zip", workflow);
+            Assert.DoesNotContain("SETUP_EXE_NAME: NVConso", workflow, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("PORTABLE_ZIP_NAME: NVConso", workflow, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("MAIN_EXE_NAME: NVConso.exe", workflow, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("VELOPACK_PACK_ID: NVConso", workflow, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("NVConso-win-x64.zip", workflow, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("NVConso-Setup", workflow, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
         public void ElevationPrompt_ShouldUseRequiredGpuMessageAndActions()
         {
             Assert.Equal(

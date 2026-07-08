@@ -115,13 +115,4 @@
         <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
     </Style>
 
-    <Style TargetType="{x:Type TabControl}">
-        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-    </Style>
-
-    <Style TargetType="{x:Type TabItem}">
-        <Setter Property="Padding" Value="12,8" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-    </Style>
 </ResourceDictionary>
