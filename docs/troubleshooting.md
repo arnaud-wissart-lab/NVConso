@@ -19,6 +19,8 @@ Vérifications :
 
 WattPilot démarre sans droits administrateur. L'UAC est demandé seulement pour modifier la limite de puissance GPU ou gérer la tâche planifiée de démarrage.
 
+La tâche de démarrage Windows doit lancer WattPilot en droits utilisateur standard. Si l'UAC apparaît au lancement, supprimer ou réparer la tâche depuis `Paramètres > Avancé`.
+
 Si une action échoue :
 
 - relancer l'action et accepter l'UAC ;
