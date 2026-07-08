@@ -290,6 +290,41 @@ namespace NVConso.Tests
             Assert.Equal(55, model.CaniculePowerThresholdWatts);
         }
 
+        [Theory]
+        [InlineData(UiTheme.System, "Système", "Utiliser le thème système")]
+        [InlineData(UiTheme.Light, "Clair", "Forcer le thème clair")]
+        [InlineData(UiTheme.Dark, "Sombre", "Forcer le thème sombre")]
+        public void PreferencesViewModel_ShouldExposeSegmentedThemeOptions(UiTheme theme, string expectedLabel, string expectedToolTip)
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            SelectionOption<UiTheme> option = model.ThemeOptions.First(option => option.Value == theme);
+            model.SelectedTheme = option;
+
+            Assert.Equal(theme, model.SelectedTheme.Value);
+            Assert.Equal(expectedLabel, option.Label);
+            Assert.Equal(expectedToolTip, option.ToolTip);
+            Assert.False(string.IsNullOrWhiteSpace(option.IconGlyph));
+        }
+
+        [Fact]
+        public void PreferencesViewModel_ShouldRaiseThemeChanged_WhenThemeSelectionChanges()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            AppSettings settings = context.SettingsService.CreateEditableCopy();
+            settings.DashboardTheme = UiTheme.Light;
+            Assert.True(context.SettingsService.TrySave(settings, out _));
+            var model = context.CreatePreferencesViewModel();
+            UiTheme changedTheme = UiTheme.System;
+
+            model.ThemeChanged += (_, theme) => changedTheme = theme;
+            model.SelectedTheme = model.ThemeOptions.First(option => option.Value == UiTheme.Dark);
+
+            Assert.Equal(UiTheme.Dark, model.SelectedTheme.Value);
+            Assert.Equal(UiTheme.Dark, changedTheme);
+        }
+
         [Fact]
         public async Task PreferencesViewModel_ShouldRejectInvalidNumericSettings()
         {
@@ -345,7 +380,9 @@ namespace NVConso.Tests
             Assert.Contains("NavigateSettingsCommand", xaml);
             Assert.Contains("Modifications non enregistrées", xaml);
             Assert.Contains("PreferenceSections", xaml);
+            Assert.Contains("<controls:ThemeOptionControl", xaml);
             Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", xaml);
+            Assert.DoesNotContain("ItemsSource=\"{Binding ThemeOptions}\" SelectedItem=\"{Binding SelectedTheme}\" DisplayMemberPath=\"Label\"", xaml);
             Assert.DoesNotContain("Width=\"680\"", xaml);
             Assert.DoesNotContain("HorizontalAlignment=\"Right\"", xaml);
             Assert.DoesNotContain("IsSettingsPanelOpen", xaml);

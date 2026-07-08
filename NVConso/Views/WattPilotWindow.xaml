@@ -459,7 +459,8 @@
                                 <StackPanel>
                                     <TextBlock Text="Général" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="Thème" Style="{StaticResource PreferenceFieldLabel}" Margin="0,0,0,3" />
-                                    <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" DisplayMemberPath="Label" />
+                                    <controls:ThemeOptionControl ItemsSource="{Binding ThemeOptions}"
+                                                                 SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
                                     <CheckBox Content="Afficher au démarrage" IsChecked="{Binding ShowDashboardOnStartup}" Margin="0,12,0,0" />
                                 </StackPanel>
                             </Border>

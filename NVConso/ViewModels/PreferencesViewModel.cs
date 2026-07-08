@@ -62,9 +62,9 @@ namespace NVConso.ViewModels
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
             _privilegeService = privilegeService ?? StaticPrivilegeService.Elevated;
 
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light));
-            ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark));
+            ThemeOptions.Add(new SelectionOption<UiTheme>("Système", UiTheme.System, "\uE977", "Utiliser le thème système"));
+            ThemeOptions.Add(new SelectionOption<UiTheme>("Clair", UiTheme.Light, "\uE706", "Forcer le thème clair"));
+            ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark, "\uE708", "Forcer le thème sombre"));
 
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Général", PreferenceSection.General));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Profils", PreferenceSection.Profiles));
