@@ -29,6 +29,21 @@ dotnet test Tools.sln --configuration Release
 dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained true
 ```
 
+## Checklist release manuelle
+
+Avant de pousser le tag final, vérifier la candidate installée depuis l'artefact prévu pour publication :
+
+- [ ] Installer WattPilot via `Setup.exe`.
+- [ ] Lancer l'application depuis l'installation.
+- [ ] Vérifier qu'aucune demande UAC n'apparaît au lancement.
+- [ ] Changer de profil GPU.
+- [ ] Vérifier que l'UAC apparaît seulement si une action privilégiée est nécessaire.
+- [ ] Ouvrir les paramètres.
+- [ ] Sauvegarder les paramètres.
+- [ ] Vérifier le thème clair et le thème sombre.
+- [ ] Vérifier le statut de mise à jour dans le dashboard ou les paramètres.
+- [ ] Exécuter la checklist UI : [ui-checklist.md](./ui-checklist.md).
+
 ## Déclencher une release
 
 ```powershell

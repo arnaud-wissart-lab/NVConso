@@ -1,0 +1,44 @@
+# Checklist UI WattPilot
+
+Cette checklist sert de blocage manuel avant toute release lorsque l'interface a changé, ou lorsqu'une release est destinée à corriger un risque d'interface cassée.
+
+## Environnement
+
+- [ ] Installer ou lancer la build candidate correspondant exactement au commit publié.
+- [ ] Vérifier que l'application est lancée en utilisateur standard.
+- [ ] Préparer au moins une machine Windows avec un GPU NVIDIA lorsque les profils GPU doivent être validés réellement.
+
+## Résolutions
+
+- [ ] 1280x720 : aucun texte tronqué de manière gênante, aucun chevauchement, boutons utilisables.
+- [ ] 1600x900 : disposition équilibrée, cartes lisibles, navigation claire.
+- [ ] 2560x1440 : l'interface reste dense et lisible, sans étirement excessif.
+- [ ] Fenêtre réduite : la fenêtre respecte sa taille minimale, le défilement reste utilisable.
+- [ ] Plein écran : les sections restent lisibles et aucune zone ne semble cassée.
+
+## DPI
+
+- [ ] DPI 100 % : textes, icônes et espacements corrects.
+- [ ] DPI 125 % : aucun bouton, label ou champ ne déborde.
+- [ ] DPI 150 % : l'interface reste exploitable avec défilement si nécessaire.
+
+## Thèmes
+
+- [ ] Thème clair : contrastes suffisants, états actifs visibles, graphiques lisibles.
+- [ ] Thème sombre : contrastes suffisants, états actifs visibles, graphiques lisibles.
+- [ ] Changement de thème depuis les paramètres : l'application applique le thème sans redémarrage et sans artefact visuel.
+
+## États fonctionnels
+
+- [ ] Paramètres ouverts : navigation latérale visible, sections cohérentes, boutons accessibles.
+- [ ] Historique ouvert : filtres visibles, états vide/chargé lisibles, export accessible.
+- [ ] Détails techniques repliés : l'accueil reste centré sur les informations essentielles.
+- [ ] Détails techniques dépliés : les métriques secondaires restent lisibles et ne masquent pas les actions principales.
+- [ ] Menu tray : entrée d'ouverture WattPilot, modes GPU, statut de mise à jour et action quitter visibles.
+
+## Validation de sortie
+
+- [ ] Aucune erreur visuelle bloquante n'est observée.
+- [ ] Les libellés restent compréhensibles pour un utilisateur non technique.
+- [ ] Les détails techniques restent accessibles sans dominer l'expérience principale.
+- [ ] Toute anomalie restante est documentée avec capture, résolution/DPI/thème et décision de release.
