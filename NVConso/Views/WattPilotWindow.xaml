@@ -21,6 +21,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <controls:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter" />
         </ResourceDictionary>
     </Window.Resources>
 
@@ -175,7 +176,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="Historique" Style="{StaticResource WindowTitleText}" />
-                        <TextBlock Text="Analyse des journaux GPU persistants"
+                        <TextBlock Text="Consommation GPU enregistrée localement."
                                    Style="{StaticResource MutedText}"
                                    Margin="0,4,0,0" />
                     </StackPanel>
@@ -194,7 +195,7 @@
                     </WrapPanel>
                 </Grid>
 
-                <Border Grid.Row="1" Style="{StaticResource Card}">
+                <Grid Grid.Row="1">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -203,59 +204,85 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Grid>
+                        <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Historique" Style="{StaticResource SectionTitleText}" />
-                            <WrapPanel Grid.Column="1">
-                                <Button Content="Exporter CSV"
+                            <StackPanel>
+                                <TextBlock Text="Mesures" Style="{StaticResource SectionTitleText}" />
+                                <TextBlock Text="{Binding HistoryStatus}"
+                                           Style="{StaticResource MutedText}" />
+                            </StackPanel>
+                            <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                                <Button Content=""
                                         Tag="&#xEDE1;"
                                         Click="ExportHistory_Click"
-                                        Style="{StaticResource IconTextButton}"
-                                        ToolTip="Exporter l'historique filtré au format CSV"
-                                        Margin="0,0,8,0" />
-                                <Button Content="Copier résumé"
+                                        Style="{StaticResource IconButton}"
+                                        ToolTip="Exporter CSV"
+                                        AutomationProperties.Name="Exporter CSV"
+                                        Margin="0,0,6,0" />
+                                <Button Content=""
                                         Tag="&#xE8C8;"
                                         Click="CopyHistorySummary_Click"
-                                        Style="{StaticResource IconTextButton}"
-                                        ToolTip="Copier le résumé de diagnostic" />
+                                        Style="{StaticResource IconButton}"
+                                        ToolTip="Copier le résumé"
+                                        AutomationProperties.Name="Copier le résumé"
+                                        Margin="0,0,6,0" />
+                                <Button Content=""
+                                        Tag="&#xE72C;"
+                                        Command="{Binding RefreshHistoryCommand}"
+                                        Style="{StaticResource IconButton}"
+                                        ToolTip="Actualiser"
+                                        AutomationProperties.Name="Actualiser"
+                                        Margin="0,0,6,0" />
+                                <Button Content=""
+                                        Tag="&#xE8B7;"
+                                        Command="{Binding OpenTelemetryFolderCommand}"
+                                        Style="{StaticResource IconButton}"
+                                        ToolTip="Ouvrir le dossier"
+                                        AutomationProperties.Name="Ouvrir le dossier" />
                             </WrapPanel>
                         </Grid>
 
-                        <WrapPanel Grid.Row="1" Margin="0,2,0,12">
-                            <StackPanel Width="140" Margin="0,0,10,8">
+                        <WrapPanel Grid.Row="1" Margin="0,0,0,12" VerticalAlignment="Top">
+                            <StackPanel Width="132" Margin="0,0,8,8">
                                 <TextBlock Text="Date" Style="{StaticResource MutedText}" />
-                                <DatePicker SelectedDate="{Binding HistoryDate}" />
+                                <DatePicker SelectedDate="{Binding HistoryDate}"
+                                            Height="30"
+                                            MinHeight="30"
+                                            Padding="6,2" />
                             </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
+                            <StackPanel Width="178" Margin="0,0,8,8">
                                 <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryGpus}" SelectedItem="{Binding SelectedHistoryGpu}" DisplayMemberPath="Label" />
+                                <ComboBox ItemsSource="{Binding HistoryGpus}"
+                                          SelectedItem="{Binding SelectedHistoryGpu}"
+                                          DisplayMemberPath="Label"
+                                          Height="30"
+                                          MinHeight="30"
+                                          Padding="6,2" />
                             </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
+                            <StackPanel Width="178" Margin="0,0,8,8">
                                 <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryProfiles}" SelectedItem="{Binding SelectedHistoryProfile}" DisplayMemberPath="Label" />
+                                <ComboBox ItemsSource="{Binding HistoryProfiles}"
+                                          SelectedItem="{Binding SelectedHistoryProfile}"
+                                          DisplayMemberPath="Label"
+                                          Height="30"
+                                          MinHeight="30"
+                                          Padding="6,2" />
                             </StackPanel>
-                            <StackPanel Width="190" Margin="0,0,10,8">
-                                <TextBlock Text="Métrique" Style="{StaticResource MutedText}" />
-                                <ComboBox ItemsSource="{Binding HistoryMetrics}" SelectedItem="{Binding SelectedHistoryMetric}" DisplayMemberPath="Label" />
+                            <StackPanel Width="178" Margin="0,0,8,8">
+                                <TextBlock Text="Mesure" Style="{StaticResource MutedText}" />
+                                <ComboBox ItemsSource="{Binding HistoryMetrics}"
+                                          SelectedItem="{Binding SelectedHistoryMetric}"
+                                          DisplayMemberPath="Label"
+                                          Height="30"
+                                          MinHeight="30"
+                                          Padding="6,2" />
                             </StackPanel>
-                            <Button Content="Actualiser"
-                                    Tag="&#xE72C;"
-                                    Command="{Binding RefreshHistoryCommand}"
-                                    Style="{StaticResource IconTextButton}"
-                                    ToolTip="Recharger l'historique"
-                                    Margin="0,18,8,8" />
-                            <Button Content="Ouvrir dossier"
-                                    Tag="&#xE8B7;"
-                                    Command="{Binding OpenTelemetryFolderCommand}"
-                                    Style="{StaticResource IconTextButton}"
-                                    ToolTip="Ouvrir le dossier local des données"
-                                    Margin="0,18,0,8" />
                         </WrapPanel>
 
-                        <Grid Grid.Row="2">
+                        <Grid Grid.Row="2" Margin="0,2,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -265,34 +292,73 @@
                                        Margin="0,0,0,8" />
                             <controls:TelemetrySparkline Grid.Row="1"
                                                          Chart="{Binding HistoryChart}"
-                                                         MinHeight="260" />
+                                                         MinHeight="220"
+                                                         MaxHeight="280" />
                         </Grid>
 
-                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="3" Margin="0,14,0,0">
                             <TextBlock Text="{Binding HistorySummary}" />
-                            <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,10" />
-                            <DataGrid ItemsSource="{Binding HistoryPeaks}"
-                                      AutoGenerateColumns="False"
-                                      HeadersVisibility="Column"
-                                      IsReadOnly="True"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      GridLinesVisibility="Horizontal"
-                                      MinHeight="150"
-                                      Background="{DynamicResource SurfaceBrush}"
-                                      Foreground="{DynamicResource PrimaryTextBrush}">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="90" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" />
-                                    <DataGridTextColumn Header="Diagnostic" Binding="{Binding DiagnosticBadge}" Width="155" />
-                                    <DataGridTextColumn Header="Valeur" Binding="{Binding Value}" Width="90" />
-                                    <DataGridTextColumn Header="Profil" Binding="{Binding Profile}" Width="120" />
-                                    <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <Grid Margin="0,8,0,0">
+                                <DataGrid ItemsSource="{Binding HistoryPeaks}"
+                                          AutoGenerateColumns="False"
+                                          HeadersVisibility="Column"
+                                          IsReadOnly="True"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          GridLinesVisibility="None"
+                                          AlternationCount="2"
+                                          RowHeight="34"
+                                          ColumnHeaderHeight="34"
+                                          MinHeight="156"
+                                          Background="{DynamicResource SurfaceBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource BorderBrush}"
+                                          BorderThickness="1"
+                                          RowBackground="{DynamicResource SurfaceBrush}"
+                                          AlternatingRowBackground="{DynamicResource SurfaceMutedBrush}">
+                                    <DataGrid.Resources>
+                                        <Style TargetType="{x:Type DataGridColumnHeader}">
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                            <Setter Property="Padding" Value="10,6" />
+                                            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                        </Style>
+                                        <Style TargetType="{x:Type DataGridCell}">
+                                            <Setter Property="Padding" Value="10,4" />
+                                            <Setter Property="BorderThickness" Value="0" />
+                                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                                        </Style>
+                                    </DataGrid.Resources>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="86" />
+                                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="145" />
+                                        <DataGridTextColumn Header="Diagnostic" Binding="{Binding DiagnosticBadge}" Width="145" />
+                                        <DataGridTextColumn Header="Valeur" Binding="{Binding Value}" Width="95">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="{x:Type TextBlock}">
+                                                    <Setter Property="TextAlignment" Value="Right" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Profil" Binding="{Binding Profile}" Width="118" />
+                                        <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <Border Background="{DynamicResource SurfaceBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding HistoryPeaks.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+                                    <TextBlock Text="Aucun pic enregistré pour cette période."
+                                               Style="{StaticResource MutedText}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Margin="16" />
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </Grid>
-                </Border>
+                </Grid>
             </Grid>
         </ScrollViewer>
 

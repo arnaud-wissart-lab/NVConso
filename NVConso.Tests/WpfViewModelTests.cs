@@ -485,6 +485,12 @@ namespace NVConso.Tests
             Assert.DoesNotContain("SelectedProfileAction", ExtractHomeSection(xaml));
             Assert.DoesNotContain("TechnicalMetrics", ExtractHomeSection(xaml));
             Assert.DoesNotContain("Header=\"Détails techniques\"", ExtractHomeSection(xaml));
+            Assert.Contains("Consommation GPU enregistrée localement.", ExtractHistorySection(xaml));
+            Assert.Contains("AutomationProperties.Name=\"Exporter CSV\"", ExtractHistorySection(xaml));
+            Assert.Contains("AutomationProperties.Name=\"Copier le résumé\"", ExtractHistorySection(xaml));
+            Assert.Contains("AutomationProperties.Name=\"Actualiser\"", ExtractHistorySection(xaml));
+            Assert.Contains("AutomationProperties.Name=\"Ouvrir le dossier\"", ExtractHistorySection(xaml));
+            Assert.Contains("Aucun pic enregistré pour cette période.", ExtractHistorySection(xaml));
             Assert.Contains("Détails techniques", ExtractUpdateSection(xaml));
             Assert.Contains("Vérifier maintenant", ExtractUpdateSection(xaml));
             Assert.Contains("PrimaryUpdateCommand", ExtractUpdateSection(xaml));
@@ -644,6 +650,15 @@ namespace NVConso.Tests
         {
             int start = xaml.IndexOf("IsHomePageVisible", StringComparison.Ordinal);
             int end = xaml.IndexOf("IsHistoryPageVisible", StringComparison.Ordinal);
+            return start >= 0 && end > start
+                ? xaml[start..end]
+                : xaml;
+        }
+
+        private static string ExtractHistorySection(string xaml)
+        {
+            int start = xaml.IndexOf("IsHistoryPageVisible", StringComparison.Ordinal);
+            int end = xaml.IndexOf("x:Name=\"SettingsPage\"", StringComparison.Ordinal);
             return start >= 0 && end > start
                 ? xaml[start..end]
                 : xaml;
