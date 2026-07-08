@@ -77,16 +77,40 @@ namespace NVConso
             System.Windows.Forms.Application.Run(new TrayAppContext(nvml, startupManager, appUpdater, telemetryService, telemetryRecorder, telemetryLogReader, caniculeGuard, themeService, settingsService, privilegeService, trayLogger, launchOptions));
         }
 
-        private static void EnsureWpfApplication()
+        internal static void EnsureWpfApplication()
         {
-            if (System.Windows.Application.Current is not null)
-                return;
-
-            _ = new System.Windows.Application
+            if (System.Windows.Application.ResourceAssembly is null)
+                System.Windows.Application.ResourceAssembly = typeof(Program).Assembly;
+            if (System.Windows.Application.Current is null)
             {
-                ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown
-            };
+                _ = new System.Windows.Application
+                {
+                    ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown
+                };
+            }
+
+            EnsureApplicationResources(System.Windows.Application.Current.Resources);
         }
 
+        private static void EnsureApplicationResources(System.Windows.ResourceDictionary resources)
+        {
+            AddMergedDictionaryIfMissing(resources, "/WattPilot;component/Themes/LightTheme.xaml");
+            AddMergedDictionaryIfMissing(resources, "/WattPilot;component/Themes/CommonStyles.xaml");
+            AddMergedDictionaryIfMissing(resources, "/WattPilot;component/Themes/WattPilotWindowStyles.xaml");
+        }
+
+        private static void AddMergedDictionaryIfMissing(System.Windows.ResourceDictionary resources, string source)
+        {
+            bool exists = resources.MergedDictionaries.Any(dictionary =>
+                string.Equals(dictionary.Source?.OriginalString, source, StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+                return;
+
+            resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+            {
+                Source = new Uri(source, UriKind.Relative)
+            });
+        }
     }
 }

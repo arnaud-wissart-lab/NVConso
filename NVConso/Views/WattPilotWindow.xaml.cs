@@ -157,6 +157,10 @@ namespace NVConso.Views
             {
                 Source = new Uri("/WattPilot;component/Themes/CommonStyles.xaml", UriKind.Relative)
             });
+            Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("/WattPilot;component/Themes/WattPilotWindowStyles.xaml", UriKind.Relative)
+            });
         }
 
         private void ApplySavedBounds()

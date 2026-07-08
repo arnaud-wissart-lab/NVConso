@@ -18,6 +18,28 @@ public sealed class WpfResourceDictionaryTests
         RunOnStaThread(() => AssertDesignSystemResourcesLoad("DarkTheme"));
     }
 
+    [Fact]
+    public void WattPilotWindowStyles_ShouldLoad()
+    {
+        RunOnStaThread(() =>
+        {
+            var resources = new ResourceDictionary();
+            resources.MergedDictionaries.Add(LoadResourceDictionary("Themes/LightTheme.xaml"));
+            resources.MergedDictionaries.Add(LoadResourceDictionary("Themes/CommonStyles.xaml"));
+            resources.MergedDictionaries.Add(LoadResourceDictionary("Themes/WattPilotWindowStyles.xaml"));
+
+            AssertStyle<TextBlock>(resources, "FactLabelText");
+            AssertStyle<TextBlock>(resources, "FactValueText");
+            AssertStyle<TextBlock>(resources, "CompactMetricValueText");
+            AssertStyle<Border>(resources, "PanelSectionBorder");
+            AssertStyle<ListBox>(resources, "PreferenceNavigationList");
+            AssertStyle<ListBoxItem>(resources, "PreferenceNavigationItem");
+            AssertStyle<TextBlock>(resources, "PreferenceFieldLabel");
+            AssertStyle<TextBlock>(resources, "PreferenceInfoLine");
+            AssertStyle<TextBlock>(resources, "PreferenceSectionHelp");
+        });
+    }
+
     [Theory]
     [InlineData(1.0)]
     [InlineData(1.25)]

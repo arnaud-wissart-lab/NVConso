@@ -451,6 +451,9 @@ namespace NVConso.ViewModels
 
         public void SaveWindowBounds(double left, double top, double width, double height)
         {
+            if (!double.IsFinite(left) || !double.IsFinite(top) || !double.IsFinite(width) || !double.IsFinite(height))
+                return;
+
             if (width < 900 || height < 600)
                 return;
 
