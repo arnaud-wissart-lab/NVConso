@@ -26,7 +26,7 @@ namespace NVConso.Tests
             Assert.False(result.Success);
             Assert.True(result.Cancelled);
             Assert.True(launcher.WasCalled);
-            Assert.Equal(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently, result.Message);
+            Assert.Equal(PrivilegeMessages.ElevationCancelledStatus, result.Message);
             Assert.Equal(clock.UtcNow(), service.State.LastElevationDeniedUtc);
             Assert.Equal(clock.UtcNow().Add(WindowsPrivilegeService.DefaultElevationPromptSuppressionDuration), service.State.ElevationPromptSuppressedUntilUtc);
         }
@@ -52,7 +52,7 @@ namespace NVConso.Tests
             Assert.True(result.Cancelled);
             Assert.False(launcher.WasCalled);
             Assert.Equal(1, prompt.ConfirmCallCount);
-            Assert.Equal(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently, result.Message);
+            Assert.Equal(PrivilegeMessages.ElevationCancelledStatus, result.Message);
             Assert.Equal(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently, service.CurrentPrivilegeStatusMessage);
         }
 
@@ -108,7 +108,7 @@ namespace NVConso.Tests
             Assert.True(result.Cancelled);
             Assert.False(launcher.WasCalled);
             Assert.Equal(1, prompt.ConfirmCallCount);
-            Assert.Equal(PrivilegeMessages.ReadOnlyModeElevationDeniedRecently, result.Message);
+            Assert.Equal(PrivilegeMessages.ElevationCancelledStatus, result.Message);
         }
 
         [Fact]

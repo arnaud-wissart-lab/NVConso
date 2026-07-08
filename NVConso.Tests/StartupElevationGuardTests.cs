@@ -100,11 +100,53 @@ namespace NVConso.Tests
         [Fact]
         public void ElevationPrompt_ShouldUseRequiredGpuMessageAndActions()
         {
-            Assert.Equal(
-                "WattPilot doit être relancé en administrateur pour modifier la limite de puissance GPU.",
-                PrivilegeMessages.GpuPowerLimitRequiresElevation);
-            Assert.Equal("Relancer en administrateur", PrivilegeMessages.RelaunchAsAdministratorButton);
+            Assert.Equal("Autorisation requise", PrivilegeMessages.AuthorizationTitle);
+            Assert.Equal("Windows va demander une autorisation pour appliquer ce mode GPU.", PrivilegeMessages.GpuPowerLimitRequiresElevation);
+            Assert.Equal("WattPilot restera ouvert normalement.", PrivilegeMessages.GpuPowerLimitElevationDetail);
+            Assert.Equal("Windows va demander une autorisation pour réparer le démarrage automatique.", PrivilegeMessages.StartupTaskRequiresElevation);
+            Assert.Equal("Cela ne relance pas WattPilot en mode administrateur.", PrivilegeMessages.StartupTaskElevationDetail);
+            Assert.Equal("Autoriser", PrivilegeMessages.AuthorizeButton);
             Assert.Equal("Annuler", PrivilegeMessages.CancelButton);
+        }
+
+        [Fact]
+        public void UserFacingElevationText_ShouldNotMentionRelaunchAsAdministrator()
+        {
+            string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
+            string[] forbiddenFragments =
+            [
+                "RelaunchAsAdministratorButton",
+                "Relancer en administrateur",
+                "WattPilot doit être relancé en administrateur",
+                "relancé en administrateur",
+                "Relancez WattPilot en administrateur"
+            ];
+
+            foreach (string file in Directory.EnumerateFiles(sourceRoot, "*.*", SearchOption.AllDirectories)
+                .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                    || file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string content = File.ReadAllText(file);
+                foreach (string forbiddenFragment in forbiddenFragments)
+                    Assert.DoesNotContain(forbiddenFragment, content, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        [Fact]
+        public void ElevationPrompt_ShouldBeWpfOnly()
+        {
+            string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
+            string privilegeService = File.ReadAllText(Path.Combine(sourceRoot, "WindowsPrivilegeService.cs"));
+            string promptXaml = File.ReadAllText(Path.Combine(sourceRoot, "ElevationPromptDialog.xaml"));
+
+            Assert.Contains("x:Class=\"NVConso.ElevationPromptDialog\"", promptXaml);
+            Assert.DoesNotContain("class ElevationPromptDialog : Form", privilegeService, StringComparison.Ordinal);
+            Assert.DoesNotContain("TableLayoutPanel", privilegeService, StringComparison.Ordinal);
+            Assert.DoesNotContain("FlowLayoutPanel", privilegeService, StringComparison.Ordinal);
         }
 
         private static string FindRepositoryRoot()

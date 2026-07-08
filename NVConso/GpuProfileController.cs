@@ -286,7 +286,7 @@ namespace NVConso
             }
 
             failure = GpuProfileOperationResult.Failed(
-                $"Le GPU/pilote a refusé {operationLabel}. Relancez WattPilot en administrateur si nécessaire.");
+                $"Le GPU/pilote a refusé {operationLabel}. Windows peut demander une autorisation pour appliquer ce mode GPU.");
             return false;
         }
     }
