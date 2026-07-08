@@ -55,3 +55,35 @@ jobs:
 
       - name: Audit deprecated packages
         run: dotnet list Tools.sln package --deprecated
+
+      - name: Publish PR preview
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: pwsh
+        run: |
+          dotnet publish NVConso/NVConso.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/pr-preview/WattPilot-win-x64
+
+      - name: Package PR preview
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: pwsh
+        run: |
+          $zipPath = "artifacts/pr-preview/WattPilot-pr-preview-win-x64.zip"
+
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          Compress-Archive `
+            -Path "artifacts/pr-preview/WattPilot-win-x64/*" `
+            -DestinationPath $zipPath
+
+      - name: Upload PR preview
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: WattPilot-pr-preview-win-x64
+          path: artifacts/pr-preview/WattPilot-pr-preview-win-x64.zip
+          if-no-files-found: error
