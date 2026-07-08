@@ -26,8 +26,8 @@ namespace NVConso.Tests
             string release = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "release.md"));
 
             Assert.Contains("Version de la prochaine release", release);
-            Assert.Contains("`v2.1.4`", release);
-            Assert.Contains("vérification automatique des mises à jour au lancement", release);
+            Assert.Contains("`v2.1.6`", release);
+            Assert.Contains("garde-fous de validation UI avant release", release);
             Assert.Contains("le tag Git", release);
             Assert.Contains("`WattPilot-Setup.exe`", release);
             Assert.Contains("`WattPilot-win-x64.zip`", release);
