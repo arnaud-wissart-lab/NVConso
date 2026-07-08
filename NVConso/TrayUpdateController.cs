@@ -12,8 +12,8 @@ namespace NVConso
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly UpdateStatusPresenter _presenter;
         private readonly ITrayNotificationService _notifications;
-        private readonly ToolStripMenuItem _updateStatusItem;
-        private readonly ToolStripMenuItem _updateActionItem;
+        private readonly TrayMenuActionItem _updateStatusItem;
+        private readonly TrayMenuActionItem _updateActionItem;
         private readonly Action _openUpdatePreferences;
         private readonly Func<string, string, bool> _confirmUpdate;
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
@@ -29,8 +29,8 @@ namespace NVConso
             AppSettingsService settingsService,
             AppUpdateWorkflow updateWorkflow,
             ITrayNotificationService notifications,
-            ToolStripMenuItem updateStatusItem,
-            ToolStripMenuItem updateActionItem,
+            TrayMenuActionItem updateStatusItem,
+            TrayMenuActionItem updateActionItem,
             Action openUpdatePreferences = null,
             Func<string, string, bool> confirmUpdate = null,
             Microsoft.Extensions.Logging.ILogger logger = null)
@@ -45,6 +45,7 @@ namespace NVConso
             _confirmUpdate = confirmUpdate ?? ConfirmWithMessageBox;
             _logger = logger;
 
+            _updateStatusItem.IsEnabled = true;
             _updateStatusItem.Click += (_, _) => _openUpdatePreferences();
             _updateActionItem.Click += async (_, _) => await RunVisibleUpdateActionAsync();
 
@@ -355,7 +356,7 @@ namespace NVConso
             _currentState = state ?? _presenter.GetStoredState(_settingsService.Current);
             _updateStatusItem.Text = _currentState.Message;
             _updateStatusItem.ToolTipText = string.IsNullOrWhiteSpace(_currentState.DetailMessage)
-                ? _currentState.Message
+                ? null
                 : _currentState.DetailMessage;
 
             _updateActionItem.Text = _currentState.PrimaryActionLabel;

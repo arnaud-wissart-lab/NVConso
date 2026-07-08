@@ -2,26 +2,22 @@ using Microsoft.Extensions.Logging;
 using NVConso.ViewModels;
 using NVConso.Views;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Windows;
 
 namespace NVConso
 {
     public class TrayAppContext : ApplicationContext
     {
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
         private const int CheckedThresholdMilliwatt = 200;
 
-        private readonly NotifyIcon _icon;
-        private readonly ContextMenuStrip _trayMenu;
-        private readonly ToolStripMenuItem _statusItem;
-        private readonly ToolStripMenuItem _openDashboardItem;
-        private readonly ToolStripMenuItem _customPowerLimitItem;
-        private readonly ToolStripMenuItem _updateStatusItem;
-        private readonly ToolStripMenuItem _updateActionItem;
-        private readonly Dictionary<GpuPowerMode, ToolStripMenuItem> _profileItems;
+        private readonly NotifyIconTrayAdapter _icon;
+        private readonly TrayMenuView _trayMenu;
+        private readonly TrayMenuActionItem _statusItem;
+        private readonly TrayMenuActionItem _openDashboardItem;
+        private readonly TrayMenuActionItem _customPowerLimitItem;
+        private readonly TrayMenuActionItem _updateStatusItem;
+        private readonly TrayMenuActionItem _updateActionItem;
+        private readonly IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> _profileItems;
         private readonly System.Windows.Forms.Timer _trayClickTimer;
         private readonly INvmlManager _nvml;
         private readonly WindowsStartupController _startupController;
@@ -101,7 +97,7 @@ namespace NVConso
                 _logger?.LogInformation("Lancement en zone de notification demandé.");
 
             TrayMenuView trayMenuView = TrayMenuBuilder.Create();
-            _trayMenu = trayMenuView.Menu;
+            _trayMenu = trayMenuView;
             _statusItem = trayMenuView.StatusItem;
             _openDashboardItem = trayMenuView.OpenDashboardItem;
             _customPowerLimitItem = trayMenuView.CustomPowerLimitItem;
@@ -109,7 +105,7 @@ namespace NVConso
             _updateActionItem = trayMenuView.UpdateActionItem;
             _profileItems = trayMenuView.ProfileItems;
 
-            foreach ((GpuPowerMode mode, ToolStripMenuItem profileItem) in _profileItems)
+            foreach ((GpuPowerMode mode, TrayMenuActionItem profileItem) in _profileItems)
                 profileItem.Click += (_, _) => ApplyProfile(mode, persistSelection: true, showBalloon: true);
 
             _customPowerLimitItem.Click += (_, _) => ShowCustomPowerLimitDialog();
@@ -120,13 +116,7 @@ namespace NVConso
             if (AppIcon.LastLoadSource == AppIconLoadSource.SystemDefault)
                 _logger?.LogWarning("Icône tray par défaut utilisée : {Diagnostic}", AppIcon.LastDiagnostic);
 
-            _icon = new NotifyIcon
-            {
-                Visible = true,
-                Text = ProductNames.TrayTooltip,
-                Icon = trayIcon,
-                ContextMenuStrip = _trayMenu,
-            };
+            _icon = new NotifyIconTrayAdapter(trayIcon, ProductNames.TrayTooltip);
 
             _icon.MouseUp += OnIconMouseUp;
             _icon.MouseDoubleClick += OnIconMouseDoubleClick;
@@ -169,7 +159,7 @@ namespace NVConso
 
         private void SetProfileItemsEnabled(bool enabled)
         {
-            foreach (ToolStripMenuItem item in _profileItems.Values)
+            foreach (TrayMenuActionItem item in _profileItems.Values)
                 item.Enabled = enabled;
 
             _customPowerLimitItem.Enabled = enabled;
@@ -240,13 +230,7 @@ namespace NVConso
 
         private void OnCaniculeGuardAlertRaised(object sender, CaniculeGuardAlert alert)
         {
-            if (_trayMenu.InvokeRequired)
-            {
-                _trayMenu.BeginInvoke((Action)(() => ShowCaniculeGuardAlert(alert)));
-                return;
-            }
-
-            ShowCaniculeGuardAlert(alert);
+            _trayMenu.Dispatch(() => ShowCaniculeGuardAlert(alert));
         }
 
         private void ShowCaniculeGuardAlert(CaniculeGuardAlert alert)
@@ -261,13 +245,7 @@ namespace NVConso
 
         private void OnTelemetryRecorderWarning(object sender, string message)
         {
-            if (_trayMenu.InvokeRequired)
-            {
-                _trayMenu.BeginInvoke((Action)(() => ShowTelemetryRecorderWarning(message)));
-                return;
-            }
-
-            ShowTelemetryRecorderWarning(message);
+            _trayMenu.Dispatch(() => ShowTelemetryRecorderWarning(message));
         }
 
         private void ShowTelemetryRecorderWarning(string message)
@@ -336,7 +314,7 @@ namespace NVConso
 
         private void UpdateProfileLabels()
         {
-            foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
+            foreach ((GpuPowerMode mode, TrayMenuActionItem item) in _profileItems)
                 item.Text = ProfileLabels.GetDisplayName(mode);
         }
 
@@ -450,9 +428,7 @@ namespace NVConso
                 return;
 
             _telemetryService.RefreshNow();
-            _trayMenu.Hide();
-            SetForegroundWindow(_trayMenu.Handle);
-            _trayMenu.Show(Cursor.Position);
+            _trayMenu.ShowAt(Cursor.Position);
         }
 
         private void OnIconMouseDoubleClick(object sender, MouseEventArgs e)
@@ -488,7 +464,7 @@ namespace NVConso
         private void UpdatePowerSelection(uint currentLimit)
         {
             bool matchedProfile = false;
-            foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
+            foreach ((GpuPowerMode mode, TrayMenuActionItem item) in _profileItems)
             {
                 uint targetLimit = _nvml.GetPowerLimit(mode);
                 item.Checked = Math.Abs((int)targetLimit - (int)currentLimit) <= CheckedThresholdMilliwatt;
@@ -502,7 +478,7 @@ namespace NVConso
 
         private void ClearProfileChecks()
         {
-            foreach (ToolStripMenuItem item in _profileItems.Values)
+            foreach (TrayMenuActionItem item in _profileItems.Values)
                 item.Checked = false;
 
             _customPowerLimitItem.Checked = false;

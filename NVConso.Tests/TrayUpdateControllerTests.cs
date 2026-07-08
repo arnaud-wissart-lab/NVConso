@@ -1,5 +1,3 @@
-using System.Windows.Forms;
-
 namespace NVConso.Tests
 {
     public class TrayUpdateControllerTests
@@ -153,11 +151,8 @@ namespace NVConso.Tests
             var updater = new FakeAppUpdater();
             var workflow = new AppUpdateWorkflow(updater);
             var notifications = new FakeTrayNotificationService();
-            var menu = new ContextMenuStrip();
-            var updateStatusItem = new ToolStripMenuItem();
-            var updateActionItem = new ToolStripMenuItem();
-            menu.Items.Add(updateStatusItem);
-            menu.Items.Add(updateActionItem);
+            var updateStatusItem = new TrayMenuActionItem(string.Empty);
+            var updateActionItem = new TrayMenuActionItem(string.Empty);
             var controller = new TrayUpdateController(
                 settingsService,
                 workflow,
@@ -171,7 +166,6 @@ namespace NVConso.Tests
                 settingsService,
                 updater,
                 notifications,
-                menu,
                 updateStatusItem,
                 updateActionItem,
                 controller);
@@ -195,16 +189,14 @@ namespace NVConso.Tests
                 AppSettingsService settingsService,
                 FakeAppUpdater updater,
                 FakeTrayNotificationService notifications,
-                ContextMenuStrip menu,
-                ToolStripMenuItem updateStatusItem,
-                ToolStripMenuItem updateActionItem,
+                TrayMenuActionItem updateStatusItem,
+                TrayMenuActionItem updateActionItem,
                 TrayUpdateController controller)
             {
                 _settingsPath = settingsPath;
                 SettingsService = settingsService;
                 Updater = updater;
                 Notifications = notifications;
-                Menu = menu;
                 UpdateStatusItem = updateStatusItem;
                 UpdateActionItem = updateActionItem;
                 Controller = controller;
@@ -213,15 +205,13 @@ namespace NVConso.Tests
             public AppSettingsService SettingsService { get; }
             public FakeAppUpdater Updater { get; }
             public FakeTrayNotificationService Notifications { get; }
-            public ContextMenuStrip Menu { get; }
-            public ToolStripMenuItem UpdateStatusItem { get; }
-            public ToolStripMenuItem UpdateActionItem { get; }
+            public TrayMenuActionItem UpdateStatusItem { get; }
+            public TrayMenuActionItem UpdateActionItem { get; }
             public TrayUpdateController Controller { get; }
 
             public void Dispose()
             {
                 Controller.Dispose();
-                Menu.Dispose();
                 string directory = Path.GetDirectoryName(_settingsPath);
                 if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
                     Directory.Delete(directory, recursive: true);

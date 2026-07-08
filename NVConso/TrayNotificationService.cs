@@ -9,12 +9,12 @@ namespace NVConso
 
     public sealed class TrayNotificationService : ITrayNotificationService
     {
-        private readonly NotifyIcon _icon;
-        private readonly ToolStripMenuItem _statusItem;
+        private readonly ITrayIconAdapter _trayIcon;
+        private readonly TrayMenuActionItem _statusItem;
 
-        public TrayNotificationService(NotifyIcon icon, ToolStripMenuItem statusItem)
+        public TrayNotificationService(ITrayIconAdapter trayIcon, TrayMenuActionItem statusItem)
         {
-            _icon = icon ?? throw new ArgumentNullException(nameof(icon));
+            _trayIcon = trayIcon ?? throw new ArgumentNullException(nameof(trayIcon));
             _statusItem = statusItem ?? throw new ArgumentNullException(nameof(statusItem));
         }
 
@@ -25,12 +25,12 @@ namespace NVConso
 
         public void ShowInfo(string title, string message, int timeoutMilliseconds = 1000)
         {
-            _icon.ShowBalloonTip(timeoutMilliseconds, title, message, ToolTipIcon.Info);
+            _trayIcon.ShowInfo(title, message, timeoutMilliseconds);
         }
 
         public void ShowWarning(string title, string message, int timeoutMilliseconds = 1500)
         {
-            _icon.ShowBalloonTip(timeoutMilliseconds, title, message, ToolTipIcon.Warning);
+            _trayIcon.ShowWarning(title, message, timeoutMilliseconds);
         }
 
         private static string NormalizeStatusMessage(string message)
