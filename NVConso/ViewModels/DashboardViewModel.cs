@@ -146,6 +146,7 @@ namespace NVConso.ViewModels
             RestoreStockCommand = new RelayCommand(() => _restoreStock?.Invoke());
             CustomPowerLimitCommand = new RelayCommand(() => _showCustomPowerLimit?.Invoke());
             NavigateHomeCommand = new RelayCommand(NavigateHome);
+            CloseSettingsPanelCommand = new RelayCommand(NavigateHome);
             NavigateHistoryCommand = new AsyncRelayCommand(NavigateHistoryAsync);
             NavigateSettingsCommand = new RelayCommand(NavigateSettings);
             RefreshHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -182,6 +183,7 @@ namespace NVConso.ViewModels
         public ICommand RestoreStockCommand { get; }
         public ICommand CustomPowerLimitCommand { get; }
         public ICommand NavigateHomeCommand { get; }
+        public ICommand CloseSettingsPanelCommand { get; }
         public AsyncRelayCommand NavigateHistoryCommand { get; }
         public ICommand NavigateSettingsCommand { get; }
         public AsyncRelayCommand RefreshHistoryCommand { get; }
@@ -435,6 +437,11 @@ namespace NVConso.ViewModels
         public void MarkHistoryDiagnosticCopied()
         {
             HistoryStatus = "Résumé diagnostic copié.";
+        }
+
+        public void MarkHistoryExportCancelled()
+        {
+            HistoryStatus = "Export CSV annulé.";
         }
 
         public void MarkHistoryDiagnosticCopyFailed(Exception exception)
@@ -722,6 +729,7 @@ namespace NVConso.ViewModels
                 {
                     UseShellExecute = true
                 });
+                HistoryStatus = "Dossier de données ouvert.";
             }
             catch (Exception exception)
             {

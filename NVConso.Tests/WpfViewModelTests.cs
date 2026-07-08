@@ -194,7 +194,7 @@ namespace NVConso.Tests
             Assert.False(model.IsHomePageVisible);
             Assert.True(model.IsSettingsPageVisible);
 
-            model.NavigateHomeCommand.Execute(null);
+            model.CloseSettingsPanelCommand.Execute(null);
 
             Assert.Equal(DashboardPage.Home, model.CurrentPage);
             Assert.True(model.IsHomePageVisible);
@@ -239,6 +239,7 @@ namespace NVConso.Tests
             bool saved = await model.SaveAsync(closeAfterSave: false);
 
             Assert.True(saved);
+            Assert.Equal("Préférences enregistrées.", model.StatusMessage);
             Assert.True(context.SettingsService.Current.ShowDashboardOnStartup);
             Assert.True(context.SettingsService.Current.StartWithWindows);
             Assert.Equal(GpuPowerMode.Custom, context.SettingsService.Current.LastSelectedMode);
@@ -309,6 +310,47 @@ namespace NVConso.Tests
             Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, model.CaniculeAlertDelaySeconds);
             Assert.Equal(CaniculeGuardDefaults.CooldownSeconds, model.CaniculeCooldownSeconds);
             Assert.Contains("Valeurs recommandées", model.StatusMessage);
+        }
+
+        [Fact]
+        public async Task DashboardViewModel_ShouldExposeHistoryExportFeedback()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            using var model = context.CreateDashboardViewModel();
+
+            model.MarkHistoryExportCancelled();
+
+            Assert.Equal("Export CSV annulé.", model.HistoryStatus);
+
+            await model.ExportFilteredHistoryAsync(Path.Combine(context.TempDirectory, "historique.csv"));
+
+            Assert.Equal("Aucune donnée filtrée à exporter.", model.HistoryStatus);
+        }
+
+        [Fact]
+        public async Task PreferencesViewModel_ShouldExposeExportFeedbackForCancellationAndFailure()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            model.MarkTelemetryExportCancelled();
+
+            Assert.Equal("Export de la session de télémétrie annulé.", model.StatusMessage);
+
+            context.Recorder.ExportCurrentSessionSucceeds = false;
+            context.Recorder.ExportCurrentSessionMessage = "Session indisponible.";
+            await model.ExportTelemetrySessionAsync(Path.Combine(context.TempDirectory, "telemetry.zip"));
+
+            Assert.Equal("Session indisponible.", model.StatusMessage);
+
+            model.MarkDiagnosticsExportCancelled();
+
+            Assert.Equal("Export du diagnostic annulé.", model.StatusMessage);
+
+            string missingDirectoryPath = Path.Combine(context.TempDirectory, "dossier-absent", "diagnostic.txt");
+            await model.ExportDiagnosticsAsync(missingDirectoryPath);
+
+            Assert.StartsWith("Export diagnostic impossible :", model.StatusMessage);
         }
 
         [Fact]
@@ -408,6 +450,7 @@ namespace NVConso.Tests
             Assert.Contains("NavigateHomeCommand", xaml);
             Assert.Contains("NavigateHistoryCommand", xaml);
             Assert.Contains("NavigateSettingsCommand", xaml);
+            Assert.Contains("CloseSettingsPanelCommand", xaml);
             Assert.Contains("Modifications non enregistrées", xaml);
             Assert.Contains("PreferenceSections", xaml);
             Assert.Contains("<controls:ThemeOptionControl", xaml);
@@ -428,6 +471,9 @@ namespace NVConso.Tests
             Assert.Contains("Dossier de données local", xaml);
             Assert.Contains("Copier le chemin", xaml);
             Assert.Contains("Copier diagnostic", xaml);
+            Assert.Equal(2, CountOccurrences(xaml, "Content=\"Paramètres\""));
+            Assert.DoesNotContain("Content=\"Fermer\"", xaml);
+            Assert.DoesNotContain("Fermer", xaml);
             Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", xaml);
             Assert.DoesNotContain("ItemsSource=\"{Binding ThemeOptions}\" SelectedItem=\"{Binding SelectedTheme}\" DisplayMemberPath=\"Label\"", xaml);
             Assert.DoesNotContain(">Profils<", xaml);
@@ -479,6 +525,20 @@ namespace NVConso.Tests
             return start >= 0 && end > start
                 ? xaml[start..end]
                 : xaml;
+        }
+
+        private static int CountOccurrences(string value, string pattern)
+        {
+            int count = 0;
+            int index = 0;
+
+            while ((index = value.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += pattern.Length;
+            }
+
+            return count;
         }
 
         private static TelemetryLogReadResult CreateHistoryResult()
@@ -742,6 +802,8 @@ namespace NVConso.Tests
             public string TelemetryRootPath { get; }
             public TelemetryDailySummary CurrentDailySummary { get; } = TelemetryDailySummary.Create(DateOnly.FromDateTime(DateTime.Today));
             public bool IsTemporarilyDisabled => false;
+            public bool ExportCurrentSessionSucceeds { get; set; } = true;
+            public string ExportCurrentSessionMessage { get; set; } = "Session exportée.";
 
             public void ApplySettings(TelemetryLoggingSettings settings)
             {
@@ -766,7 +828,10 @@ namespace NVConso.Tests
 
             public bool TryExportCurrentSession(string destinationZipPath, out string message)
             {
-                message = "Session exportée.";
+                message = ExportCurrentSessionMessage;
+                if (!ExportCurrentSessionSucceeds)
+                    return false;
+
                 File.WriteAllText(destinationZipPath, "zip simulé");
                 return true;
             }

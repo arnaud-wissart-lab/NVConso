@@ -68,7 +68,12 @@ namespace NVConso.Views
             };
 
             if (dialog.ShowDialog(this) == true)
+            {
                 await _dashboardViewModel.ExportFilteredHistoryAsync(dialog.FileName).ConfigureAwait(true);
+                return;
+            }
+
+            _dashboardViewModel.MarkHistoryExportCancelled();
         }
 
         private void CopyHistorySummary_Click(object sender, RoutedEventArgs e)
@@ -94,7 +99,12 @@ namespace NVConso.Views
             };
 
             if (dialog.ShowDialog(this) == true)
+            {
                 await _preferencesViewModel.ExportTelemetrySessionAsync(dialog.FileName).ConfigureAwait(true);
+                return;
+            }
+
+            _preferencesViewModel.MarkTelemetryExportCancelled();
         }
 
         private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
@@ -107,7 +117,12 @@ namespace NVConso.Views
             };
 
             if (dialog.ShowDialog(this) == true)
+            {
                 await _preferencesViewModel.ExportDiagnosticsAsync(dialog.FileName).ConfigureAwait(true);
+                return;
+            }
+
+            _preferencesViewModel.MarkDiagnosticsExportCancelled();
         }
 
         private void OnThemeChanged(object sender, UiTheme theme)

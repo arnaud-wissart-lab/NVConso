@@ -458,6 +458,11 @@ namespace NVConso.ViewModels
             await Task.CompletedTask.ConfigureAwait(true);
         }
 
+        public void MarkTelemetryExportCancelled()
+        {
+            StatusMessage = "Export de la session de télémétrie annulé.";
+        }
+
         public async Task ExportDiagnosticsAsync(string destinationPath)
         {
             try
@@ -470,6 +475,11 @@ namespace NVConso.ViewModels
             {
                 StatusMessage = $"Export diagnostic impossible : {exception.Message}";
             }
+        }
+
+        public void MarkDiagnosticsExportCancelled()
+        {
+            StatusMessage = "Export du diagnostic annulé.";
         }
 
         private AppSettings BuildSettings()
@@ -687,6 +697,7 @@ namespace NVConso.ViewModels
                 {
                     UseShellExecute = true
                 });
+                StatusMessage = "Dossier de données ouvert.";
             }
             catch (Exception exception)
             {
