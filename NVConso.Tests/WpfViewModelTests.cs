@@ -462,7 +462,11 @@ namespace NVConso.Tests
             Assert.Contains("WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps.", xaml);
             Assert.Contains("Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics.", xaml);
             Assert.Contains("Les mises à jour automatiques fonctionnent avec la version installée de WattPilot.", xaml);
+            Assert.Contains("Détails techniques", ExtractUpdateSection(xaml));
+            Assert.Contains("Vérifier maintenant", ExtractUpdateSection(xaml));
+            Assert.Contains("PrimaryUpdateCommand", ExtractUpdateSection(xaml));
             Assert.Contains("Réglages système et maintenance. À modifier seulement si nécessaire.", xaml);
+            Assert.Contains("Content=\"Télécharger automatiquement les mises à jour\"", xaml);
             Assert.Contains("ne modifie pas les ventilateurs", xaml);
             Assert.Contains("Délai avant nouvelle alerte", xaml);
             Assert.Contains("Durée affichée sur le graphe", xaml);
@@ -480,6 +484,7 @@ namespace NVConso.Tests
             Assert.DoesNotContain("Text=\"Profils\"", xaml);
             Assert.DoesNotContain("Text=\"Canicule Guard\"", xaml);
             Assert.DoesNotContain("Content=\"Inclure les préversions\"", ExtractUpdateSection(xaml));
+            Assert.DoesNotContain("Content=\"Télécharger automatiquement", ExtractUpdateSection(xaml));
             Assert.DoesNotContain("UpdateStatus.Detail", xaml);
             Assert.DoesNotContain("TextBox Text=\"{Binding CaniculePowerThresholdWatts", xaml);
             Assert.DoesNotContain("TextBox Text=\"{Binding RecordingIntervalSeconds", xaml);
@@ -509,13 +514,90 @@ namespace NVConso.Tests
                 canRunPrimaryAction: true,
                 "Mettre à jour",
                 "Diagnostic détaillé",
-                AppExecutionModeInfo.InstalledVelopack());
+                AppExecutionModeInfo.InstalledVelopack(),
+                "preview");
 
             model.Apply(state);
 
             Assert.Equal("2.1.3", model.CurrentVersion);
             Assert.Equal("2.2.0-beta.1", model.LatestVersion);
+            Assert.Equal("2.1.3+sha.1234567890abcdef", model.FullCurrentVersion);
+            Assert.Equal("2.2.0-beta.1+sha.abcdef", model.FullLatestVersion);
+            Assert.Equal("Canal : preview", model.ChannelLabel);
             Assert.Equal("Diagnostic détaillé", model.Detail);
+            Assert.Equal("Diagnostic détaillé", model.LastTechnicalMessage);
+            Assert.Equal("Mode : Installé", model.SimpleExecutionModeLabel);
+            Assert.Equal("Statut : Mise à jour disponible", model.SimpleStatusLabel);
+        }
+
+        [Fact]
+        public void UpdateStatus_ShouldDisplayPortableModeAsUnavailableButNotError()
+        {
+            var model = new UpdateStatusViewModel();
+
+            model.Apply(UpdateStatusPresenter.FromStoredState(
+                new AppSettings(),
+                PendingUpdateStatus.None(),
+                AppExecutionModeInfo.PortableZip()));
+
+            Assert.Equal(UpdateUiStatus.Unavailable, model.Status);
+            Assert.Equal("Mode : Portable", model.SimpleExecutionModeLabel);
+            Assert.Equal("Statut : Indisponible", model.SimpleStatusLabel);
+            Assert.NotEqual(UpdateLabels.ErrorStatus, model.Message);
+            Assert.NotEqual(UpdateUiStatus.Error, model.Status);
+        }
+
+        [Fact]
+        public void UpdateStatus_ShouldDisplayInstalledUpToDateCleanly()
+        {
+            var settings = new AppSettings
+            {
+                LastUpdateCheckUtc = new DateTimeOffset(2026, 7, 6, 14, 32, 0, TimeSpan.Zero)
+            };
+            var model = new UpdateStatusViewModel();
+
+            model.Apply(UpdateStatusPresenter.FromStoredState(
+                settings,
+                PendingUpdateStatus.None(),
+                AppExecutionModeInfo.InstalledVelopack()));
+
+            Assert.Equal(UpdateUiStatus.UpToDate, model.Status);
+            Assert.Equal("Mode : Installé", model.SimpleExecutionModeLabel);
+            Assert.Equal("Statut : À jour", model.SimpleStatusLabel);
+            Assert.Equal(ProductNames.ShortDisplayVersion, model.CurrentVersion);
+            Assert.Equal("--", model.LastTechnicalMessage);
+        }
+
+        [Fact]
+        public async Task PreferencesViewModel_ShouldDownloadAvailableUpdateFromPrimaryAction()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            context.Updater.DownloadResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.Downloaded,
+                "Mise à jour téléchargée : 2.2.0",
+                new AppUpdateInfo(
+                    "2.2.0+sha.abcdef",
+                    "Notes de version.",
+                    isDowngrade: false,
+                    "WattPilot-2.2.0-full.nupkg"));
+            var model = context.CreatePreferencesViewModel();
+            model.UpdateStatus.Apply(new UpdateUiState(
+                UpdateUiStatus.UpdateAvailable,
+                DateTimeOffset.UtcNow,
+                "2.1.3+sha.123456",
+                "2.2.0+sha.abcdef",
+                "Mise à jour disponible.",
+                canRunPrimaryAction: true,
+                "Mettre à jour",
+                "Mise à jour disponible : 2.2.0",
+                AppExecutionModeInfo.InstalledVelopack()));
+
+            await model.PrimaryUpdateCommand.ExecuteAsync();
+
+            Assert.True(context.Updater.DownloadCalled);
+            Assert.Equal(UpdateUiStatus.ReadyToInstall, model.UpdateStatus.Status);
+            Assert.Equal("2.2.0", model.UpdateStatus.LatestVersion);
+            Assert.Equal("2.2.0+sha.abcdef", model.UpdateStatus.FullLatestVersion);
         }
 
         private static string ExtractUpdateSection(string xaml)
@@ -763,6 +845,8 @@ namespace NVConso.Tests
         private sealed class FakeAppUpdater : IAppUpdater
         {
             public AppExecutionModeInfo ExecutionMode { get; set; } = AppExecutionModeInfo.InstalledVelopack();
+            public AppUpdateOperationResult DownloadResult { get; set; } = AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "Aucune mise à jour.");
+            public bool DownloadCalled { get; private set; }
 
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(string channel, bool includePrerelease, CancellationToken cancellationToken = default)
             {
@@ -771,7 +855,8 @@ namespace NVConso.Tests
 
             public Task<AppUpdateOperationResult> DownloadUpdateAsync(string channel, bool includePrerelease, IProgress<int> progress = null, CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(AppUpdateOperationResult.Succeeded(AppUpdateStatus.NoUpdate, "Aucune mise à jour."));
+                DownloadCalled = true;
+                return Task.FromResult(DownloadResult);
             }
 
             public Task<AppUpdateOperationResult> ApplyUpdateAndRestartAsync(string channel, bool includePrerelease, string[] restartArgs = null)

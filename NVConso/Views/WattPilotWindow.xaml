@@ -652,17 +652,14 @@
                                     <TextBlock Text="Mise à jour" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="Les mises à jour automatiques fonctionnent avec la version installée de WattPilot."
                                                Style="{StaticResource PreferenceSectionHelp}" />
-                                    <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" />
+                                    <TextBlock Text="{Binding UpdateStatus.SimpleExecutionModeLabel}" />
+                                    <TextBlock Text="{Binding UpdateStatus.SimpleStatusLabel}" Style="{StaticResource PreferenceInfoLine}" />
                                     <TextBlock Text="{Binding UpdateStatus.LastCheckedLabel}" Style="{StaticResource PreferenceInfoLine}" />
-                                    <TextBlock Text="{Binding UpdateStatus.Message}" Style="{StaticResource PreferenceInfoLine}" />
                                     <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
-                                    <TextBlock Text="Version disponible" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBlock Text="{Binding UpdateStatus.LatestVersion}" />
                                     <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
-                                    <CheckBox Content="Télécharger automatiquement" IsChecked="{Binding AutoDownloadUpdates}" />
                                     <WrapPanel Margin="0,10,0,0">
-                                        <Button Content="Rechercher maintenant"
+                                        <Button Content="Vérifier maintenant"
                                                 Tag="&#xE721;"
                                                 Command="{Binding CheckForUpdatesCommand}"
                                                 Style="{StaticResource IconTextButton}"
@@ -674,12 +671,37 @@
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Ouvrir la page GitHub Releases"
                                                 Margin="0,0,8,8" />
-                                        <Button Content="Copier diagnostic"
+                                        <Button Content="{Binding UpdateStatus.PrimaryActionLabel}"
+                                                Tag="&#xE895;"
+                                                Command="{Binding PrimaryUpdateCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Télécharger ou installer la mise à jour disponible"
+                                                Visibility="{Binding UpdateStatus.CanRunPrimaryAction, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <Expander Header="Détails techniques" IsExpanded="False" Margin="0,8,0,0">
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock Text="Version installée complète" Style="{StaticResource PreferenceFieldLabel}" />
+                                            <TextBlock Text="{Binding UpdateStatus.FullCurrentVersion}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="Version disponible complète" Style="{StaticResource PreferenceFieldLabel}" />
+                                            <TextBlock Text="{Binding UpdateStatus.FullLatestVersion}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding UpdateStatus.ChannelLabel}" Style="{StaticResource PreferenceInfoLine}" />
+                                            <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" Style="{StaticResource PreferenceInfoLine}" />
+                                            <TextBlock Text="Dernier message technique" Style="{StaticResource PreferenceFieldLabel}" />
+                                            <TextBlock Text="{Binding UpdateStatus.LastTechnicalMessage}"
+                                                       Style="{StaticResource PreferenceInfoLine}"
+                                                       TextWrapping="Wrap" />
+                                            <Button Content="Copier diagnostic"
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyUpdateDiagnosticCommand}"
                                                 Style="{StaticResource IconTextButton}"
-                                                ToolTip="Copier le diagnostic de mise à jour" />
-                                    </WrapPanel>
+                                                ToolTip="Copier le diagnostic de mise à jour"
+                                                HorizontalAlignment="Left"
+                                                Margin="0,10,0,0" />
+                                        </StackPanel>
+                                    </Expander>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -692,6 +714,7 @@
                                                Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding StartWithWindows}" />
                                     <CheckBox Content="Démarrer réduit" IsChecked="{Binding StartMinimized}" />
+                                    <CheckBox Content="Télécharger automatiquement les mises à jour" IsChecked="{Binding AutoDownloadUpdates}" />
                                     <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
                                     <WrapPanel>

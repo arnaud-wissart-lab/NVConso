@@ -98,6 +98,7 @@ namespace NVConso.ViewModels
 
             SaveCommand = new AsyncRelayCommand(() => SaveAsync(closeAfterSave: false));
             CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesNowAsync);
+            PrimaryUpdateCommand = new AsyncRelayCommand(RunPrimaryUpdateActionAsync);
             OpenGitHubReleasesCommand = new RelayCommand(OpenGitHubReleases);
             CopyUpdateDiagnosticCommand = new RelayCommand(CopyUpdateDiagnostic);
             RepairStartupCommand = new AsyncRelayCommand(RepairStartupTaskAsync);
@@ -118,6 +119,7 @@ namespace NVConso.ViewModels
         public UpdateStatusViewModel UpdateStatus { get; } = new();
         public AsyncRelayCommand SaveCommand { get; }
         public AsyncRelayCommand CheckForUpdatesCommand { get; }
+        public AsyncRelayCommand PrimaryUpdateCommand { get; }
         public ICommand OpenGitHubReleasesCommand { get; }
         public ICommand CopyUpdateDiagnosticCommand { get; }
         public ICommand RepairStartupCommand { get; }
@@ -544,6 +546,76 @@ namespace NVConso.ViewModels
                     PendingUpdateStatus.None(),
                     _updateWorkflow.GetExecutionMode()));
                 StatusMessage = $"Vérification impossible : {exception.Message}";
+            }
+        }
+
+        private async Task RunPrimaryUpdateActionAsync()
+        {
+            if (_updateWorkflow is null)
+            {
+                StatusMessage = "Workflow de mise à jour indisponible.";
+                return;
+            }
+
+            if (!UpdateStatus.CanRunPrimaryAction)
+            {
+                StatusMessage = "Aucune mise à jour à appliquer.";
+                return;
+            }
+
+            AppSettings settings = BuildSettings();
+            AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
+
+            try
+            {
+                if (UpdateStatus.Status == UpdateUiStatus.ReadyToInstall)
+                {
+                    UpdateStatus.Apply(UpdateStatusPresenter.Installing(
+                        settings,
+                        UpdateStatus.FullLatestVersion,
+                        executionMode));
+
+                    AppUpdateOperationResult installResult = await _updateWorkflow
+                        .ApplyUpdateAndRestartAsync(settings, [StartupLaunchOptions.TrayArgument])
+                        .ConfigureAwait(true);
+
+                    _settingsService.TrySave(settings, out _);
+                    StatusMessage = installResult.Message;
+                    if (!installResult.Success)
+                    {
+                        UpdateStatus.Apply(UpdateStatusPresenter.FromDownloadResult(settings, installResult, executionMode));
+                    }
+
+                    return;
+                }
+
+                UpdateStatus.Apply(UpdateStatusPresenter.Downloading(settings, executionMode: executionMode));
+                var progress = new Progress<int>(value =>
+                {
+                    UpdateStatus.Apply(UpdateStatusPresenter.Downloading(settings, value, executionMode));
+                });
+
+                AppUpdateOperationResult downloadResult = await _updateWorkflow
+                    .DownloadUpdateAsync(settings, progress)
+                    .ConfigureAwait(true);
+
+                _settingsService.TrySave(settings, out _);
+                executionMode = _updateWorkflow.GetExecutionMode();
+                UpdateUiState state = UpdateStatusPresenter.FromDownloadResult(settings, downloadResult, executionMode);
+                UpdateStatus.Apply(state);
+                StatusMessage = string.IsNullOrWhiteSpace(state.DetailMessage)
+                    ? downloadResult.Message
+                    : state.DetailMessage;
+            }
+            catch (Exception exception)
+            {
+                settings.LastUpdateError = exception.Message;
+                _settingsService.TrySave(settings, out _);
+                UpdateStatus.Apply(UpdateStatusPresenter.FromStoredState(
+                    settings,
+                    PendingUpdateStatus.None(),
+                    _updateWorkflow.GetExecutionMode()));
+                StatusMessage = $"Mise à jour impossible : {exception.Message}";
             }
         }
 

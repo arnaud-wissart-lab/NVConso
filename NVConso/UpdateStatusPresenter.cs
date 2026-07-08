@@ -263,7 +263,8 @@ namespace NVConso
                 canRunPrimaryAction,
                 primaryActionLabel,
                 detailMessage,
-                executionMode);
+                executionMode,
+                settings?.UpdateChannel);
         }
     }
 }

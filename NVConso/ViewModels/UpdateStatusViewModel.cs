@@ -6,10 +6,16 @@ namespace NVConso.ViewModels
         private string _message = "Mise à jour : non vérifiée";
         private string _detail = string.Empty;
         private string _currentVersion = ProductNames.ShortDisplayVersion;
+        private string _fullCurrentVersion = ProductNames.DisplayVersion;
         private string _latestVersion = string.Empty;
+        private string _fullLatestVersion = string.Empty;
         private string _primaryActionLabel = string.Empty;
         private string _executionModeLabel = UpdateLabels.FormatExecutionMode(AppExecutionMode.InstalledVelopack);
+        private string _simpleExecutionModeLabel = "Mode : Installé";
+        private string _simpleStatusLabel = "Statut : Indisponible";
         private string _lastCheckedLabel = "Dernière vérification : jamais";
+        private string _channelLabel = $"Canal : {VelopackAppUpdater.StableChannel}";
+        private string _lastTechnicalMessage = "--";
         private string _releaseUrl = ProductNames.LatestReleaseUrl;
         private bool _canRunPrimaryAction;
 
@@ -37,10 +43,22 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _currentVersion, value);
         }
 
+        public string FullCurrentVersion
+        {
+            get => _fullCurrentVersion;
+            private set => SetProperty(ref _fullCurrentVersion, value);
+        }
+
         public string LatestVersion
         {
             get => _latestVersion;
             private set => SetProperty(ref _latestVersion, value);
+        }
+
+        public string FullLatestVersion
+        {
+            get => _fullLatestVersion;
+            private set => SetProperty(ref _fullLatestVersion, value);
         }
 
         public string PrimaryActionLabel
@@ -55,10 +73,34 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _executionModeLabel, value);
         }
 
+        public string SimpleExecutionModeLabel
+        {
+            get => _simpleExecutionModeLabel;
+            private set => SetProperty(ref _simpleExecutionModeLabel, value);
+        }
+
+        public string SimpleStatusLabel
+        {
+            get => _simpleStatusLabel;
+            private set => SetProperty(ref _simpleStatusLabel, value);
+        }
+
         public string LastCheckedLabel
         {
             get => _lastCheckedLabel;
             private set => SetProperty(ref _lastCheckedLabel, value);
+        }
+
+        public string ChannelLabel
+        {
+            get => _channelLabel;
+            private set => SetProperty(ref _channelLabel, value);
+        }
+
+        public string LastTechnicalMessage
+        {
+            get => _lastTechnicalMessage;
+            private set => SetProperty(ref _lastTechnicalMessage, value);
         }
 
         public string ReleaseUrl
@@ -82,14 +124,53 @@ namespace NVConso.ViewModels
             Message = state.Message;
             Detail = state.DetailMessage ?? string.Empty;
             CurrentVersion = ProductNames.FormatShortVersion(state.CurrentVersion);
+            FullCurrentVersion = FormatFullVersion(state.CurrentVersion);
             LatestVersion = string.IsNullOrWhiteSpace(state.LatestVersion)
                 ? string.Empty
                 : ProductNames.FormatShortVersion(state.LatestVersion);
+            FullLatestVersion = FormatFullVersion(state.LatestVersion);
             PrimaryActionLabel = state.PrimaryActionLabel ?? string.Empty;
             ExecutionModeLabel = state.ExecutionModeLabel;
+            SimpleExecutionModeLabel = FormatSimpleExecutionMode(state.ExecutionMode.Mode);
+            SimpleStatusLabel = FormatSimpleStatus(state.Status);
             LastCheckedLabel = FormatLastChecked(state.LastCheckedAt);
+            ChannelLabel = $"Canal : {state.Channel}";
+            LastTechnicalMessage = string.IsNullOrWhiteSpace(state.DetailMessage)
+                ? "--"
+                : state.DetailMessage.Trim();
             ReleaseUrl = state.ReleaseUrl;
             CanRunPrimaryAction = state.CanRunPrimaryAction;
+        }
+
+        private static string FormatFullVersion(string version)
+        {
+            return string.IsNullOrWhiteSpace(version)
+                ? "--"
+                : version.Trim();
+        }
+
+        private static string FormatSimpleExecutionMode(AppExecutionMode mode)
+        {
+            return mode switch
+            {
+                AppExecutionMode.InstalledVelopack => "Mode : Installé",
+                AppExecutionMode.PortableZip => "Mode : Portable",
+                AppExecutionMode.DeveloperBuild => "Mode : Développeur",
+                _ => "Mode : Indisponible"
+            };
+        }
+
+        private static string FormatSimpleStatus(UpdateUiStatus status)
+        {
+            return status switch
+            {
+                UpdateUiStatus.UpToDate => "Statut : À jour",
+                UpdateUiStatus.UpdateAvailable or UpdateUiStatus.ReadyToInstall => "Statut : Mise à jour disponible",
+                UpdateUiStatus.Checking => "Statut : Vérification en cours",
+                UpdateUiStatus.Downloading => "Statut : Téléchargement en cours",
+                UpdateUiStatus.Installing => "Statut : Installation en cours",
+                _ => "Statut : Indisponible"
+            };
         }
 
         private static string FormatLastChecked(DateTimeOffset? lastCheckedAt)

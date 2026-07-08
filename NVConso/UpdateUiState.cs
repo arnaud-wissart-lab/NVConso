@@ -11,7 +11,8 @@ namespace NVConso
             bool canRunPrimaryAction,
             string primaryActionLabel,
             string detailMessage = null,
-            AppExecutionModeInfo executionMode = null)
+            AppExecutionModeInfo executionMode = null,
+            string channel = null)
         {
             Status = status;
             LastCheckedAt = lastCheckedAt;
@@ -22,6 +23,9 @@ namespace NVConso
             PrimaryActionLabel = primaryActionLabel ?? string.Empty;
             DetailMessage = detailMessage ?? string.Empty;
             ExecutionMode = executionMode ?? AppExecutionModeInfo.InstalledVelopack();
+            Channel = string.IsNullOrWhiteSpace(channel)
+                ? VelopackAppUpdater.StableChannel
+                : channel.Trim();
         }
 
         public UpdateUiStatus Status { get; }
@@ -33,6 +37,7 @@ namespace NVConso
         public string PrimaryActionLabel { get; }
         public string DetailMessage { get; }
         public AppExecutionModeInfo ExecutionMode { get; }
+        public string Channel { get; }
         public string ExecutionModeLabel => ExecutionMode.ModeLabel;
         public string ReleaseUrl => ExecutionMode.ReleaseUrl;
     }
