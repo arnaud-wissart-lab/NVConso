@@ -12,5 +12,6 @@ namespace NVConso
         public double? Threshold { get; set; }
         public string Unit { get; set; }
         public string Message { get; set; }
+        public string DiagnosticBadge { get; set; }
     }
 }

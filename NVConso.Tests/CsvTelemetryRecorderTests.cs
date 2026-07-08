@@ -120,6 +120,36 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public async Task FlushAsync_ShouldWritePowerLimitDiagnosticPeakEvent()
+        {
+            string root = CreateTempRoot();
+            try
+            {
+                await using RecorderScope scope = CreateRecorder(
+                    root,
+                    new TelemetryLoggingSettings
+                    {
+                        PeakPowerThresholdWatts = 1000,
+                        PeakTemperatureThresholdCelsius = 120
+                    });
+                DateTimeOffset timestampUtc = LocalTimestamp(2026, 7, 6, 12);
+
+                scope.Recorder.Enqueue(CreateSnapshot(timestampUtc, powerWatts: 220, temperatureCelsius: 62));
+                await scope.Recorder.FlushAsync(TimeSpan.FromSeconds(5));
+
+                List<TelemetryPeakEvent> events = ReadPeakEvents(PeakPath(root, timestampUtc));
+
+                TelemetryPeakEvent diagnosticEvent = Assert.Single(events, peak => peak.Type == "PowerLimitTransientOvershoot");
+                Assert.Equal("Pic transitoire", diagnosticEvent.DiagnosticBadge);
+                Assert.Equal("Pic transitoire : la consommation instantanée peut dépasser brièvement la limite avant stabilisation.", diagnosticEvent.Message);
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [Fact]
         public async Task FlushAsync_ShouldAggregateDailySummary()
         {
             string root = CreateTempRoot();

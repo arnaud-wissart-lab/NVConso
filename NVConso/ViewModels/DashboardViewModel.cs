@@ -17,6 +17,7 @@ namespace NVConso.ViewModels
         private readonly AppSettingsService _settingsService;
         private readonly AppUpdateWorkflow _updateWorkflow;
         private readonly IPrivilegeService _privilegeService;
+        private readonly PowerLimitDiagnosticsService _powerLimitDiagnosticsService;
         private readonly Action<GpuPowerMode> _applyProfile;
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
@@ -59,6 +60,7 @@ namespace NVConso.ViewModels
         private UiTheme _resolvedTheme = UiTheme.Light;
         private bool _isSettingsPanelOpen;
         private bool _isHistoryPanelOpen;
+        private string _powerLimitDiagnosticMessage = string.Empty;
 
         public DashboardViewModel(
             IGpuTelemetryService telemetryService,
@@ -73,7 +75,8 @@ namespace NVConso.ViewModels
             Action showCustomPowerLimit,
             Action openPreferences,
             Microsoft.Extensions.Logging.ILogger logger = null,
-            IPrivilegeService privilegeService = null)
+            IPrivilegeService privilegeService = null,
+            PowerLimitDiagnosticsService powerLimitDiagnosticsService = null)
         {
             _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
             _telemetryRecorder = telemetryRecorder ?? new CsvTelemetryRecorder();
@@ -88,8 +91,10 @@ namespace NVConso.ViewModels
             _showCustomPowerLimit = showCustomPowerLimit;
             _openPreferences = openPreferences;
             _logger = logger;
+            _powerLimitDiagnosticsService = powerLimitDiagnosticsService ?? new PowerLimitDiagnosticsService();
             _synchronizationContext = SynchronizationContext.Current;
             _settings = _settingsService.Current;
+            _powerLimitMetric.Tooltip = "Limite active lue depuis NVML. C'est un plafond de gestion GPU, pas une garantie que chaque échantillon de télémétrie restera strictement dessous.";
 
             Metrics =
             [
@@ -337,6 +342,18 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _isHistoryPanelOpen, value);
         }
 
+        public string PowerLimitDiagnosticMessage
+        {
+            get => _powerLimitDiagnosticMessage;
+            private set
+            {
+                if (SetProperty(ref _powerLimitDiagnosticMessage, value ?? string.Empty))
+                    OnPropertyChanged(nameof(HasPowerLimitDiagnosticMessage));
+            }
+        }
+
+        public bool HasPowerLimitDiagnosticMessage => !string.IsNullOrWhiteSpace(PowerLimitDiagnosticMessage);
+
         public event EventHandler<UiTheme> ThemeChanged;
 
         public void ApplySettings(AppSettings settings)
@@ -478,6 +495,8 @@ namespace NVConso.ViewModels
             _decoderGauge.Update(model.DecoderUsage, model.DecoderUsageState, model.DecoderUsageGaugeValue);
 
             GpuTelemetrySnapshot[] history = _telemetryService.History.GetSnapshots();
+            PowerLimitDiagnostic powerLimitDiagnostic = _powerLimitDiagnosticsService.Analyze(snapshot, history);
+            PowerLimitDiagnosticMessage = powerLimitDiagnostic.Message;
             UpdateRealtimeCharts(history);
             RefreshDailySummary();
             RefreshCaniculeGuardSummary();

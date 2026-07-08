@@ -4,6 +4,7 @@ namespace NVConso.ViewModels
     {
         private string _value = "--";
         private string _subtitle;
+        private string _tooltip;
         private double? _gaugeValue;
         private DashboardMetricState _state = DashboardMetricState.Unknown;
 
@@ -25,6 +26,12 @@ namespace NVConso.ViewModels
         {
             get => _subtitle;
             set => SetProperty(ref _subtitle, value);
+        }
+
+        public string Tooltip
+        {
+            get => _tooltip;
+            set => SetProperty(ref _tooltip, value);
         }
 
         public double? GaugeValue

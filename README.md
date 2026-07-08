@@ -51,6 +51,8 @@ Depuis le ZIP portable ou une exécution développeur `bin\Debug` / `bin\Release
 
 WattPilot ajuste le `power limit` NVIDIA. Ce plafond ne force pas la carte à consommer cette puissance ; il limite seulement le maximum autorisé par le GPU.
 
+Cette limite est un plafond de gestion accepté par le pilote, pas une garantie que chaque échantillon télémétrique restera strictement inférieur. Un relevé instantané peut donc afficher brièvement 70 W alors qu'une limite active de 54 W vient d'être appliquée : la carte, le pilote et NVML peuvent avoir un court temps de stabilisation, et l'échantillonnage peut capturer ce pic. WattPilot signale ces situations comme `Pic transitoire`, `Dépassement durable` ou `Limite non confirmée` selon la durée du dépassement et la disponibilité de la limite active NVML.
+
 Les profils sont calculés depuis la plage NVML du GPU actif :
 
 | Profil | Rôle | Comportement |

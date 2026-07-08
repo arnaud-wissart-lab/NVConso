@@ -73,7 +73,9 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource CardBorder}" MinHeight="112">
+                            <Border Style="{StaticResource CardBorder}"
+                                    MinHeight="112"
+                                    ToolTip="{Binding Tooltip}">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}"
                                                Style="{StaticResource MutedText}"
@@ -102,6 +104,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
@@ -119,6 +122,11 @@
                             <controls:TelemetrySparkline Grid.Row="1"
                                                          Chart="{Binding PowerChart}"
                                                          MinHeight="230" />
+                            <TextBlock Grid.Row="2"
+                                       Text="{Binding PowerLimitDiagnosticMessage}"
+                                       Style="{StaticResource MutedText}"
+                                       Margin="0,10,0,0"
+                                       Visibility="{Binding HasPowerLimitDiagnosticMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </Grid>
                     </Border>
 
@@ -292,6 +300,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="90" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" />
+                                    <DataGridTextColumn Header="Diagnostic" Binding="{Binding DiagnosticBadge}" Width="155" />
                                     <DataGridTextColumn Header="Valeur" Binding="{Binding Value}" Width="90" />
                                     <DataGridTextColumn Header="Profil" Binding="{Binding Profile}" Width="120" />
                                     <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />

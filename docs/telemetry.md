@@ -43,6 +43,14 @@ L'enregistreur n'écrit pas plus souvent que la télémétrie collectée. L'écr
 
 Si une erreur I/O survient, l'enregistreur se désactive temporairement et remonte un avertissement discret. L'application ne doit pas planter pour un échec d'écriture.
 
+## Limite active et pics transitoires
+
+Le `power limit` NVIDIA est un plafond de gestion transmis au GPU par le pilote. Il ne garantit pas que chaque échantillon de télémétrie NVML restera strictement sous cette valeur. Une limite active de 54 W peut donc coexister avec un relevé ponctuel à 70 W si l'échantillonnage tombe pendant une phase de transition, de boost ou de stabilisation.
+
+WattPilot applique une tolérance pour éviter les faux positifs : les écarts inférieurs à 5 W sont ignorés. Un dépassement significatif et bref est classé `Pic transitoire`. Un dépassement qui se prolonge au moins 3 secondes est classé `Dépassement durable` et peut indiquer que le profil n'est pas encore appliqué, que le pilote refuse la limite ou que la limite active lue par NVML ne correspond pas à l'intention utilisateur. Si `PowerLimitW` est absent, WattPilot classe le relevé en `Limite non confirmée`.
+
+Ces diagnostics servent à expliquer la télémétrie ; ils ne modifient pas la limite GPU.
+
 ## Format CSV
 
 Un fichier CSV est créé par jour. La première ligne contient l'en-tête.
@@ -91,7 +99,12 @@ Types produits par l'enregistreur :
 - `PowerThreshold` ;
 - `TemperatureThreshold` ;
 - `PowerDailyMaximum` ;
-- `TemperatureDailyMaximum`.
+- `TemperatureDailyMaximum` ;
+- `PowerLimitTransientOvershoot` ;
+- `PowerLimitSustainedOvershoot` ;
+- `PowerLimitUnconfirmed`.
+
+Les événements liés à la limite active peuvent porter le champ `DiagnosticBadge` avec les valeurs affichées dans l'historique : `Pic transitoire`, `Dépassement durable` ou `Limite non confirmée`.
 
 Canicule Guard peut ajouter :
 

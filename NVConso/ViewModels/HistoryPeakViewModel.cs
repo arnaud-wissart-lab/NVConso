@@ -17,6 +17,7 @@ namespace NVConso.ViewModels
                 ? $"#{peakEvent.GpuIndex}"
                 : $"#{peakEvent.GpuIndex} - {peakEvent.GpuName}";
             Message = string.IsNullOrWhiteSpace(peakEvent.Message) ? "--" : peakEvent.Message;
+            DiagnosticBadge = string.IsNullOrWhiteSpace(peakEvent.DiagnosticBadge) ? "--" : peakEvent.DiagnosticBadge;
         }
 
         public string Time { get; } = "--";
@@ -25,6 +26,7 @@ namespace NVConso.ViewModels
         public string Profile { get; } = "--";
         public string Gpu { get; } = "--";
         public string Message { get; } = "--";
+        public string DiagnosticBadge { get; } = "--";
 
         public static string FormatPeakType(string type)
         {
@@ -34,6 +36,9 @@ namespace NVConso.ViewModels
                 "TemperatureThreshold" => "Seuil température",
                 "PowerDailyMaximum" => "Max puissance jour",
                 "TemperatureDailyMaximum" => "Max température jour",
+                "PowerLimitTransientOvershoot" => "Limite active",
+                "PowerLimitSustainedOvershoot" => "Limite active",
+                "PowerLimitUnconfirmed" => "Limite active",
                 _ => string.IsNullOrWhiteSpace(type) ? "--" : type
             };
         }

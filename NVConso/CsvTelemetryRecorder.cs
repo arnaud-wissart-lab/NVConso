@@ -28,8 +28,10 @@ namespace NVConso
         private readonly object _summaryLock = new();
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly Task _worker;
+        private readonly PowerLimitDiagnosticsService _powerLimitDiagnosticsService = new();
         private readonly Dictionary<string, TelemetryDailySummary> _summaries = [];
         private readonly Dictionary<string, DateTimeOffset> _lastPeakEventsUtc = [];
+        private readonly List<GpuTelemetrySnapshot> _powerLimitDiagnosticHistory = [];
 
         private TelemetryLoggingSettings _settings;
         private DateTimeOffset? _lastRecordedUtc;
@@ -235,7 +237,7 @@ namespace NVConso
                     TelemetryLogEntry entry = TelemetryLogEntryFactory.FromSnapshot(snapshot);
                     await AppendCsvEntryAsync(entry, cancellationToken).ConfigureAwait(false);
 
-                    List<TelemetryPeakEvent> peakEvents = UpdateSummaryAndDetectPeaks(entry);
+                    List<TelemetryPeakEvent> peakEvents = UpdateSummaryAndDetectPeaks(snapshot, entry);
                     if (peakEvents.Count > 0)
                         await AppendPeakEventsAsync(entry.LocalDate, peakEvents, cancellationToken).ConfigureAwait(false);
 
@@ -313,18 +315,22 @@ namespace NVConso
             await File.WriteAllTextAsync(path, json, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         }
 
-        private List<TelemetryPeakEvent> UpdateSummaryAndDetectPeaks(TelemetryLogEntry entry)
+        private List<TelemetryPeakEvent> UpdateSummaryAndDetectPeaks(GpuTelemetrySnapshot snapshot, TelemetryLogEntry entry)
         {
             lock (_summaryLock)
             {
                 TelemetryDailySummary summary = GetOrCreateSummary(entry.LocalDate);
-                List<TelemetryPeakEvent> peaks = DetectPeaks(entry, summary);
+                List<TelemetryPeakEvent> peaks = DetectPeaks(snapshot, entry, summary);
+                TrackPowerLimitDiagnosticSnapshot(snapshot);
                 ApplySummaryEntry(summary, entry, peaks.Count);
                 return peaks;
             }
         }
 
-        private List<TelemetryPeakEvent> DetectPeaks(TelemetryLogEntry entry, TelemetryDailySummary summary)
+        private List<TelemetryPeakEvent> DetectPeaks(
+            GpuTelemetrySnapshot snapshot,
+            TelemetryLogEntry entry,
+            TelemetryDailySummary summary)
         {
             var events = new List<TelemetryPeakEvent>();
             TelemetryLoggingSettings settings = GetSettingsSnapshot();
@@ -383,7 +389,54 @@ namespace NVConso
                 }
             }
 
+            PowerLimitDiagnostic diagnostic = _powerLimitDiagnosticsService.Analyze(
+                snapshot,
+                _powerLimitDiagnosticHistory,
+                snapshot?.IsCustomPowerLimit == true ? GpuPowerMode.Custom : snapshot?.ActivePowerMode);
+            TryAddPowerLimitDiagnosticEvent(events, entry, diagnostic);
+
             return events;
+        }
+
+        private void TryAddPowerLimitDiagnosticEvent(
+            List<TelemetryPeakEvent> events,
+            TelemetryLogEntry entry,
+            PowerLimitDiagnostic diagnostic)
+        {
+            if (diagnostic?.OvershootEvent is null || diagnostic.Kind == PowerLimitDiagnosticKind.None)
+                return;
+
+            PowerLimitOvershootEvent overshootEvent = diagnostic.OvershootEvent;
+            string type = diagnostic.Kind switch
+            {
+                PowerLimitDiagnosticKind.TransientOvershoot => "PowerLimitTransientOvershoot",
+                PowerLimitDiagnosticKind.SustainedOvershoot => "PowerLimitSustainedOvershoot",
+                PowerLimitDiagnosticKind.LimitUnconfirmed => "PowerLimitUnconfirmed",
+                _ => null
+            };
+
+            if (string.IsNullOrWhiteSpace(type))
+                return;
+
+            TryAddPeakEvent(
+                events,
+                entry,
+                type,
+                overshootEvent.PowerUsageW ?? entry.PowerUsageW ?? 0,
+                overshootEvent.PowerLimitW,
+                "W",
+                overshootEvent.Message,
+                overshootEvent.Badge);
+        }
+
+        private void TrackPowerLimitDiagnosticSnapshot(GpuTelemetrySnapshot snapshot)
+        {
+            if (snapshot is null)
+                return;
+
+            _powerLimitDiagnosticHistory.Add(snapshot);
+            DateTimeOffset cutoffUtc = snapshot.TimestampUtc.AddMinutes(-10);
+            _powerLimitDiagnosticHistory.RemoveAll(item => item.TimestampUtc < cutoffUtc);
         }
 
         private void TryAddPeakEvent(
@@ -393,7 +446,8 @@ namespace NVConso
             double value,
             double? threshold,
             string unit,
-            string message)
+            string message,
+            string diagnosticBadge = null)
         {
             if (_lastPeakEventsUtc.TryGetValue(type, out DateTimeOffset lastPeakUtc)
                 && entry.TimestampUtc - lastPeakUtc < TimeSpan.FromSeconds(PeakCooldownSeconds))
@@ -413,7 +467,8 @@ namespace NVConso
                 Value = Math.Round(value, 3),
                 Threshold = threshold,
                 Unit = unit,
-                Message = message
+                Message = message,
+                DiagnosticBadge = diagnosticBadge
             });
         }
 
