@@ -46,7 +46,7 @@ namespace NVConso
         public static string FormatPowerMode(GpuPowerMode? mode, bool isCustomPowerLimit = false)
         {
             if (isCustomPowerLimit)
-                return "Personnalisé";
+                return "Custom";
 
             return mode.HasValue
                 ? ProfileLabels.GetDisplayName(mode.Value)

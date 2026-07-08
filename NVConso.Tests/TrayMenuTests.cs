@@ -14,12 +14,13 @@ namespace NVConso.Tests
                 .Select(item => item.Text)
                 .ToArray();
 
-            Assert.Contains(ProductNames.DisplayName, topLevelTexts);
-            Assert.Contains("Ouvrir le tableau de bord", topLevelTexts);
+            Assert.Contains("Ouvrir WattPilot", topLevelTexts);
             Assert.Contains("Profils", topLevelTexts);
-            Assert.Contains("Préférences...", topLevelTexts);
+            Assert.Contains(UpdateLabels.FormatUpToDate(null), topLevelTexts);
             Assert.Contains("Quitter", topLevelTexts);
 
+            Assert.DoesNotContain(ProductNames.DisplayName, topLevelTexts);
+            Assert.DoesNotContain("Préférences...", topLevelTexts);
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Rechercher une mise à jour", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Télécharger la mise à jour", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(topLevelTexts, text => text.Contains("Installer et redémarrer", StringComparison.OrdinalIgnoreCase));
@@ -35,7 +36,7 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void CompactMenu_ShouldKeepProfilesAndPreferencesAccessible()
+        public void CompactMenu_ShouldKeepProfilesAccessible()
         {
             using TrayMenuView view = CreateMenuView();
 
@@ -47,10 +48,9 @@ namespace NVConso.Tests
             Assert.Contains("Canicule", profileTexts);
             Assert.Contains("Vidéo / surf", profileTexts);
             Assert.Contains("Indie 2D", profileTexts);
-            Assert.Contains("Stock", profileTexts);
+            Assert.Contains("Normal / Stock", profileTexts);
             Assert.Contains("Max", profileTexts);
             Assert.Contains("Limite personnalisée...", profileTexts);
-            Assert.Equal("Préférences...", view.PreferencesItem.Text);
         }
 
         [Fact]

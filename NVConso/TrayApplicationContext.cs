@@ -16,11 +16,8 @@ namespace NVConso
 
         private readonly NotifyIcon _icon;
         private readonly ContextMenuStrip _trayMenu;
-        private readonly ToolStripMenuItem _gpuProfileSummaryItem;
-        private readonly ToolStripMenuItem _powerTemperatureSummaryItem;
         private readonly ToolStripMenuItem _statusItem;
         private readonly ToolStripMenuItem _openDashboardItem;
-        private readonly ToolStripMenuItem _preferencesItem;
         private readonly ToolStripMenuItem _customPowerLimitItem;
         private readonly ToolStripMenuItem _updateStatusItem;
         private readonly ToolStripMenuItem _updateActionItem;
@@ -43,9 +40,7 @@ namespace NVConso
         private readonly TrayUpdateController _updateController;
 
         private AppSettings _settings;
-        private DashboardWindow _dashboardWindow;
-        private PreferencesWindow _preferencesWindow;
-        private string _activeProfileLabel = "--";
+        private WattPilotWindow _wattPilotWindow;
 
         public TrayAppContext(INvmlManager nvml, ILogger<TrayAppContext> logger = null)
             : this(
@@ -107,11 +102,8 @@ namespace NVConso
 
             TrayMenuView trayMenuView = TrayMenuBuilder.Create();
             _trayMenu = trayMenuView.Menu;
-            _gpuProfileSummaryItem = trayMenuView.GpuProfileSummaryItem;
-            _powerTemperatureSummaryItem = trayMenuView.PowerTemperatureSummaryItem;
             _statusItem = trayMenuView.StatusItem;
             _openDashboardItem = trayMenuView.OpenDashboardItem;
-            _preferencesItem = trayMenuView.PreferencesItem;
             _customPowerLimitItem = trayMenuView.CustomPowerLimitItem;
             _updateStatusItem = trayMenuView.UpdateStatusItem;
             _updateActionItem = trayMenuView.UpdateActionItem;
@@ -122,7 +114,6 @@ namespace NVConso
 
             _customPowerLimitItem.Click += (_, _) => ShowCustomPowerLimitDialog();
             _openDashboardItem.Click += (_, _) => OpenDashboard();
-            _preferencesItem.Click += (_, _) => OpenPreferences();
             trayMenuView.QuitItem.Click += (_, _) => System.Windows.Forms.Application.Exit();
 
             Icon trayIcon = AppIcon.Load();
@@ -186,33 +177,22 @@ namespace NVConso
 
         private void OpenDashboard()
         {
-            DashboardWindow dashboard = EnsureDashboard();
-            if (!dashboard.IsVisible)
-                dashboard.Show();
+            WattPilotWindow window = EnsureDashboard();
+            if (!window.IsVisible)
+                window.Show();
 
-            if (dashboard.WindowState == WindowState.Minimized)
-                dashboard.WindowState = WindowState.Normal;
+            if (window.WindowState == WindowState.Minimized)
+                window.WindowState = WindowState.Normal;
 
-            dashboard.Activate();
+            window.Activate();
         }
 
-        private void ToggleDashboard()
+        private WattPilotWindow EnsureDashboard()
         {
-            if (_dashboardWindow?.IsVisible == true)
-            {
-                _dashboardWindow.Hide();
-                return;
-            }
+            if (_wattPilotWindow is not null)
+                return _wattPilotWindow;
 
-            OpenDashboard();
-        }
-
-        private DashboardWindow EnsureDashboard()
-        {
-            if (_dashboardWindow is not null)
-                return _dashboardWindow;
-
-            var viewModel = new DashboardViewModel(
+            var dashboardViewModel = new DashboardViewModel(
                 _telemetryService,
                 _telemetryRecorder,
                 _telemetryLogReader,
@@ -227,28 +207,7 @@ namespace NVConso
                 _logger,
                 _privilegeService);
 
-            _dashboardWindow = new DashboardWindow(viewModel);
-            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_dashboardWindow);
-            _dashboardWindow.Closed += (_, _) => _dashboardWindow = null;
-
-            return _dashboardWindow;
-        }
-
-        private void OpenPreferences()
-        {
-            if (_preferencesWindow is not null)
-            {
-                if (!_preferencesWindow.IsVisible)
-                    _preferencesWindow.Show();
-
-                if (_preferencesWindow.WindowState == WindowState.Minimized)
-                    _preferencesWindow.WindowState = WindowState.Normal;
-
-                _preferencesWindow.Activate();
-                return;
-            }
-
-            var viewModel = new PreferencesViewModel(
+            var preferencesViewModel = new PreferencesViewModel(
                 _settingsService,
                 _startupController,
                 _updateWorkflow,
@@ -257,11 +216,18 @@ namespace NVConso
                 _telemetryRecorder,
                 _privilegeService);
 
-            _preferencesWindow = new PreferencesWindow(viewModel);
-            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_preferencesWindow);
-            _preferencesWindow.Closed += (_, _) => _preferencesWindow = null;
-            _preferencesWindow.Show();
-            _preferencesWindow.Activate();
+            _wattPilotWindow = new WattPilotWindow(dashboardViewModel, preferencesViewModel);
+            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_wattPilotWindow);
+            _wattPilotWindow.Closed += (_, _) => _wattPilotWindow = null;
+
+            return _wattPilotWindow;
+        }
+
+        private void OpenPreferences()
+        {
+            WattPilotWindow window = EnsureDashboard();
+            window.DashboardViewModel.OpenSettingsPanel();
+            OpenDashboard();
         }
 
         private void OnSettingsChanged(object sender, AppSettings settings)
@@ -291,7 +257,7 @@ namespace NVConso
 
             _notifications.SetStatus(alert.Message);
             _notifications.ShowWarning("Canicule Guard", alert.Message, 3500);
-            _dashboardWindow?.ViewModel.RefreshCaniculeGuardSummary();
+            _wattPilotWindow?.DashboardViewModel.RefreshCaniculeGuardSummary();
         }
 
         private void OnTelemetryRecorderWarning(object sender, string message)
@@ -365,7 +331,6 @@ namespace NVConso
 
             UpdateProfileLabels();
 
-            UpdateGpuProfileSummary();
             _notifications.SetStatus($"GPU sélectionné : {_nvml.SelectedGpuName}");
             return true;
         }
@@ -399,12 +364,6 @@ namespace NVConso
             }
 
             _notifications.SetStatus(result.Message);
-            if (result.Mode.HasValue)
-            {
-                _activeProfileLabel = ProfileLabels.GetDisplayName(result.Mode.Value);
-                UpdateGpuProfileSummary();
-            }
-
             if (showBalloon)
                 _notifications.ShowInfo("GPU", result.Message);
         }
@@ -421,11 +380,6 @@ namespace NVConso
             }
 
             _notifications.SetStatus(result.Message);
-            if (result.Mode.HasValue)
-            {
-                _activeProfileLabel = ProfileLabels.GetDisplayName(result.Mode.Value);
-                UpdateGpuProfileSummary();
-            }
         }
 
         private void ShowCustomPowerLimitDialog()
@@ -475,8 +429,6 @@ namespace NVConso
             }
 
             _notifications.SetStatus(result.Message);
-            _activeProfileLabel = ProfileLabels.GetDisplayName(GpuPowerMode.Custom);
-            UpdateGpuProfileSummary();
 
             if (showBalloon)
                 _notifications.ShowInfo("GPU", result.Message);
@@ -515,19 +467,16 @@ namespace NVConso
         {
             _telemetryRecorder.Enqueue(snapshot);
             CaniculeGuardEvaluationResult guardResult = _caniculeGuard.Evaluate(snapshot, _settings, snapshot?.ActivePowerMode);
-            _dashboardWindow?.ViewModel.RefreshCaniculeGuardSummary();
+            _wattPilotWindow?.DashboardViewModel.RefreshCaniculeGuardSummary();
 
             if (guardResult.State?.Status == CaniculeGuardStatus.Watching)
                 _notifications.SetStatus(guardResult.State.Message);
 
             if (snapshot?.IsAvailable != true)
             {
-                UpdateTelemetryItems(snapshot?.Telemetry ?? new GpuTelemetry());
                 ClearProfileChecks();
                 return;
             }
-
-            UpdateTelemetryItems(snapshot.Telemetry);
 
             if (snapshot.Telemetry.CurrentPowerLimitMilliwatt.HasValue)
                 UpdatePowerSelection(snapshot.Telemetry.CurrentPowerLimitMilliwatt.Value);
@@ -535,32 +484,19 @@ namespace NVConso
                 ClearProfileChecks();
         }
 
-        private void UpdateTelemetryItems(GpuTelemetry telemetry)
-        {
-            _powerTemperatureSummaryItem.Text = TrayMenuLabels.FormatPowerTemperatureSummary(telemetry);
-        }
-
         private void UpdatePowerSelection(uint currentLimit)
         {
             bool matchedProfile = false;
-            string matchedProfileLabel = "--";
             foreach ((GpuPowerMode mode, ToolStripMenuItem item) in _profileItems)
             {
                 uint targetLimit = _nvml.GetPowerLimit(mode);
                 item.Checked = Math.Abs((int)targetLimit - (int)currentLimit) <= CheckedThresholdMilliwatt;
                 matchedProfile = matchedProfile || item.Checked;
-                if (item.Checked)
-                    matchedProfileLabel = ProfileLabels.GetDisplayName(mode);
             }
 
             _customPowerLimitItem.Checked = !matchedProfile
                 && _settings.CustomPowerLimitMilliwatt.HasValue
                 && Math.Abs((int)_settings.CustomPowerLimitMilliwatt.Value - (int)currentLimit) <= CheckedThresholdMilliwatt;
-
-            _activeProfileLabel = _customPowerLimitItem.Checked
-                ? ProfileLabels.GetDisplayName(GpuPowerMode.Custom)
-                : matchedProfileLabel;
-            UpdateGpuProfileSummary();
         }
 
         private void ClearProfileChecks()
@@ -569,14 +505,6 @@ namespace NVConso
                 item.Checked = false;
 
             _customPowerLimitItem.Checked = false;
-            _activeProfileLabel = "--";
-            UpdateGpuProfileSummary();
-        }
-
-        private void UpdateGpuProfileSummary()
-        {
-            string gpuName = _nvml?.SelectedGpuName;
-            _gpuProfileSummaryItem.Text = TrayMenuLabels.FormatGpuProfileSummary(gpuName, _activeProfileLabel);
         }
 
         protected override void Dispose(bool disposing)
@@ -607,8 +535,7 @@ namespace NVConso
                 _telemetryRecorder.Dispose();
 
                 _icon.Dispose();
-                _dashboardWindow?.CloseForApplicationExit();
-                _preferencesWindow?.Close();
+                _wattPilotWindow?.CloseForApplicationExit();
                 System.Windows.Application.Current?.Shutdown();
                 _trayMenu.Dispose();
             }

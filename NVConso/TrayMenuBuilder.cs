@@ -9,12 +9,9 @@ namespace NVConso
                 ShowItemToolTips = true
             };
 
-            ToolStripMenuItem titleItem = CreateHeader(ProductNames.DisplayName);
-            ToolStripMenuItem gpuProfileSummaryItem = CreateInfoItem(TrayMenuLabels.FormatGpuProfileSummary("--", "--"));
-            ToolStripMenuItem powerTemperatureSummaryItem = CreateInfoItem(TrayMenuLabels.FormatPowerTemperatureSummary(new GpuTelemetry()));
             ToolStripMenuItem statusItem = CreateInfoItem("Statut : initialisation...");
 
-            ToolStripMenuItem openDashboardItem = new("Ouvrir le tableau de bord");
+            ToolStripMenuItem openDashboardItem = new("Ouvrir WattPilot");
             ToolStripMenuItem profilesMenuItem = new("Profils");
             var profileItems = new Dictionary<GpuPowerMode, ToolStripMenuItem>();
 
@@ -42,27 +39,18 @@ namespace NVConso
                 Available = false
             };
 
-            ToolStripMenuItem preferencesItem = new("Préférences...");
             ToolStripMenuItem quitItem = new("Quitter");
 
-            menu.Items.Add(titleItem);
-            menu.Items.Add(gpuProfileSummaryItem);
-            menu.Items.Add(powerTemperatureSummaryItem);
-            menu.Items.Add(statusItem);
-            menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(openDashboardItem);
             menu.Items.Add(profilesMenuItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(updateStatusItem);
             menu.Items.Add(updateActionItem);
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(preferencesItem);
             menu.Items.Add(quitItem);
 
             return new TrayMenuView(
                 menu,
-                gpuProfileSummaryItem,
-                powerTemperatureSummaryItem,
                 statusItem,
                 openDashboardItem,
                 profilesMenuItem,
@@ -70,7 +58,6 @@ namespace NVConso
                 customPowerLimitItem,
                 updateStatusItem,
                 updateActionItem,
-                preferencesItem,
                 quitItem);
         }
 
@@ -82,13 +69,5 @@ namespace NVConso
             };
         }
 
-        private static ToolStripMenuItem CreateHeader(string text)
-        {
-            return new ToolStripMenuItem(text)
-            {
-                Enabled = false,
-                Font = new Font(SystemFonts.MenuFont, FontStyle.Bold)
-            };
-        }
     }
 }

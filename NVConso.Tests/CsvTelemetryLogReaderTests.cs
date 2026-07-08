@@ -184,18 +184,18 @@ namespace NVConso.Tests
                     root,
                     date,
                     CreatePeak(date, 10, "Canicule", "PowerDailyMaximum"),
-                    CreatePeak(date, 11, "Stock", "PowerDailyMaximum"));
+                    CreatePeak(date, 11, "Normal / Stock", "PowerDailyMaximum"));
                 var reader = new CsvTelemetryLogReader(root);
 
                 TelemetryLogReadResult result = await reader.ReadDayAsync(
                     date,
-                    new TelemetryLogReadOptions { ActivePowerMode = "Stock" },
+                    new TelemetryLogReadOptions { ActivePowerMode = "Normal / Stock" },
                     TestContext.Current.CancellationToken);
 
                 Assert.Single(result.FilteredEntries);
-                Assert.Equal("Stock", result.FilteredEntries[0].ActivePowerMode);
+                Assert.Equal("Normal / Stock", result.FilteredEntries[0].ActivePowerMode);
                 Assert.Single(result.PeakEvents);
-                Assert.Equal("Stock", result.PeakEvents[0].ActivePowerMode);
+                Assert.Equal("Normal / Stock", result.PeakEvents[0].ActivePowerMode);
             }
             finally
             {

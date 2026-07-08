@@ -24,12 +24,13 @@ namespace NVConso.ViewModels
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly SynchronizationContext _synchronizationContext;
         private readonly MetricCardViewModel _powerMetric = new("Puissance", "instantanée");
-        private readonly MetricCardViewModel _powerLimitMetric = new("Power limit", "limite active");
+        private readonly MetricCardViewModel _powerLimitMetric = new("Limite active", "plafond GPU");
         private readonly MetricCardViewModel _temperatureMetric = new("Température", "GPU");
+        private readonly MetricCardViewModel _profileMetric = new("Profil actif", "mode courant");
         private readonly MetricCardViewModel _gpuUsageMetric = new("GPU", "utilisation");
         private readonly MetricCardViewModel _decoderMetric = new("Décodeur", "vidéo");
-        private readonly MetricCardViewModel _memoryMetric = new("Mémoire", "utilisation");
-        private readonly MetricCardViewModel _clocksMetric = new("Clocks", "GPU / mémoire");
+        private readonly MetricCardViewModel _graphicsClockMetric = new("Fréquence GPU", "horloge graphique");
+        private readonly MetricCardViewModel _memoryClockMetric = new("Fréquence mémoire", "horloge VRAM");
         private readonly MetricCardViewModel _fanMetric = new("Ventilateur", "vitesse");
         private readonly MetricCardViewModel _powerGauge = new("Puissance / limite");
         private readonly MetricCardViewModel _temperatureGauge = new("Température / seuil");
@@ -43,6 +44,7 @@ namespace NVConso.ViewModels
         private bool _updatingHistoryFilters;
         private string _gpuName = "GPU non sélectionné";
         private string _profileName = "--";
+        private string _selectedProfileDescription = ProfileLabels.GetDescription(GpuPowerMode.Stock);
         private string _statusMessage = "NVML indisponible";
         private string _privilegeStatusMessage = PrivilegeMessages.ReadOnlyMode;
         private string _productVersion = DashboardHeaderLabels.FormatProductVersion();
@@ -52,8 +54,11 @@ namespace NVConso.ViewModels
         private SelectionOption<int?> _selectedHistoryGpu;
         private SelectionOption<string> _selectedHistoryProfile;
         private SelectionOption<TelemetryHistoryMetric> _selectedHistoryMetric;
+        private SelectionOption<GpuPowerMode> _selectedProfileAction;
         private DashboardMetricState _statusState = DashboardMetricState.Unknown;
         private UiTheme _resolvedTheme = UiTheme.Light;
+        private bool _isSettingsPanelOpen;
+        private bool _isHistoryPanelOpen;
 
         public DashboardViewModel(
             IGpuTelemetryService telemetryService,
@@ -91,10 +96,28 @@ namespace NVConso.ViewModels
                 _powerMetric,
                 _powerLimitMetric,
                 _temperatureMetric,
+                _profileMetric,
                 _gpuUsageMetric,
                 _decoderMetric,
-                _memoryMetric,
-                _clocksMetric,
+                _graphicsClockMetric,
+                _memoryClockMetric,
+                _fanMetric
+            ];
+
+            PrimaryMetrics =
+            [
+                _powerMetric,
+                _powerLimitMetric,
+                _temperatureMetric,
+                _profileMetric
+            ];
+
+            TechnicalMetrics =
+            [
+                _gpuUsageMetric,
+                _decoderMetric,
+                _graphicsClockMetric,
+                _memoryClockMetric,
                 _fanMetric
             ];
 
@@ -117,13 +140,17 @@ namespace NVConso.ViewModels
             ApplyProfileCommand = new RelayCommand(parameter =>
             {
                 if (parameter is GpuPowerMode mode)
-                    _applyProfile?.Invoke(mode);
+                    ApplyProfileSelection(mode);
             });
             RestoreStockCommand = new RelayCommand(() => _restoreStock?.Invoke());
             CustomPowerLimitCommand = new RelayCommand(() => _showCustomPowerLimit?.Invoke());
-            OpenPreferencesCommand = new RelayCommand(() => _openPreferences?.Invoke());
+            OpenPreferencesCommand = new RelayCommand(() => IsSettingsPanelOpen = true);
+            ToggleSettingsPanelCommand = new RelayCommand(() => IsSettingsPanelOpen = !IsSettingsPanelOpen);
+            CloseSettingsPanelCommand = new RelayCommand(() => IsSettingsPanelOpen = false);
+            ToggleHistoryPanelCommand = new AsyncRelayCommand(ToggleHistoryPanelAsync);
             RefreshHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
+            _selectedProfileAction = ProfileActions.FirstOrDefault(option => option.Value == GpuPowerMode.Stock);
 
             ApplySettings(_settings);
             RefreshPrivilegeStatus();
@@ -137,6 +164,8 @@ namespace NVConso.ViewModels
         }
 
         public ObservableCollection<MetricCardViewModel> Metrics { get; }
+        public ObservableCollection<MetricCardViewModel> PrimaryMetrics { get; }
+        public ObservableCollection<MetricCardViewModel> TechnicalMetrics { get; }
         public ObservableCollection<MetricCardViewModel> Gauges { get; }
         public ObservableCollection<ChartViewModel> RealtimeCharts { get; }
         public ObservableCollection<SelectionOption<int?>> HistoryGpus { get; } = [];
@@ -153,6 +182,9 @@ namespace NVConso.ViewModels
         public ICommand RestoreStockCommand { get; }
         public ICommand CustomPowerLimitCommand { get; }
         public ICommand OpenPreferencesCommand { get; }
+        public ICommand ToggleSettingsPanelCommand { get; }
+        public ICommand CloseSettingsPanelCommand { get; }
+        public AsyncRelayCommand ToggleHistoryPanelCommand { get; }
         public AsyncRelayCommand RefreshHistoryCommand { get; }
         public ICommand OpenTelemetryFolderCommand { get; }
 
@@ -162,8 +194,21 @@ namespace NVConso.ViewModels
             new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.VideoSurf), GpuPowerMode.VideoSurf),
             new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.Indie2D), GpuPowerMode.Indie2D),
             new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.Stock), GpuPowerMode.Stock),
-            new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.Max), GpuPowerMode.Max)
+            new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.Max), GpuPowerMode.Max),
+            new SelectionOption<GpuPowerMode>(ProfileLabels.GetDisplayName(GpuPowerMode.Custom), GpuPowerMode.Custom)
         ];
+
+        public SelectionOption<GpuPowerMode> SelectedProfileAction
+        {
+            get => _selectedProfileAction;
+            set
+            {
+                if (!SetProperty(ref _selectedProfileAction, value) || value is null)
+                    return;
+
+                ApplyProfileSelection(value.Value);
+            }
+        }
 
         public string GpuName
         {
@@ -175,6 +220,12 @@ namespace NVConso.ViewModels
         {
             get => _profileName;
             private set => SetProperty(ref _profileName, value);
+        }
+
+        public string SelectedProfileDescription
+        {
+            get => _selectedProfileDescription;
+            private set => SetProperty(ref _selectedProfileDescription, value);
         }
 
         public string StatusMessage
@@ -272,6 +323,19 @@ namespace NVConso.ViewModels
         public string TelemetryRootPath => _telemetryLogReader.TelemetryRootPath;
         public DashboardWindowBounds SavedBounds => _settings?.DashboardWindowBounds;
         public string UpdateModeLabel => DashboardHeaderLabels.FormatUpdateMode(UpdateStatus.ExecutionModeLabel);
+        public string UpdateStatusLabel => UpdateStatus.Message;
+
+        public bool IsSettingsPanelOpen
+        {
+            get => _isSettingsPanelOpen;
+            private set => SetProperty(ref _isSettingsPanelOpen, value);
+        }
+
+        public bool IsHistoryPanelOpen
+        {
+            get => _isHistoryPanelOpen;
+            private set => SetProperty(ref _isHistoryPanelOpen, value);
+        }
 
         public event EventHandler<UiTheme> ThemeChanged;
 
@@ -302,6 +366,11 @@ namespace NVConso.ViewModels
                 return;
 
             await LoadHistoryAsync().ConfigureAwait(true);
+        }
+
+        public void OpenSettingsPanel()
+        {
+            IsSettingsPanelOpen = true;
         }
 
         public async Task ExportFilteredHistoryAsync(string destinationPath)
@@ -389,16 +458,18 @@ namespace NVConso.ViewModels
 
             GpuName = model.GpuName;
             ProfileName = model.ProfileName;
+            SyncSelectedProfileAction(snapshot);
             StatusMessage = model.NvmlStatus;
             StatusState = snapshot?.IsAvailable == true ? DashboardMetricState.Normal : DashboardMetricState.Warning;
 
-            _powerMetric.Update(model.PowerUsage, DashboardMetricState.Normal, model.PowerGaugeValue);
+            _powerMetric.Update(model.PowerUsage, model.PowerState, model.PowerGaugeValue);
             _powerLimitMetric.Update(model.PowerLimit);
             _temperatureMetric.Update(model.Temperature, model.TemperatureState, model.TemperatureGaugeValue);
+            _profileMetric.Update(model.ProfileName);
             _gpuUsageMetric.Update(model.GpuUsage, model.GpuUsageState, model.GpuUsageGaugeValue);
             _decoderMetric.Update(model.DecoderUsage, model.DecoderUsageState, model.DecoderUsageGaugeValue);
-            _memoryMetric.Update(GpuTelemetryFormatter.FormatPercentage(telemetry.MemoryUtilizationPercent));
-            _clocksMetric.Update($"{model.GraphicsClock} / {model.MemoryClock}");
+            _graphicsClockMetric.Update(model.GraphicsClock);
+            _memoryClockMetric.Update(model.MemoryClock);
             _fanMetric.Update(model.FanSpeed);
 
             _powerGauge.Update(model.PowerUsage, DashboardMetricState.Normal, model.PowerGaugeValue, model.PowerLimit);
@@ -419,6 +490,44 @@ namespace NVConso.ViewModels
                 : new UpdateStatusPresenter(_updateWorkflow).GetStoredState(_settings);
             UpdateStatus.Apply(state);
             OnPropertyChanged(nameof(UpdateModeLabel));
+            OnPropertyChanged(nameof(UpdateStatusLabel));
+        }
+
+        private async Task ToggleHistoryPanelAsync()
+        {
+            IsHistoryPanelOpen = !IsHistoryPanelOpen;
+            if (IsHistoryPanelOpen)
+                await EnsureHistoryLoadedAsync().ConfigureAwait(true);
+        }
+
+        private void ApplyProfileSelection(GpuPowerMode mode)
+        {
+            if (mode == GpuPowerMode.Custom)
+            {
+                SelectedProfileDescription = ProfileLabels.GetDescription(mode);
+                _showCustomPowerLimit?.Invoke();
+                return;
+            }
+
+            SelectedProfileDescription = ProfileLabels.GetDescription(mode);
+            _applyProfile?.Invoke(mode);
+        }
+
+        private void SyncSelectedProfileAction(GpuTelemetrySnapshot snapshot)
+        {
+            GpuPowerMode? activeMode = snapshot?.IsCustomPowerLimit == true
+                ? GpuPowerMode.Custom
+                : snapshot?.ActivePowerMode;
+            if (!activeMode.HasValue)
+                return;
+
+            SelectionOption<GpuPowerMode> option = ProfileActions.FirstOrDefault(item => item.Value == activeMode.Value);
+            if (option is null || ReferenceEquals(option, _selectedProfileAction))
+                return;
+
+            _selectedProfileAction = option;
+            SelectedProfileDescription = ProfileLabels.GetDescription(option.Value);
+            OnPropertyChanged(nameof(SelectedProfileAction));
         }
 
         private void RefreshPrivilegeStatus()

@@ -3,29 +3,32 @@ using NVConso.ViewModels;
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace NVConso.Views
 {
-    public partial class DashboardWindow : Window
+    public partial class WattPilotWindow : Window
     {
-        private readonly DashboardViewModel _viewModel;
+        private readonly DashboardViewModel _dashboardViewModel;
+        private readonly PreferencesViewModel _preferencesViewModel;
         private bool _allowClose;
 
-        public DashboardWindow(DashboardViewModel viewModel)
+        public WattPilotWindow(DashboardViewModel dashboardViewModel, PreferencesViewModel preferencesViewModel)
         {
-            _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            _dashboardViewModel = dashboardViewModel ?? throw new ArgumentNullException(nameof(dashboardViewModel));
+            _preferencesViewModel = preferencesViewModel ?? throw new ArgumentNullException(nameof(preferencesViewModel));
             InitializeComponent();
-            DataContext = _viewModel;
+            DataContext = _dashboardViewModel;
+            PreferencesPanel.DataContext = _preferencesViewModel;
             Icon = WpfIconLoader.LoadWindowIcon();
-            ApplyTheme(_viewModel.ResolvedTheme);
+            ApplyTheme(_dashboardViewModel.ResolvedTheme);
             ApplySavedBounds();
-            _viewModel.ThemeChanged += OnThemeChanged;
+            _dashboardViewModel.ThemeChanged += OnThemeChanged;
+            _preferencesViewModel.ThemeChanged += OnThemeChanged;
         }
 
-        public DashboardViewModel ViewModel => _viewModel;
+        public DashboardViewModel DashboardViewModel => _dashboardViewModel;
 
         public void CloseForApplicationExit()
         {
@@ -49,17 +52,10 @@ namespace NVConso.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            _viewModel.ThemeChanged -= OnThemeChanged;
-            _viewModel.Dispose();
+            _dashboardViewModel.ThemeChanged -= OnThemeChanged;
+            _preferencesViewModel.ThemeChanged -= OnThemeChanged;
+            _dashboardViewModel.Dispose();
             base.OnClosed(e);
-        }
-
-        private void DashboardTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!ReferenceEquals(e.Source, DashboardTabs) || DashboardTabs.SelectedIndex != 1)
-                return;
-
-            _ = _viewModel.EnsureHistoryLoadedAsync();
         }
 
         private async void ExportHistory_Click(object sender, RoutedEventArgs e)
@@ -68,24 +64,50 @@ namespace NVConso.Views
             {
                 Title = "Exporter l'historique filtré",
                 Filter = "Fichier CSV (*.csv)|*.csv",
-                FileName = $"{ProductNames.DisplayName}-historique-{_viewModel.HistoryDate:yyyy-MM-dd}.csv"
+                FileName = $"{ProductNames.DisplayName}-historique-{_dashboardViewModel.HistoryDate:yyyy-MM-dd}.csv"
             };
 
             if (dialog.ShowDialog(this) == true)
-                await _viewModel.ExportFilteredHistoryAsync(dialog.FileName).ConfigureAwait(true);
+                await _dashboardViewModel.ExportFilteredHistoryAsync(dialog.FileName).ConfigureAwait(true);
         }
 
         private void CopyHistorySummary_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                System.Windows.Clipboard.SetText(_viewModel.BuildHistoryDiagnosticSummary());
-                _viewModel.MarkHistoryDiagnosticCopied();
+                System.Windows.Clipboard.SetText(_dashboardViewModel.BuildHistoryDiagnosticSummary());
+                _dashboardViewModel.MarkHistoryDiagnosticCopied();
             }
             catch (Exception exception)
             {
-                _viewModel.MarkHistoryDiagnosticCopyFailed(exception);
+                _dashboardViewModel.MarkHistoryDiagnosticCopyFailed(exception);
             }
+        }
+
+        private async void ExportTelemetry_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = $"Exporter la session de télémétrie {ProductNames.DisplayName}",
+                Filter = "Archive ZIP (*.zip)|*.zip",
+                FileName = $"{ProductNames.DisplayName}-telemetry-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.zip"
+            };
+
+            if (dialog.ShowDialog(this) == true)
+                await _preferencesViewModel.ExportTelemetrySessionAsync(dialog.FileName).ConfigureAwait(true);
+        }
+
+        private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = $"Exporter un diagnostic {ProductNames.DisplayName}",
+                Filter = "Fichier texte (*.txt)|*.txt",
+                FileName = $"{ProductNames.DisplayName}-diagnostic-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.txt"
+            };
+
+            if (dialog.ShowDialog(this) == true)
+                await _preferencesViewModel.ExportDiagnosticsAsync(dialog.FileName).ConfigureAwait(true);
         }
 
         private void OnThemeChanged(object sender, UiTheme theme)
@@ -108,7 +130,7 @@ namespace NVConso.Views
 
         private void ApplySavedBounds()
         {
-            DashboardWindowBounds bounds = _viewModel.SavedBounds;
+            DashboardWindowBounds bounds = _dashboardViewModel.SavedBounds;
             if (bounds?.IsUsable() != true)
                 return;
 
@@ -122,7 +144,7 @@ namespace NVConso.Views
         private void SaveBounds()
         {
             if (WindowState == WindowState.Normal)
-                _viewModel.SaveWindowBounds(Left, Top, Width, Height);
+                _dashboardViewModel.SaveWindowBounds(Left, Top, Width, Height);
         }
     }
 

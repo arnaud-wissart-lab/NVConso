@@ -5,6 +5,9 @@ namespace NVConso.Tests
 {
     public class WpfViewModelTests
     {
+        private static readonly string[] PrimaryMetricTitles = ["Puissance", "Limite active", "Température", "Profil actif"];
+        private static readonly string[] TechnicalMetricTitles = ["GPU", "Décodeur", "Fréquence GPU", "Fréquence mémoire", "Ventilateur"];
+
         [Fact]
         public void MetricCard_ShouldNormalizeMissingValueAndClampGauge()
         {
@@ -65,7 +68,27 @@ namespace NVConso.Tests
             model.ApplyCaniculeGuard(null);
 
             Assert.Equal("Historique aujourd'hui - max puissance --, max température --, pics 0.", model.DailySummary);
+            Assert.Equal("--", model.MaxPowerToday);
+            Assert.Equal("--", model.MaxTemperatureToday);
+            Assert.Equal("0", model.PeakCountToday);
             Assert.Equal("Canicule Guard : état inconnu", model.CaniculeGuardSummary);
+        }
+
+        [Fact]
+        public void DashboardStatus_ShouldExposeReadableDailySummaryValues()
+        {
+            var model = new DashboardStatusViewModel();
+            var summary = TelemetryDailySummary.Create(DateOnly.FromDateTime(DateTime.Today));
+            summary.MaxPowerUsageW = 142.4;
+            summary.MaxTemperatureC = 71.8;
+            summary.PeakCount = 3;
+
+            model.ApplyDailySummary(summary, recordingEnabled: true);
+
+            Assert.Equal("142.4 W", model.MaxPowerToday);
+            Assert.Equal("71.8 °C", model.MaxTemperatureToday);
+            Assert.Equal("3", model.PeakCountToday);
+            Assert.Equal("Historique aujourd'hui - max puissance 142.4 W, max température 71.8 °C, pics 3.", model.DailySummary);
         }
 
         [Fact]
@@ -110,6 +133,32 @@ namespace NVConso.Tests
             using var model = context.CreateDashboardViewModel();
 
             Assert.All(model.RealtimeCharts, chart => Assert.Equal(expected, chart.Summary));
+        }
+
+        [Fact]
+        public void DashboardViewModel_ShouldExposeOnlyEssentialPrimaryMetrics()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+
+            using var model = context.CreateDashboardViewModel();
+
+            Assert.Equal(
+                PrimaryMetricTitles,
+                model.PrimaryMetrics.Select(metric => metric.Title).ToArray());
+            Assert.Equal("Normal / Stock", model.PrimaryMetrics.Last().Value);
+            Assert.Equal("Normal / Stock revient au comportement constructeur du GPU.", model.SelectedProfileDescription);
+        }
+
+        [Fact]
+        public void DashboardViewModel_ShouldGroupSecondaryMetricsInTechnicalDetails()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+
+            using var model = context.CreateDashboardViewModel();
+
+            Assert.Equal(
+                TechnicalMetricTitles,
+                model.TechnicalMetrics.Select(metric => metric.Title).ToArray());
         }
 
         [Fact]

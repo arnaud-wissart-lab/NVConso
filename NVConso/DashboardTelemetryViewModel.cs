@@ -25,6 +25,7 @@ namespace NVConso
         public double? TemperatureGaugeValue { get; private set; }
         public double? GpuUsageGaugeValue { get; private set; }
         public double? DecoderUsageGaugeValue { get; private set; }
+        public DashboardMetricState PowerState { get; private set; }
         public DashboardMetricState TemperatureState { get; private set; }
         public DashboardMetricState GpuUsageState { get; private set; }
         public DashboardMetricState DecoderUsageState { get; private set; }
@@ -40,7 +41,7 @@ namespace NVConso
                     ? "GPU non sélectionné"
                     : $"#{snapshot.SelectedGpuIndex} - {snapshot.SelectedGpuName}",
                 ProfileName = GpuTelemetryFormatter.FormatPowerMode(snapshot.ActivePowerMode, snapshot.IsCustomPowerLimit),
-                NvmlStatus = snapshot.IsAvailable ? "NVML prêt" : NormalizeStatus(snapshot.StatusMessage),
+                NvmlStatus = snapshot.IsAvailable ? "Lecture GPU OK" : NormalizeStatus(snapshot.StatusMessage),
                 PowerUsage = FormatMetric(telemetry.CurrentPowerUsageMilliwatt, GpuTelemetryFormatter.FormatWatts),
                 PowerLimit = FormatMetric(telemetry.CurrentPowerLimitMilliwatt, GpuTelemetryFormatter.FormatWatts),
                 Temperature = FormatMetric(telemetry.TemperatureGpuCelsius, GpuTelemetryFormatter.FormatTemperature),
@@ -55,6 +56,7 @@ namespace NVConso
                     : null,
                 GpuUsageGaugeValue = ResolvePercentRatio(telemetry.GpuUtilizationPercent),
                 DecoderUsageGaugeValue = ResolvePercentRatio(telemetry.DecoderUtilizationPercent),
+                PowerState = ResolvePowerState(telemetry),
                 TemperatureState = ResolveTemperatureState(telemetry.TemperatureGpuCelsius),
                 GpuUsageState = ResolveUsageState(telemetry.GpuUtilizationPercent),
                 DecoderUsageState = ResolveUsageState(telemetry.DecoderUtilizationPercent)
@@ -107,6 +109,21 @@ namespace NVConso
 
             if (celsius.Value >= TemperatureWarningCelsius)
                 return DashboardMetricState.Warning;
+
+            return DashboardMetricState.Normal;
+        }
+
+        private static DashboardMetricState ResolvePowerState(GpuTelemetry telemetry)
+        {
+            if (!telemetry.CurrentPowerUsageMilliwatt.HasValue)
+                return DashboardMetricState.Unknown;
+
+            if (telemetry.CurrentPowerLimitMilliwatt.HasValue
+                && telemetry.CurrentPowerLimitMilliwatt.Value > 0
+                && telemetry.CurrentPowerUsageMilliwatt.Value > telemetry.CurrentPowerLimitMilliwatt.Value)
+            {
+                return DashboardMetricState.Warning;
+            }
 
             return DashboardMetricState.Normal;
         }

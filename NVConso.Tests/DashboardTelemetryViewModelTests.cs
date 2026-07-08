@@ -22,6 +22,7 @@ namespace NVConso.Tests
             Assert.Null(model.PowerGaugeValue);
             Assert.Null(model.GpuUsageGaugeValue);
             Assert.Null(model.DecoderUsageGaugeValue);
+            Assert.Equal(DashboardMetricState.Unknown, model.PowerState);
             Assert.Equal(DashboardMetricState.Unknown, model.TemperatureState);
         }
 
@@ -51,10 +52,37 @@ namespace NVConso.Tests
             DashboardTelemetryViewModel model = DashboardTelemetryViewModel.FromSnapshot(snapshot);
 
             Assert.Equal("#0 - Mock GPU", model.GpuName);
-            Assert.Equal("Personnalisé", model.ProfileName);
+            Assert.Equal("Custom", model.ProfileName);
             Assert.Equal(0.5, model.PowerGaugeValue);
             Assert.Equal(0.5, model.GpuUsageGaugeValue);
+            Assert.Equal(DashboardMetricState.Normal, model.PowerState);
             Assert.Equal(DashboardMetricState.Warning, model.TemperatureState);
+        }
+
+        [Fact]
+        public void FromSnapshot_ShouldWarn_WhenPowerExceedsActiveLimit()
+        {
+            var snapshot = new GpuTelemetrySnapshot(
+                DateTimeOffset.UtcNow,
+                isAvailable: true,
+                "NVML prêt.",
+                selectedGpuIndex: 0,
+                selectedGpuName: "Mock GPU",
+                minimumPowerLimitMilliwatt: 90000,
+                defaultPowerLimitMilliwatt: 180000,
+                maximumPowerLimitMilliwatt: 300000,
+                activePowerMode: GpuPowerMode.Stock,
+                isCustomPowerLimit: false,
+                new GpuTelemetry
+                {
+                    CurrentPowerUsageMilliwatt = 185000,
+                    CurrentPowerLimitMilliwatt = 180000
+                });
+
+            DashboardTelemetryViewModel model = DashboardTelemetryViewModel.FromSnapshot(snapshot);
+
+            Assert.Equal(DashboardMetricState.Warning, model.PowerState);
+            Assert.Equal(1, model.PowerGaugeValue);
         }
 
         [Fact]
