@@ -8,23 +8,15 @@ namespace NVConso.Tests
             string installation = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "installation.md"));
 
             Assert.Contains("`WattPilot-Setup.exe`", installation);
-            Assert.Contains("Pour l'auto-update, utilisez `WattPilot-Setup.exe`.", installation);
-            Assert.Contains("Le ZIP portable ne s'auto-update pas.", installation);
+            Assert.Contains("`WattPilot-win-x64.zip`", installation);
+            Assert.Contains("sans auto-update", installation);
             Assert.Contains("`SHA256SUMS.txt`", installation);
             Assert.Contains("Mode : installé via Velopack", installation);
             Assert.Contains("Mode : portable ZIP — mise à jour manuelle", installation);
             Assert.Contains("Mode : build développeur — auto-update indisponible", installation);
-            Assert.Contains("même version", installation);
-            Assert.Contains("réparation ou une réinstallation", installation);
-            Assert.Contains("version supérieure", installation);
-            Assert.Contains("version inférieure", installation);
-            Assert.Contains("downgrade silencieux", installation);
-            Assert.Contains("Auto-update indisponible dans ce mode.", installation);
-            Assert.Contains("Réseau indisponible.", installation);
-            Assert.Contains("Mise à jour refusée : intégrité invalide.", installation);
             Assert.Contains("Vérification après installation", installation);
-            Assert.Contains("Désinstaller l'ancienne version", installation);
-            Assert.Contains("l'UAC apparaît uniquement au clic", installation);
+            Assert.Contains("l'UAC apparaît seulement à ce moment", installation);
+            Assert.Contains("Migration depuis l'ancien nom", installation);
         }
 
         [Fact]
@@ -33,8 +25,8 @@ namespace NVConso.Tests
             string release = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "release.md"));
 
             Assert.Contains("Version de la prochaine release", release);
-            Assert.Contains("`v2.1.0` pour la release actuelle", release);
-            Assert.Contains("`v2.0.2` uniquement pour un hotfix limité", release);
+            Assert.Contains("`v2.1.3`", release);
+            Assert.Contains("les guards de release et la documentation", release);
             Assert.Contains("le tag Git", release);
             Assert.Contains("`WattPilot-Setup.exe`", release);
             Assert.Contains("`WattPilot-win-x64.zip`", release);

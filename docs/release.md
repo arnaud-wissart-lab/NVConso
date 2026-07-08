@@ -10,7 +10,7 @@ Ce document décrit le processus de publication actuel de WattPilot.
 - GitHub Actions activé.
 - Tag au format strict `vX.Y.Z`.
 
-Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.0`.
+Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.3`.
 
 ## Version de la prochaine release
 
@@ -18,10 +18,7 @@ Le projet est actuellement en version `2.0.1` dans le `.csproj`. La release publ
 
 Ne pas modifier le `.csproj` uniquement pour publier une release si le tag reste la source de vérité. Éviter toute combinaison où le tag, le titre GitHub Release et les propriétés MSBuild indiqueraient des versions différentes.
 
-Choix recommandé :
-
-- `v2.0.2` uniquement pour un hotfix limité au bug d'élévation de Setup ;
-- `v2.1.0` pour la release actuelle, car elle ajoute aussi le helper élevé dédié, le flux admin au clic et l'UX installation/update.
+Choix recommandé pour cette passe : `v2.1.3`, car `v2.1.2` est déjà publié et les changements en cours portent sur l'UX des paramètres, le nettoyage des reliques, les guards de release et la documentation.
 
 ## Commandes locales avant tag
 
@@ -35,8 +32,8 @@ dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained tru
 ## Déclencher une release
 
 ```powershell
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.3
+git push origin v2.1.3
 ```
 
 Le workflow [../.github/workflows/release.yml](../.github/workflows/release.yml) dérive la version depuis le tag. Il échoue si le tag ne respecte pas `vX.Y.Z`.
@@ -168,13 +165,13 @@ dotnet publish NVConso/NVConso.csproj `
   -o artifacts/publish/win-x64 `
   -p:PublishSingleFile=true `
   -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:Version=2.1.0
+  -p:Version=2.1.3
 
 dotnet tool install --global vpk --version 1.2.0
 
 vpk pack `
   --packId WattPilot `
-  --packVersion 2.1.0 `
+  --packVersion 2.1.3 `
   --packDir artifacts/publish/win-x64 `
   --mainExe WattPilot.exe `
   --channel stable `
@@ -206,11 +203,11 @@ Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise
 Pour publier une version standard après merge, créer puis pousser le tag cible :
 
 ```powershell
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.3
+git push origin v2.1.3
 ```
 
-Remplacer `v2.1.0` par la version décidée pour la release. Pour cette passe, `v2.1.0` est recommandé si le helper élevé et l'UX installation/update sont inclus ; `v2.0.2` ne convient que pour un hotfix strict du bug d'élévation de Setup.
+Remplacer `v2.1.3` par la version décidée pour la release si un tag plus récent existe déjà au moment de publier.
 
 Après le push :
 
