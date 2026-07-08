@@ -21,7 +21,6 @@ namespace NVConso.ViewModels
         private readonly Action<GpuPowerMode> _applyProfile;
         private readonly Action _restoreStock;
         private readonly Action _showCustomPowerLimit;
-        private readonly Action _openPreferences;
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly SynchronizationContext _synchronizationContext;
         private readonly MetricCardViewModel _powerMetric = new("Puissance", "instantanée");
@@ -58,8 +57,7 @@ namespace NVConso.ViewModels
         private SelectionOption<GpuPowerMode> _selectedProfileAction;
         private DashboardMetricState _statusState = DashboardMetricState.Unknown;
         private UiTheme _resolvedTheme = UiTheme.Light;
-        private bool _isSettingsPanelOpen;
-        private bool _isHistoryPanelOpen;
+        private DashboardPage _currentPage = DashboardPage.Home;
         private string _powerLimitDiagnosticMessage = string.Empty;
 
         public DashboardViewModel(
@@ -73,7 +71,6 @@ namespace NVConso.ViewModels
             Action<GpuPowerMode> applyProfile,
             Action restoreStock,
             Action showCustomPowerLimit,
-            Action openPreferences,
             Microsoft.Extensions.Logging.ILogger logger = null,
             IPrivilegeService privilegeService = null,
             PowerLimitDiagnosticsService powerLimitDiagnosticsService = null)
@@ -89,7 +86,6 @@ namespace NVConso.ViewModels
             _applyProfile = applyProfile;
             _restoreStock = restoreStock;
             _showCustomPowerLimit = showCustomPowerLimit;
-            _openPreferences = openPreferences;
             _logger = logger;
             _powerLimitDiagnosticsService = powerLimitDiagnosticsService ?? new PowerLimitDiagnosticsService();
             _synchronizationContext = SynchronizationContext.Current;
@@ -149,10 +145,9 @@ namespace NVConso.ViewModels
             });
             RestoreStockCommand = new RelayCommand(() => _restoreStock?.Invoke());
             CustomPowerLimitCommand = new RelayCommand(() => _showCustomPowerLimit?.Invoke());
-            OpenPreferencesCommand = new RelayCommand(() => IsSettingsPanelOpen = true);
-            ToggleSettingsPanelCommand = new RelayCommand(() => IsSettingsPanelOpen = !IsSettingsPanelOpen);
-            CloseSettingsPanelCommand = new RelayCommand(() => IsSettingsPanelOpen = false);
-            ToggleHistoryPanelCommand = new AsyncRelayCommand(ToggleHistoryPanelAsync);
+            NavigateHomeCommand = new RelayCommand(NavigateHome);
+            NavigateHistoryCommand = new AsyncRelayCommand(NavigateHistoryAsync);
+            NavigateSettingsCommand = new RelayCommand(NavigateSettings);
             RefreshHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
             _selectedProfileAction = ProfileActions.FirstOrDefault(option => option.Value == GpuPowerMode.Stock);
@@ -186,10 +181,9 @@ namespace NVConso.ViewModels
         public ICommand ApplyProfileCommand { get; }
         public ICommand RestoreStockCommand { get; }
         public ICommand CustomPowerLimitCommand { get; }
-        public ICommand OpenPreferencesCommand { get; }
-        public ICommand ToggleSettingsPanelCommand { get; }
-        public ICommand CloseSettingsPanelCommand { get; }
-        public AsyncRelayCommand ToggleHistoryPanelCommand { get; }
+        public ICommand NavigateHomeCommand { get; }
+        public AsyncRelayCommand NavigateHistoryCommand { get; }
+        public ICommand NavigateSettingsCommand { get; }
         public AsyncRelayCommand RefreshHistoryCommand { get; }
         public ICommand OpenTelemetryFolderCommand { get; }
 
@@ -330,17 +324,23 @@ namespace NVConso.ViewModels
         public string UpdateModeLabel => DashboardHeaderLabels.FormatUpdateMode(UpdateStatus.ExecutionModeLabel);
         public string UpdateStatusLabel => UpdateStatus.Message;
 
-        public bool IsSettingsPanelOpen
+        public DashboardPage CurrentPage
         {
-            get => _isSettingsPanelOpen;
-            private set => SetProperty(ref _isSettingsPanelOpen, value);
+            get => _currentPage;
+            private set
+            {
+                if (!SetProperty(ref _currentPage, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsHomePageVisible));
+                OnPropertyChanged(nameof(IsHistoryPageVisible));
+                OnPropertyChanged(nameof(IsSettingsPageVisible));
+            }
         }
 
-        public bool IsHistoryPanelOpen
-        {
-            get => _isHistoryPanelOpen;
-            private set => SetProperty(ref _isHistoryPanelOpen, value);
-        }
+        public bool IsHomePageVisible => CurrentPage == DashboardPage.Home;
+        public bool IsHistoryPageVisible => CurrentPage == DashboardPage.History;
+        public bool IsSettingsPageVisible => CurrentPage == DashboardPage.Settings;
 
         public string PowerLimitDiagnosticMessage
         {
@@ -387,7 +387,7 @@ namespace NVConso.ViewModels
 
         public void OpenSettingsPanel()
         {
-            IsSettingsPanelOpen = true;
+            NavigateSettings();
         }
 
         public async Task ExportFilteredHistoryAsync(string destinationPath)
@@ -512,11 +512,20 @@ namespace NVConso.ViewModels
             OnPropertyChanged(nameof(UpdateStatusLabel));
         }
 
-        private async Task ToggleHistoryPanelAsync()
+        private void NavigateHome()
         {
-            IsHistoryPanelOpen = !IsHistoryPanelOpen;
-            if (IsHistoryPanelOpen)
-                await EnsureHistoryLoadedAsync().ConfigureAwait(true);
+            CurrentPage = DashboardPage.Home;
+        }
+
+        private async Task NavigateHistoryAsync()
+        {
+            CurrentPage = DashboardPage.History;
+            await EnsureHistoryLoadedAsync().ConfigureAwait(true);
+        }
+
+        private void NavigateSettings()
+        {
+            CurrentPage = DashboardPage.Settings;
         }
 
         private void ApplyProfileSelection(GpuPowerMode mode)

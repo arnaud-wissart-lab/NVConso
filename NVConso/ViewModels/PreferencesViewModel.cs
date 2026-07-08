@@ -15,6 +15,8 @@ namespace NVConso.ViewModels
         private readonly ITelemetryRecorder _telemetryRecorder;
         private readonly IPrivilegeService _privilegeService;
         private bool _syncingTheme;
+        private bool _loadingSettings;
+        private bool _hasUnsavedChanges;
         private bool _showDashboardOnStartup;
         private bool _autoApplySavedMode;
         private bool _startWithWindows;
@@ -116,115 +118,115 @@ namespace NVConso.ViewModels
         public bool ShowDashboardOnStartup
         {
             get => _showDashboardOnStartup;
-            set => SetProperty(ref _showDashboardOnStartup, value);
+            set => SetPreferenceProperty(ref _showDashboardOnStartup, value);
         }
 
         public bool AutoApplySavedMode
         {
             get => _autoApplySavedMode;
-            set => SetProperty(ref _autoApplySavedMode, value);
+            set => SetPreferenceProperty(ref _autoApplySavedMode, value);
         }
 
         public bool StartWithWindows
         {
             get => _startWithWindows;
-            set => SetProperty(ref _startWithWindows, value);
+            set => SetPreferenceProperty(ref _startWithWindows, value);
         }
 
         public bool StartMinimized
         {
             get => _startMinimized;
-            set => SetProperty(ref _startMinimized, value);
+            set => SetPreferenceProperty(ref _startMinimized, value);
         }
 
         public bool AutoCheckUpdates
         {
             get => _autoCheckUpdates;
-            set => SetProperty(ref _autoCheckUpdates, value);
+            set => SetPreferenceProperty(ref _autoCheckUpdates, value);
         }
 
         public bool AutoDownloadUpdates
         {
             get => _autoDownloadUpdates;
-            set => SetProperty(ref _autoDownloadUpdates, value);
+            set => SetPreferenceProperty(ref _autoDownloadUpdates, value);
         }
 
         public bool IncludePrereleaseUpdates
         {
             get => _includePrereleaseUpdates;
-            set => SetProperty(ref _includePrereleaseUpdates, value);
+            set => SetPreferenceProperty(ref _includePrereleaseUpdates, value);
         }
 
         public bool CaniculeGuardEnabled
         {
             get => _caniculeGuardEnabled;
-            set => SetProperty(ref _caniculeGuardEnabled, value);
+            set => SetPreferenceProperty(ref _caniculeGuardEnabled, value);
         }
 
         public bool RecordingEnabled
         {
             get => _recordingEnabled;
-            set => SetProperty(ref _recordingEnabled, value);
+            set => SetPreferenceProperty(ref _recordingEnabled, value);
         }
 
         public int CustomPowerLimitWatts
         {
             get => _customPowerLimitWatts;
-            set => SetProperty(ref _customPowerLimitWatts, Math.Max(0, value));
+            set => SetPreferenceProperty(ref _customPowerLimitWatts, Math.Max(0, value));
         }
 
         public int TelemetryHistorySeconds
         {
             get => _telemetryHistorySeconds;
-            set => SetProperty(ref _telemetryHistorySeconds, value);
+            set => SetPreferenceProperty(ref _telemetryHistorySeconds, value);
         }
 
         public int CaniculePowerThresholdWatts
         {
             get => _caniculePowerThresholdWatts;
-            set => SetProperty(ref _caniculePowerThresholdWatts, value);
+            set => SetPreferenceProperty(ref _caniculePowerThresholdWatts, value);
         }
 
         public int CaniculeTemperatureThresholdCelsius
         {
             get => _caniculeTemperatureThresholdCelsius;
-            set => SetProperty(ref _caniculeTemperatureThresholdCelsius, value);
+            set => SetPreferenceProperty(ref _caniculeTemperatureThresholdCelsius, value);
         }
 
         public int CaniculeAlertDelaySeconds
         {
             get => _caniculeAlertDelaySeconds;
-            set => SetProperty(ref _caniculeAlertDelaySeconds, value);
+            set => SetPreferenceProperty(ref _caniculeAlertDelaySeconds, value);
         }
 
         public int CaniculeCooldownSeconds
         {
             get => _caniculeCooldownSeconds;
-            set => SetProperty(ref _caniculeCooldownSeconds, value);
+            set => SetPreferenceProperty(ref _caniculeCooldownSeconds, value);
         }
 
         public int RecordingIntervalSeconds
         {
             get => _recordingIntervalSeconds;
-            set => SetProperty(ref _recordingIntervalSeconds, value);
+            set => SetPreferenceProperty(ref _recordingIntervalSeconds, value);
         }
 
         public int TelemetryRetentionDays
         {
             get => _telemetryRetentionDays;
-            set => SetProperty(ref _telemetryRetentionDays, value);
+            set => SetPreferenceProperty(ref _telemetryRetentionDays, value);
         }
 
         public int PeakPowerThresholdWatts
         {
             get => _peakPowerThresholdWatts;
-            set => SetProperty(ref _peakPowerThresholdWatts, value);
+            set => SetPreferenceProperty(ref _peakPowerThresholdWatts, value);
         }
 
         public int PeakTemperatureThresholdCelsius
         {
             get => _peakTemperatureThresholdCelsius;
-            set => SetProperty(ref _peakTemperatureThresholdCelsius, value);
+            set => SetPreferenceProperty(ref _peakTemperatureThresholdCelsius, value);
         }
 
         public SelectionOption<UiTheme> SelectedTheme
@@ -232,10 +234,13 @@ namespace NVConso.ViewModels
             get => _selectedTheme;
             set
             {
-                if (!SetProperty(ref _selectedTheme, value) || _syncingTheme)
+                if (!SetProperty(ref _selectedTheme, value))
                     return;
 
-                UpdateResolvedTheme(value?.Value ?? UiTheme.System);
+                if (!_syncingTheme)
+                    UpdateResolvedTheme(value?.Value ?? UiTheme.System);
+
+                RefreshUnsavedChanges();
             }
         }
 
@@ -245,7 +250,10 @@ namespace NVConso.ViewModels
             set
             {
                 if (SetProperty(ref _selectedStartupProfile, value))
+                {
                     OnPropertyChanged(nameof(IsCustomPowerLimitEnabled));
+                    RefreshUnsavedChanges();
+                }
             }
         }
 
@@ -307,12 +315,19 @@ namespace NVConso.ViewModels
             private set => SetProperty(ref _telemetryPath, value);
         }
 
+        public bool HasUnsavedChanges
+        {
+            get => _hasUnsavedChanges;
+            private set => SetProperty(ref _hasUnsavedChanges, value);
+        }
+
         public event EventHandler<UiTheme> ThemeChanged;
 
         public void LoadFromSettings(AppSettings settings)
         {
             settings ??= _settingsService.Current;
             _syncingTheme = true;
+            _loadingSettings = true;
             try
             {
                 ShowDashboardOnStartup = settings.ShowDashboardOnStartup;
@@ -343,10 +358,12 @@ namespace NVConso.ViewModels
             finally
             {
                 _syncingTheme = false;
+                _loadingSettings = false;
             }
 
             UpdateResolvedTheme(settings.DashboardTheme);
             RefreshUpdateStatus();
+            HasUnsavedChanges = false;
         }
 
         public async Task<bool> SaveAsync(bool closeAfterSave)
@@ -392,6 +409,7 @@ namespace NVConso.ViewModels
             RefreshStartupStatus();
             RefreshUpdateStatus();
             StatusMessage = closeAfterSave ? "Préférences enregistrées." : message;
+            HasUnsavedChanges = false;
             await Task.CompletedTask.ConfigureAwait(true);
             return true;
         }
@@ -596,6 +614,7 @@ namespace NVConso.ViewModels
             {
                 StartWithWindows = startWithWindows;
                 StatusMessage = message;
+                RefreshUnsavedChanges();
             }
         }
 
@@ -654,6 +673,52 @@ namespace NVConso.ViewModels
         private void UpdateResolvedTheme(UiTheme theme)
         {
             ResolvedTheme = new ThemeService().ResolveTheme(theme);
+        }
+
+        private bool SetPreferenceProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        {
+            if (!SetProperty(ref field, value, propertyName))
+                return false;
+
+            RefreshUnsavedChanges();
+            return true;
+        }
+
+        private void RefreshUnsavedChanges()
+        {
+            if (_loadingSettings)
+                return;
+
+            HasUnsavedChanges = !HasSameEditableSettings(BuildSettings(), _settingsService.Current);
+        }
+
+        private static bool HasSameEditableSettings(AppSettings left, AppSettings right)
+        {
+            if (left is null || right is null)
+                return left is null && right is null;
+
+            return left.ShowDashboardOnStartup == right.ShowDashboardOnStartup
+                && left.DashboardTheme == right.DashboardTheme
+                && left.AutoApplySavedMode == right.AutoApplySavedMode
+                && left.LastSelectedMode == right.LastSelectedMode
+                && left.HasSavedMode == right.HasSavedMode
+                && left.CustomPowerLimitMilliwatt == right.CustomPowerLimitMilliwatt
+                && left.StartWithWindows == right.StartWithWindows
+                && left.StartMinimized == right.StartMinimized
+                && left.AutoCheckUpdates == right.AutoCheckUpdates
+                && left.AutoDownloadUpdates == right.AutoDownloadUpdates
+                && left.IncludePrereleaseUpdates == right.IncludePrereleaseUpdates
+                && left.TelemetryHistorySeconds == right.TelemetryHistorySeconds
+                && left.CaniculeGuardEnabled == right.CaniculeGuardEnabled
+                && left.CaniculeGuardPowerThresholdWatts == right.CaniculeGuardPowerThresholdWatts
+                && left.CaniculeGuardTemperatureThresholdCelsius == right.CaniculeGuardTemperatureThresholdCelsius
+                && left.CaniculeGuardAlertDelaySeconds == right.CaniculeGuardAlertDelaySeconds
+                && left.CaniculeGuardCooldownSeconds == right.CaniculeGuardCooldownSeconds
+                && left.RecordingEnabled == right.RecordingEnabled
+                && left.RecordingIntervalSeconds == right.RecordingIntervalSeconds
+                && left.TelemetryRetentionDays == right.TelemetryRetentionDays
+                && left.PeakPowerThresholdWatts == right.PeakPowerThresholdWatts
+                && left.PeakTemperatureThresholdCelsius == right.PeakTemperatureThresholdCelsius;
         }
 
         private int ResolveCustomPowerLimitWatts(AppSettings settings)

@@ -62,7 +62,10 @@ namespace NVConso.Tests
 
             string windowClass = Assert.Single(windowDeclarations);
             Assert.Equal("NVConso.Views.WattPilotWindow", windowClass);
-            Assert.Contains("x:Name=\"PreferencesPanel\"", windowXaml);
+            Assert.Contains("x:Name=\"SettingsPage\"", windowXaml);
+            Assert.Contains("NavigateSettingsCommand", windowXaml);
+            Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", windowXaml);
+            Assert.DoesNotContain("Width=\"680\"", windowXaml);
             Assert.DoesNotContain("<TabControl", windowXaml, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("<TabItem", windowXaml, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("PreferencesWindow", windowXaml, StringComparison.OrdinalIgnoreCase);

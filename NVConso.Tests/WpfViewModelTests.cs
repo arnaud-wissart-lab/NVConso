@@ -177,6 +177,37 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public async Task DashboardViewModel_ShouldNavigateBetweenMainPages()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            context.LogReader.Result = CreateHistoryResult();
+            using var model = context.CreateDashboardViewModel();
+
+            Assert.Equal(DashboardPage.Home, model.CurrentPage);
+            Assert.True(model.IsHomePageVisible);
+            Assert.False(model.IsSettingsPageVisible);
+            Assert.False(model.IsHistoryPageVisible);
+
+            model.NavigateSettingsCommand.Execute(null);
+
+            Assert.Equal(DashboardPage.Settings, model.CurrentPage);
+            Assert.False(model.IsHomePageVisible);
+            Assert.True(model.IsSettingsPageVisible);
+
+            model.NavigateHomeCommand.Execute(null);
+
+            Assert.Equal(DashboardPage.Home, model.CurrentPage);
+            Assert.True(model.IsHomePageVisible);
+
+            await model.NavigateHistoryCommand.ExecuteAsync();
+
+            Assert.Equal(DashboardPage.History, model.CurrentPage);
+            Assert.False(model.IsHomePageVisible);
+            Assert.True(model.IsHistoryPageVisible);
+            Assert.Equal("Résumé puissance : min 42 W, moy 51 W, max 60 W (2 point(s)).", model.HistorySummary);
+        }
+
+        [Fact]
         public async Task DashboardViewModel_ShouldExportFilteredHistory()
         {
             using ViewModelTestContext context = ViewModelTestContext.Create();
@@ -214,6 +245,24 @@ namespace NVConso.Tests
             Assert.Equal((uint)140000, context.SettingsService.Current.CustomPowerLimitMilliwatt);
             Assert.True(context.StartupManager.EnableCalled);
             Assert.Equal(300, context.TelemetryService.LastCapacitySeconds);
+        }
+
+        [Fact]
+        public async Task PreferencesViewModel_ShouldExposeUnsavedChangesOnlyWhenNeeded()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            Assert.False(model.HasUnsavedChanges);
+
+            model.ShowDashboardOnStartup = true;
+
+            Assert.True(model.HasUnsavedChanges);
+
+            bool saved = await model.SaveAsync(closeAfterSave: false);
+
+            Assert.True(saved);
+            Assert.False(model.HasUnsavedChanges);
         }
 
         [Fact]
@@ -274,7 +323,7 @@ namespace NVConso.Tests
         }
 
         [Fact]
-        public void WattPilotWindow_ShouldUseIntegratedPreferencePanelWithoutTabControl()
+        public void WattPilotWindow_ShouldUsePageNavigationWithoutFixedSettingsPanel()
         {
             string xamlPath = Path.GetFullPath(Path.Combine(
                 AppContext.BaseDirectory,
@@ -287,8 +336,20 @@ namespace NVConso.Tests
                 "WattPilotWindow.xaml"));
             string xaml = File.ReadAllText(xamlPath);
 
-            Assert.Contains("x:Name=\"PreferencesPanel\"", xaml);
+            Assert.Contains("x:Name=\"SettingsPage\"", xaml);
+            Assert.Contains("IsHomePageVisible", xaml);
+            Assert.Contains("IsHistoryPageVisible", xaml);
+            Assert.Contains("IsSettingsPageVisible", xaml);
+            Assert.Contains("NavigateHomeCommand", xaml);
+            Assert.Contains("NavigateHistoryCommand", xaml);
+            Assert.Contains("NavigateSettingsCommand", xaml);
+            Assert.Contains("Modifications non enregistrées", xaml);
             Assert.Contains("PreferenceSections", xaml);
+            Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", xaml);
+            Assert.DoesNotContain("Width=\"680\"", xaml);
+            Assert.DoesNotContain("HorizontalAlignment=\"Right\"", xaml);
+            Assert.DoesNotContain("IsSettingsPanelOpen", xaml);
+            Assert.DoesNotContain("IsHistoryPanelOpen", xaml);
             Assert.DoesNotContain("<TabControl", xaml);
             Assert.DoesNotContain("<TabItem", xaml);
             Assert.DoesNotContain("PreferencesWindow", xaml);
@@ -403,7 +464,7 @@ namespace NVConso.Tests
                     _ => { },
                     () => { },
                     () => { },
-                    () => { });
+                    null);
             }
 
             public PreferencesViewModel CreatePreferencesViewModel()

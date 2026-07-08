@@ -20,7 +20,7 @@ namespace NVConso.Views
             _preferencesViewModel = preferencesViewModel ?? throw new ArgumentNullException(nameof(preferencesViewModel));
             InitializeComponent();
             DataContext = _dashboardViewModel;
-            PreferencesPanel.DataContext = _preferencesViewModel;
+            SettingsPage.DataContext = _preferencesViewModel;
             Icon = WpfIconLoader.LoadWindowIcon();
             ApplyTheme(_dashboardViewModel.ResolvedTheme);
             ApplySavedBounds();

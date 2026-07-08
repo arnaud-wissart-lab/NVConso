@@ -20,7 +20,7 @@ Le workflow de release publie aussi les paquets Velopack et le feed Velopack `re
 ## Fonctionnalités
 
 - Profils GPU : `Canicule`, `Vidéo / surf`, `Indie 2D`, `Normal / Stock`, `Max` et `Custom`.
-- Fenêtre WPF unique avec dashboard, historique et panneau `Paramètres` intégré.
+- Fenêtre WPF unique avec navigation interne entre `Accueil`, `Historique` et `Paramètres`, une seule page étant visible à la fois.
 - Menu tray WinForms compact pour ouvrir WattPilot, appliquer un profil et quitter.
 - Historique GPU persistant sous `%LOCALAPPDATA%\WattPilot\telemetry\`.
 - Mise à jour automatique via Velopack pour l'installation `WattPilot-Setup.exe`.

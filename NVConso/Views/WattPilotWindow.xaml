@@ -91,10 +91,11 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource AppBackgroundBrush}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Visibility="{Binding IsHomePageVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid Margin="{StaticResource PagePadding}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -102,12 +103,23 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="WattPilot" Style="{StaticResource WindowTitleText}" />
                         <TextBlock Text="Consommation, température et profils GPU"
                                    Style="{StaticResource MutedText}"
                                    Margin="0,4,0,0" />
                     </StackPanel>
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                        <Button Content="Historique"
+                                Command="{Binding NavigateHistoryCommand}"
+                                Margin="0,0,8,0" />
+                        <Button Content="Paramètres"
+                                Command="{Binding NavigateSettingsCommand}" />
+                    </WrapPanel>
                 </Grid>
 
                 <ItemsControl Grid.Row="1" ItemsSource="{Binding PrimaryMetrics}">
@@ -212,7 +224,7 @@
                                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DashboardStatus.PeakCountToday}" FontWeight="SemiBold" Margin="12,6,0,0" />
                                 </Grid>
                                 <Button Content="Ouvrir l'historique détaillé"
-                                        Command="{Binding ToggleHistoryPanelCommand}"
+                                        Command="{Binding NavigateHistoryCommand}"
                                         Margin="0,14,0,0"
                                         HorizontalAlignment="Left" />
                             </StackPanel>
@@ -266,17 +278,45 @@
                                            VerticalAlignment="Center"
                                            Margin="0,0,12,8" />
                                 <Button Content="Paramètres"
-                                        Command="{Binding ToggleSettingsPanelCommand}"
+                                        Command="{Binding NavigateSettingsCommand}"
                                         Margin="0,0,0,8" />
                             </WrapPanel>
                         </StackPanel>
                     </Border>
                 </Expander>
+            </Grid>
+        </ScrollViewer>
 
-                <Border Grid.Row="4"
-                        Style="{StaticResource CardBorder}"
-                        Margin="0,14,0,0"
-                        Visibility="{Binding IsHistoryPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Visibility="{Binding IsHistoryPageVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="{StaticResource PagePadding}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Historique" Style="{StaticResource WindowTitleText}" />
+                        <TextBlock Text="Analyse des journaux GPU persistants"
+                                   Style="{StaticResource MutedText}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                        <Button Content="Accueil"
+                                Command="{Binding NavigateHomeCommand}"
+                                Margin="0,0,8,0" />
+                        <Button Content="Paramètres"
+                                Command="{Binding NavigateSettingsCommand}" />
+                    </WrapPanel>
+                </Grid>
+
+                <Border Grid.Row="1" Style="{StaticResource CardBorder}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -359,47 +399,43 @@
             </Grid>
         </ScrollViewer>
 
-        <Border x:Name="PreferencesPanel"
-                Width="680"
-                HorizontalAlignment="Right"
-                Background="{DynamicResource AppBackgroundBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1,0,0,0"
-                Padding="16"
-                Visibility="{Binding IsSettingsPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <DockPanel>
-                <Border DockPanel.Dock="Bottom"
-                        Background="{DynamicResource SurfaceBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        Padding="10"
-                        Margin="0,12,0,0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" />
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                            <Button Content="Enregistrer" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-                            <Button Content="Fermer"
-                                    Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
+        <ScrollViewer x:Name="SettingsPage"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Visibility="{Binding DataContext.IsSettingsPageVisible, ElementName=RootWindow, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="{StaticResource PagePadding}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+                <Grid Grid.Row="0" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Paramètres" Style="{StaticResource WindowTitleText}" />
-                    <Button Grid.Column="1"
-                            Content="Fermer"
-                            Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}" />
+                    <StackPanel>
+                        <TextBlock Text="Paramètres" Style="{StaticResource WindowTitleText}" />
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Style="{StaticResource MutedText}"
+                                   Margin="0,4,0,0" />
+                        <TextBlock Text="Modifications non enregistrées"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,6,0,0"
+                                   Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                        <Button Content="Enregistrer"
+                                Command="{Binding SaveCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="0,0,8,0" />
+                        <Button Content="Retour"
+                                Command="{Binding DataContext.NavigateHomeCommand, ElementName=RootWindow}" />
+                    </WrapPanel>
                 </Grid>
 
-                <Grid>
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="25" />
@@ -417,129 +453,127 @@
                             Width="1"
                             HorizontalAlignment="Center" />
 
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                        <Grid>
-                            <StackPanel Visibility="{Binding IsGeneralSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Général" Style="{StaticResource SectionTitleText}" />
-                                        <TextBlock Text="Thème" Style="{StaticResource PreferenceFieldLabel}" Margin="0,0,0,3" />
-                                        <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" DisplayMemberPath="Label" />
-                                        <CheckBox Content="Afficher au démarrage" IsChecked="{Binding ShowDashboardOnStartup}" Margin="0,12,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                    <Grid Grid.Column="2">
+                        <StackPanel Visibility="{Binding IsGeneralSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Général" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Thème" Style="{StaticResource PreferenceFieldLabel}" Margin="0,0,0,3" />
+                                    <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" DisplayMemberPath="Label" />
+                                    <CheckBox Content="Afficher au démarrage" IsChecked="{Binding ShowDashboardOnStartup}" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                            <StackPanel Visibility="{Binding IsProfilesSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Profils" Style="{StaticResource SectionTitleText}" />
-                                        <CheckBox Content="Appliquer le profil sauvegardé" IsChecked="{Binding AutoApplySavedMode}" />
-                                        <TextBlock Text="Profil au démarrage" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <ComboBox ItemsSource="{Binding StartupProfileOptions}" SelectedItem="{Binding SelectedStartupProfile}" DisplayMemberPath="Label" />
-                                        <TextBlock Text="Limite personnalisée" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBox Text="{Binding CustomPowerLimitWatts, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsCustomPowerLimitEnabled}" Width="90" />
-                                            <TextBlock Text="W" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding GpuRange}" Style="{StaticResource PreferenceInfoLine}" />
+                        <StackPanel Visibility="{Binding IsProfilesSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Profils" Style="{StaticResource SectionTitleText}" />
+                                    <CheckBox Content="Appliquer le profil sauvegardé" IsChecked="{Binding AutoApplySavedMode}" />
+                                    <TextBlock Text="Profil au démarrage" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <ComboBox ItemsSource="{Binding StartupProfileOptions}" SelectedItem="{Binding SelectedStartupProfile}" DisplayMemberPath="Label" />
+                                    <TextBlock Text="Limite personnalisée" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Text="{Binding CustomPowerLimitWatts, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsCustomPowerLimitEnabled}" Width="90" />
+                                        <TextBlock Text="W" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="6,0,0,0" />
                                     </StackPanel>
-                                </Border>
+                                    <TextBlock Text="{Binding GpuRange}" Style="{StaticResource PreferenceInfoLine}" />
+                                </StackPanel>
+                            </Border>
 
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Canicule Guard" Style="{StaticResource SectionTitleText}" />
-                                        <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
-                                        <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding CaniculePowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding CaniculeTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Délai alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding CaniculeAlertDelaySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Pause alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding CaniculeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <Button Content="Réinitialiser" Command="{Binding ResetCaniculeGuardCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Canicule Guard" Style="{StaticResource SectionTitleText}" />
+                                    <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
+                                    <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding CaniculePowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding CaniculeTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Délai alerte" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding CaniculeAlertDelaySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Pause alerte" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding CaniculeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <Button Content="Réinitialiser" Command="{Binding ResetCaniculeGuardCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                            <StackPanel Visibility="{Binding IsHistorySectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Historique" Style="{StaticResource SectionTitleText}" />
-                                        <CheckBox Content="Historiser le GPU" IsChecked="{Binding RecordingEnabled}" />
-                                        <TextBlock Text="Intervalle d'écriture" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding RecordingIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Rétention" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding TelemetryRetentionDays, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Fenêtre graphique" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding TelemetryHistorySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding PeakPowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBox Text="{Binding PeakTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                        <TextBlock Text="{Binding TelemetryPath}" Style="{StaticResource PreferenceInfoLine}" Margin="0,12,0,8" />
-                                        <WrapPanel>
-                                            <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,0,8,8" />
-                                            <Button Content="Exporter session" Click="ExportTelemetry_Click" Margin="0,0,8,8" />
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                        <StackPanel Visibility="{Binding IsHistorySectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Historique" Style="{StaticResource SectionTitleText}" />
+                                    <CheckBox Content="Historiser le GPU" IsChecked="{Binding RecordingEnabled}" />
+                                    <TextBlock Text="Intervalle d'écriture" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding RecordingIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Rétention" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding TelemetryRetentionDays, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Fenêtre graphique" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding TelemetryHistorySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding PeakPowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBox Text="{Binding PeakTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="{Binding TelemetryPath}" Style="{StaticResource PreferenceInfoLine}" Margin="0,12,0,8" />
+                                    <WrapPanel>
+                                        <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Exporter session" Click="ExportTelemetry_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                            <StackPanel Visibility="{Binding IsUpdateSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Mise à jour" Style="{StaticResource SectionTitleText}" />
-                                        <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" />
-                                        <TextBlock Text="{Binding UpdateStatus.LastCheckedLabel}" Style="{StaticResource PreferenceInfoLine}" />
-                                        <TextBlock Text="{Binding UpdateStatus.Message}" Style="{StaticResource PreferenceInfoLine}" />
-                                        <TextBlock Text="{Binding UpdateStatus.Detail}" Style="{StaticResource PreferenceInfoLine}" />
-                                        <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
-                                        <TextBlock Text="Version disponible" Style="{StaticResource PreferenceFieldLabel}" />
-                                        <TextBlock Text="{Binding UpdateStatus.LatestVersion}" />
-                                        <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
-                                        <CheckBox Content="Télécharger automatiquement" IsChecked="{Binding AutoDownloadUpdates}" />
-                                        <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
-                                        <WrapPanel Margin="0,10,0,0">
-                                            <Button Content="Rechercher maintenant" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,8" />
-                                            <Button Content="Ouvrir GitHub Releases" Command="{Binding OpenGitHubReleasesCommand}" Margin="0,0,8,8" />
-                                            <Button Content="Copier diagnostic" Command="{Binding CopyUpdateDiagnosticCommand}" />
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                        <StackPanel Visibility="{Binding IsUpdateSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Mise à jour" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" />
+                                    <TextBlock Text="{Binding UpdateStatus.LastCheckedLabel}" Style="{StaticResource PreferenceInfoLine}" />
+                                    <TextBlock Text="{Binding UpdateStatus.Message}" Style="{StaticResource PreferenceInfoLine}" />
+                                    <TextBlock Text="{Binding UpdateStatus.Detail}" Style="{StaticResource PreferenceInfoLine}" />
+                                    <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
+                                    <TextBlock Text="Version disponible" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBlock Text="{Binding UpdateStatus.LatestVersion}" />
+                                    <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
+                                    <CheckBox Content="Télécharger automatiquement" IsChecked="{Binding AutoDownloadUpdates}" />
+                                    <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Button Content="Rechercher maintenant" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Ouvrir GitHub Releases" Command="{Binding OpenGitHubReleasesCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Copier diagnostic" Command="{Binding CopyUpdateDiagnosticCommand}" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                            <StackPanel Visibility="{Binding IsAdvancedSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Avancé" Style="{StaticResource SectionTitleText}" />
-                                        <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding StartWithWindows}" />
-                                        <CheckBox Content="Démarrer réduit" IsChecked="{Binding StartMinimized}" />
-                                        <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
-                                        <WrapPanel>
-                                            <Button Content="Réparer la tâche" Command="{Binding RepairStartupCommand}" Margin="0,0,8,8" />
-                                            <Button Content="Supprimer la tâche" Command="{Binding DeleteStartupCommand}" />
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
+                        <StackPanel Visibility="{Binding IsAdvancedSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Avancé" Style="{StaticResource SectionTitleText}" />
+                                    <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding StartWithWindows}" />
+                                    <CheckBox Content="Démarrer réduit" IsChecked="{Binding StartMinimized}" />
+                                    <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
+                                    <WrapPanel>
+                                        <Button Content="Réparer la tâche" Command="{Binding RepairStartupCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Supprimer la tâche" Command="{Binding DeleteStartupCommand}" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
 
-                                <Border Style="{StaticResource PanelSectionBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}" />
-                                        <TextBlock Text="La réinitialisation conserve la tâche planifiée Windows." Style="{StaticResource MutedText}" Margin="0,0,0,10" />
-                                        <WrapPanel>
-                                            <Button Content="Exporter diagnostic" Click="ExportDiagnostics_Click" Margin="0,0,8,8" />
-                                            <Button Content="Réinitialiser" Command="{Binding ResetDefaultsCommand}" HorizontalAlignment="Left" />
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-                    </ScrollViewer>
+                            <Border Style="{StaticResource PanelSectionBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="La réinitialisation conserve la tâche planifiée Windows." Style="{StaticResource MutedText}" Margin="0,0,0,10" />
+                                    <WrapPanel>
+                                        <Button Content="Exporter diagnostic" Click="ExportDiagnostics_Click" Margin="0,0,8,8" />
+                                        <Button Content="Réinitialiser" Command="{Binding ResetDefaultsCommand}" HorizontalAlignment="Left" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
-            </DockPanel>
-        </Border>
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </Window>
