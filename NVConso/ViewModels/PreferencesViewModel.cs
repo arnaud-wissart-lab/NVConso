@@ -7,6 +7,11 @@ namespace NVConso.ViewModels
 {
     public sealed class PreferencesViewModel : ObservableObject, IDisposable
     {
+        private const string CaniculePresetDiscrete = "Discret";
+        private const string CaniculePresetBalanced = "Équilibré";
+        private const string CaniculePresetSensitive = "Sensible";
+        private const string CaniculePresetCustom = "Personnalisé";
+
         private readonly AppSettingsService _settingsService;
         private readonly WindowsStartupController _startupController;
         private readonly AppUpdateWorkflow _updateWorkflow;
@@ -54,9 +59,11 @@ namespace NVConso.ViewModels
         private readonly string _peakPowerRecommendation = "Recommandé : 100 W";
         private readonly string _peakTemperatureRecommendation = "Recommandé : 70 °C";
         private SelectionOption<UiTheme> _selectedTheme;
+        private SelectionOption<string> _selectedCaniculePreset;
         private SelectionOption<GpuPowerMode> _selectedStartupProfile;
         private SelectionOption<PreferenceSection> _selectedPreferenceSection;
         private UiTheme _resolvedTheme = UiTheme.Light;
+        private bool _syncingCaniculePreset;
 
         public PreferencesViewModel(
             AppSettingsService settingsService,
@@ -80,6 +87,12 @@ namespace NVConso.ViewModels
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Mise à jour", PreferenceSection.Update));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Avancé", PreferenceSection.Advanced));
             SelectedPreferenceSection = PreferenceSections[0];
+
+            CaniculePresetOptions.Add(new SelectionOption<string>("Discret", CaniculePresetDiscrete));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Équilibré", CaniculePresetBalanced));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Sensible", CaniculePresetSensitive));
+            CaniculePresetOptions.Add(new SelectionOption<string>("Personnalisé", CaniculePresetCustom));
+            SelectedCaniculePreset = CaniculePresetOptions.First(option => option.Value == CaniculePresetBalanced);
 
             foreach (GpuPowerMode mode in new[]
             {
@@ -112,6 +125,7 @@ namespace NVConso.ViewModels
 
         public ObservableCollection<SelectionOption<GpuPowerMode>> StartupProfileOptions { get; } = [];
         public ObservableCollection<SelectionOption<PreferenceSection>> PreferenceSections { get; } = [];
+        public ObservableCollection<SelectionOption<string>> CaniculePresetOptions { get; } = [];
         public UpdateStatusViewModel UpdateStatus { get; } = new();
         public AsyncRelayCommand CheckForUpdatesCommand { get; }
         public AsyncRelayCommand PrimaryUpdateCommand { get; }
@@ -203,25 +217,41 @@ namespace NVConso.ViewModels
         public int CaniculePowerThresholdWatts
         {
             get => _caniculePowerThresholdWatts;
-            set => SetPreferenceProperty(ref _caniculePowerThresholdWatts, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculePowerThresholdWatts, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeTemperatureThresholdCelsius
         {
             get => _caniculeTemperatureThresholdCelsius;
-            set => SetPreferenceProperty(ref _caniculeTemperatureThresholdCelsius, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeTemperatureThresholdCelsius, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeAlertDelaySeconds
         {
             get => _caniculeAlertDelaySeconds;
-            set => SetPreferenceProperty(ref _caniculeAlertDelaySeconds, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeAlertDelaySeconds, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int CaniculeCooldownSeconds
         {
             get => _caniculeCooldownSeconds;
-            set => SetPreferenceProperty(ref _caniculeCooldownSeconds, value);
+            set
+            {
+                if (SetPreferenceProperty(ref _caniculeCooldownSeconds, value))
+                    RefreshCaniculePresetSelection();
+            }
         }
 
         public int RecordingIntervalSeconds
@@ -277,6 +307,19 @@ namespace NVConso.ViewModels
         }
 
         public bool IsCustomPowerLimitEnabled => SelectedStartupProfile?.Value == GpuPowerMode.Custom;
+
+        public SelectionOption<string> SelectedCaniculePreset
+        {
+            get => _selectedCaniculePreset;
+            set
+            {
+                if (!SetProperty(ref _selectedCaniculePreset, value) || value is null)
+                    return;
+
+                if (!_syncingCaniculePreset)
+                    ApplyCaniculePreset(value.Value);
+            }
+        }
 
         public SelectionOption<PreferenceSection> SelectedPreferenceSection
         {
@@ -385,9 +428,11 @@ namespace NVConso.ViewModels
             }
 
             UpdateResolvedTheme(UiTheme.System);
+            RefreshCaniculePresetSelection();
             RefreshUpdateStatus();
             HasUnsavedChanges = false;
             SaveStatusMessage = "Enregistré";
+            CancelPendingAutoSave();
         }
 
         public async Task<bool> SaveAsync(bool closeAfterSave)
@@ -734,6 +779,81 @@ namespace NVConso.ViewModels
             CaniculeAlertDelaySeconds = CaniculeGuardDefaults.AlertDelaySeconds;
             CaniculeCooldownSeconds = CaniculeGuardDefaults.CooldownSeconds;
             StatusMessage = "Valeurs recommandées de surveillance chaleur appliquées dans le formulaire.";
+        }
+
+        private void ApplyCaniculePreset(string preset)
+        {
+            if (string.Equals(preset, CaniculePresetCustom, StringComparison.Ordinal))
+                return;
+
+            (int powerWatts, int temperatureCelsius, int alertDelaySeconds, int cooldownSeconds) = preset switch
+            {
+                CaniculePresetDiscrete => (260, 88, 60, 600),
+                CaniculePresetSensitive => (180, 76, 15, 180),
+                _ => (
+                    CaniculeGuardDefaults.PowerThresholdWatts,
+                    CaniculeGuardDefaults.TemperatureThresholdCelsius,
+                    CaniculeGuardDefaults.AlertDelaySeconds,
+                    CaniculeGuardDefaults.CooldownSeconds)
+            };
+
+            _syncingCaniculePreset = true;
+            try
+            {
+                CaniculePowerThresholdWatts = powerWatts;
+                CaniculeTemperatureThresholdCelsius = temperatureCelsius;
+                CaniculeAlertDelaySeconds = alertDelaySeconds;
+                CaniculeCooldownSeconds = cooldownSeconds;
+            }
+            finally
+            {
+                _syncingCaniculePreset = false;
+            }
+
+            RefreshCaniculePresetSelection();
+        }
+
+        private void RefreshCaniculePresetSelection()
+        {
+            if (_syncingCaniculePreset || CaniculePresetOptions.Count == 0)
+                return;
+
+            string preset = ResolveCaniculePreset();
+            SelectionOption<string> option = CaniculePresetOptions.FirstOrDefault(item => item.Value == preset)
+                ?? CaniculePresetOptions.First(item => item.Value == CaniculePresetCustom);
+
+            _syncingCaniculePreset = true;
+            try
+            {
+                SelectedCaniculePreset = option;
+            }
+            finally
+            {
+                _syncingCaniculePreset = false;
+            }
+        }
+
+        private string ResolveCaniculePreset()
+        {
+            if (CaniculePowerThresholdWatts == 260
+                && CaniculeTemperatureThresholdCelsius == 88
+                && CaniculeAlertDelaySeconds == 60
+                && CaniculeCooldownSeconds == 600)
+                return CaniculePresetDiscrete;
+
+            if (CaniculePowerThresholdWatts == CaniculeGuardDefaults.PowerThresholdWatts
+                && CaniculeTemperatureThresholdCelsius == CaniculeGuardDefaults.TemperatureThresholdCelsius
+                && CaniculeAlertDelaySeconds == CaniculeGuardDefaults.AlertDelaySeconds
+                && CaniculeCooldownSeconds == CaniculeGuardDefaults.CooldownSeconds)
+                return CaniculePresetBalanced;
+
+            if (CaniculePowerThresholdWatts == 180
+                && CaniculeTemperatureThresholdCelsius == 76
+                && CaniculeAlertDelaySeconds == 15
+                && CaniculeCooldownSeconds == 180)
+                return CaniculePresetSensitive;
+
+            return CaniculePresetCustom;
         }
 
         private void ResetToDefaults()

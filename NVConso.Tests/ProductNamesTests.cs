@@ -15,6 +15,8 @@ namespace NVConso.Tests
             Assert.Equal("NVConso", ProductNames.LegacyStartupTaskName);
             Assert.Equal("WattPilot.exe", ProductNames.ExecutableName);
             Assert.Equal("NVConso.exe", ProductNames.LegacyExecutableName);
+            Assert.Contains(ProductNames.ShortDisplayVersion, ProductNames.TrayTooltip);
+            Assert.Contains("Gestion GPU", ProductNames.TrayTooltip);
         }
 
         [Fact]

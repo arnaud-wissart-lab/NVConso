@@ -32,5 +32,14 @@
         </Border>
         <TextBlock Text="{Binding RecommendationText, ElementName=Root}"
                    Style="{StaticResource PreferenceInfoLine}" />
+        <TextBlock Style="{StaticResource PreferenceInfoLine}">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="Bornes : {0} à {1} {2}">
+                    <Binding ElementName="Root" Path="Minimum" />
+                    <Binding ElementName="Root" Path="Maximum" />
+                    <Binding ElementName="Root" Path="Unit" />
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
     </StackPanel>
 </UserControl>

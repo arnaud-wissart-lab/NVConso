@@ -38,6 +38,26 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void CustomPowerLimitDialog_ShouldInstantiateAsWpfWindow()
+        {
+            RunOnStaThread(() =>
+            {
+                Program.EnsureWpfApplication();
+                var dialog = new CustomPowerLimitDialog(100000, 300000, 180000);
+
+                try
+                {
+                    Assert.Equal("Limite personnalisée", dialog.Title);
+                    Assert.NotNull(dialog.Content);
+                }
+                finally
+                {
+                    dialog.Close();
+                }
+            });
+        }
+
+        [Fact]
         public void CriticalCommands_ShouldBeAvailable()
         {
             using UiSmokeTestContext context = UiSmokeTestContext.Create();

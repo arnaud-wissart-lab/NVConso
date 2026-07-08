@@ -57,6 +57,9 @@ namespace NVConso.Tests
             Assert.Equal(
                 "Mode portable ZIP — mise à jour manuelle",
                 DashboardHeaderLabels.FormatUpdateMode("Mode : portable ZIP — mise à jour manuelle"));
+            Assert.Equal(
+                $"{ProductNames.DisplayName} {ProductNames.ShortDisplayVersion}",
+                DashboardHeaderLabels.FormatProductVersion());
         }
 
         [Fact]
@@ -326,7 +329,26 @@ namespace NVConso.Tests
             Assert.Equal(CaniculeGuardDefaults.TemperatureThresholdCelsius, model.CaniculeTemperatureThresholdCelsius);
             Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, model.CaniculeAlertDelaySeconds);
             Assert.Equal(CaniculeGuardDefaults.CooldownSeconds, model.CaniculeCooldownSeconds);
+            Assert.Equal("Équilibré", model.SelectedCaniculePreset.Label);
             Assert.Contains("Valeurs recommandées", model.StatusMessage);
+        }
+
+        [Fact]
+        public void PreferencesViewModel_ShouldApplyHeatMonitoringPresets()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+
+            model.SelectedCaniculePreset = model.CaniculePresetOptions.First(option => option.Label == "Sensible");
+
+            Assert.Equal(180, model.CaniculePowerThresholdWatts);
+            Assert.Equal(76, model.CaniculeTemperatureThresholdCelsius);
+            Assert.Equal(15, model.CaniculeAlertDelaySeconds);
+            Assert.Equal(180, model.CaniculeCooldownSeconds);
+
+            model.CaniculePowerThresholdWatts = 181;
+
+            Assert.Equal("Personnalisé", model.SelectedCaniculePreset.Label);
         }
 
         [Fact]
@@ -450,6 +472,10 @@ namespace NVConso.Tests
             Assert.Contains("Enregistrement automatique en attente", xaml);
             Assert.Contains("PreferenceSections", xaml);
             Assert.Contains("<controls:NumericBox", xaml);
+            Assert.Contains("ProductVersion", xaml);
+            Assert.Contains("Bornes :", File.ReadAllText(Path.Combine(Path.GetDirectoryName(xamlPath)!, "..", "Controls", "NumericBox.xaml")));
+            Assert.Contains("Réglage des alertes", xaml);
+            Assert.Contains("CaniculePresetOptions", xaml);
             Assert.Contains("Surveillance chaleur", xaml);
             Assert.Contains("WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps.", xaml);
             Assert.Contains("Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics.", xaml);
@@ -467,6 +493,7 @@ namespace NVConso.Tests
             Assert.Contains("Dossier de données local", xaml);
             Assert.Contains("Copier le chemin", xaml);
             Assert.Contains("Copier diagnostic", xaml);
+            Assert.DoesNotContain("Chemin complet", xaml);
             Assert.Equal(2, CountOccurrences(xaml, "Content=\"Paramètres\""));
             Assert.DoesNotContain("Content=\"Enregistrer\"", xaml);
             Assert.DoesNotContain("SaveCommand", xaml);
