@@ -19,13 +19,17 @@ try {
     }
 
     Write-Host "git describe --tags --exact-match"
-    git describe --tags --exact-match
-    if ($LASTEXITCODE -ne 0) {
+    $exactTag = git describe --tags --exact-match 2>$null
+    $describeExitCode = $LASTEXITCODE
+    if ($describeExitCode -eq 0) {
+        Write-Host $exactTag
+    } else {
         if ($RequireExactTag) {
             throw "La révision courante ne correspond pas exactement à un tag."
         }
 
         Write-Host "Aucun tag exact pour cette révision non publiée."
+        $global:LASTEXITCODE = 0
     }
 
     Write-Host "Contenu de NVConso/app.manifest"
