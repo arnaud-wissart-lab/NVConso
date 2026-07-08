@@ -125,6 +125,22 @@ namespace NVConso.Views
             _preferencesViewModel.MarkDiagnosticsExportCancelled();
         }
 
+        private void ResetDefaults_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = System.Windows.MessageBox.Show(
+                this,
+                "Réinitialiser les préférences locales de WattPilot ? La tâche planifiée Windows sera conservée.",
+                "Confirmer la réinitialisation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (result != MessageBoxResult.Yes || !_preferencesViewModel.ResetDefaultsCommand.CanExecute(null))
+                return;
+
+            _preferencesViewModel.ResetDefaultsCommand.Execute(null);
+        }
+
         private void OnThemeChanged(object sender, UiTheme theme)
         {
             ApplyTheme(theme);

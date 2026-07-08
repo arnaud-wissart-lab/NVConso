@@ -37,7 +37,7 @@
                 <Setter Property="LineHeight" Value="28" />
             </Style>
 
-            <Style x:Key="PanelSectionBorder" TargetType="{x:Type Border}" BasedOn="{StaticResource CardBorder}">
+            <Style x:Key="PanelSectionBorder" TargetType="{x:Type Border}" BasedOn="{StaticResource Card}">
                 <Setter Property="Margin" Value="0,0,0,12" />
             </Style>
 
@@ -84,13 +84,12 @@
                 <Setter Property="Margin" Value="0,10,0,3" />
             </Style>
 
-            <Style x:Key="PreferenceInfoLine" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+            <Style x:Key="PreferenceInfoLine" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource HelpText}">
                 <Setter Property="Margin" Value="0,6,0,0" />
             </Style>
 
-            <Style x:Key="PreferenceSectionHelp" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+            <Style x:Key="PreferenceSectionHelp" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource HelpText}">
                 <Setter Property="Margin" Value="0,4,0,14" />
-                <Setter Property="TextWrapping" Value="Wrap" />
             </Style>
         </ResourceDictionary>
     </Window.Resources>
@@ -120,10 +119,16 @@
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
                         <Button Content="Historique"
+                                Tag="&#xE81C;"
                                 Command="{Binding NavigateHistoryCommand}"
+                                Style="{StaticResource ButtonGhost}"
+                                ToolTip="Afficher l'historique détaillé"
                                 Margin="0,0,8,0" />
                         <Button Content="Paramètres"
-                                Command="{Binding NavigateSettingsCommand}" />
+                                Tag="&#xE713;"
+                                Command="{Binding NavigateSettingsCommand}"
+                                Style="{StaticResource ButtonGhost}"
+                                ToolTip="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
@@ -137,7 +142,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource CardBorder}"
+                            <Border Style="{StaticResource Card}"
                                     MinHeight="112"
                                     ToolTip="{Binding Tooltip}">
                                 <StackPanel>
@@ -163,7 +168,7 @@
                                                SecondaryMaxWidth="340"
                                                SecondaryWidthRatio="0.28"
                                                ItemSpacing="12">
-                    <Border Style="{StaticResource CardBorder}" MinHeight="310">
+                    <Border Style="{StaticResource Card}" MinHeight="310">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -195,7 +200,7 @@
                     </Border>
 
                     <StackPanel>
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Text="Profil" Style="{StaticResource SectionTitleText}" />
                                 <ComboBox ItemsSource="{Binding ProfileActions}"
@@ -208,7 +213,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource CardBorder}">
+                        <Border Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="Aujourd'hui" Style="{StaticResource SectionTitleText}" />
                                 <Grid>
@@ -229,7 +234,10 @@
                                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DashboardStatus.PeakCountToday}" FontWeight="SemiBold" Margin="12,6,0,0" />
                                 </Grid>
                                 <Button Content="Ouvrir l'historique détaillé"
+                                        Tag="&#xE81C;"
                                         Command="{Binding NavigateHistoryCommand}"
+                                        Style="{StaticResource IconTextButton}"
+                                        ToolTip="Afficher l'historique détaillé"
                                         Margin="0,14,0,0"
                                         HorizontalAlignment="Left" />
                             </StackPanel>
@@ -241,7 +249,7 @@
                           Header="Détails techniques"
                           IsExpanded="False"
                           Margin="0,14,0,0">
-                    <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
+                    <Border Style="{StaticResource Card}" Margin="0,8,0,0">
                         <StackPanel>
                             <ItemsControl ItemsSource="{Binding TechnicalMetrics}">
                                 <ItemsControl.ItemsPanel>
@@ -311,14 +319,20 @@
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
                         <Button Content="Accueil"
+                                Tag="&#xE80F;"
                                 Command="{Binding NavigateHomeCommand}"
+                                Style="{StaticResource ButtonGhost}"
+                                ToolTip="Revenir à l'accueil"
                                 Margin="0,0,8,0" />
                         <Button Content="Paramètres"
-                                Command="{Binding NavigateSettingsCommand}" />
+                                Tag="&#xE713;"
+                                Command="{Binding NavigateSettingsCommand}"
+                                Style="{StaticResource ButtonGhost}"
+                                ToolTip="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
-                <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+                <Border Grid.Row="1" Style="{StaticResource Card}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -334,8 +348,17 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Historique" Style="{StaticResource SectionTitleText}" />
                             <WrapPanel Grid.Column="1">
-                                <Button Content="Exporter CSV" Click="ExportHistory_Click" Margin="0,0,8,0" />
-                                <Button Content="Copier résumé" Click="CopyHistorySummary_Click" />
+                                <Button Content="Exporter CSV"
+                                        Tag="&#xEDE1;"
+                                        Click="ExportHistory_Click"
+                                        Style="{StaticResource IconTextButton}"
+                                        ToolTip="Exporter l'historique filtré au format CSV"
+                                        Margin="0,0,8,0" />
+                                <Button Content="Copier résumé"
+                                        Tag="&#xE8C8;"
+                                        Click="CopyHistorySummary_Click"
+                                        Style="{StaticResource IconTextButton}"
+                                        ToolTip="Copier le résumé de diagnostic" />
                             </WrapPanel>
                         </Grid>
 
@@ -356,8 +379,18 @@
                                 <TextBlock Text="Métrique" Style="{StaticResource MutedText}" />
                                 <ComboBox ItemsSource="{Binding HistoryMetrics}" SelectedItem="{Binding SelectedHistoryMetric}" DisplayMemberPath="Label" />
                             </StackPanel>
-                            <Button Content="Actualiser" Command="{Binding RefreshHistoryCommand}" Margin="0,18,8,8" />
-                            <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,18,0,8" />
+                            <Button Content="Actualiser"
+                                    Tag="&#xE72C;"
+                                    Command="{Binding RefreshHistoryCommand}"
+                                    Style="{StaticResource IconTextButton}"
+                                    ToolTip="Recharger l'historique"
+                                    Margin="0,18,8,8" />
+                            <Button Content="Ouvrir dossier"
+                                    Tag="&#xE8B7;"
+                                    Command="{Binding OpenTelemetryFolderCommand}"
+                                    Style="{StaticResource IconTextButton}"
+                                    ToolTip="Ouvrir le dossier local des données"
+                                    Margin="0,18,0,8" />
                         </WrapPanel>
 
                         <Grid Grid.Row="2">
@@ -421,19 +454,25 @@
                         <TextBlock Text="{Binding StatusMessage}"
                                    Style="{StaticResource MutedText}"
                                    Margin="0,4,0,0" />
-                        <TextBlock Text="Modifications non enregistrées"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   FontWeight="SemiBold"
-                                   Margin="0,6,0,0"
-                                   Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Border Style="{StaticResource StatusBadge}"
+                                Margin="0,6,0,0"
+                                Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Modifications non enregistrées"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       FontWeight="SemiBold" />
+                        </Border>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
                         <Button Content="Enregistrer"
+                                Tag="&#xE73E;"
                                 Command="{Binding SaveCommand}"
-                                Style="{StaticResource PrimaryButton}"
+                                Style="{StaticResource ButtonPrimary}"
                                 Margin="0,0,8,0" />
                         <Button Content="Retour"
-                                Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}" />
+                                Tag="&#xE72B;"
+                                Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}"
+                                Style="{StaticResource ButtonGhost}"
+                                ToolTip="Retourner à la page précédente" />
                     </WrapPanel>
                 </Grid>
 
@@ -527,7 +566,13 @@
                                                          Maximum="86400"
                                                          Unit="secondes"
                                                          RecommendationText="{Binding CaniculeCooldownRecommendation}" />
-                                    <Button Content="Valeurs recommandées" Command="{Binding ResetCaniculeGuardCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                    <Button Content="Valeurs recommandées"
+                                            Tag="&#xE72C;"
+                                            Command="{Binding ResetCaniculeGuardCommand}"
+                                            Style="{StaticResource IconTextButton}"
+                                            ToolTip="Restaurer les recommandations de surveillance chaleur"
+                                            HorizontalAlignment="Left"
+                                            Margin="0,12,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -573,9 +618,24 @@
                                                Style="{StaticResource PreferenceFieldLabel}"
                                                ToolTip="{Binding TelemetryPath}" />
                                     <WrapPanel>
-                                        <Button Content="Ouvrir" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Copier le chemin" Command="{Binding CopyTelemetryPathCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Exporter" Click="ExportTelemetry_Click" Margin="0,0,8,8" />
+                                        <Button Content="Ouvrir dossier"
+                                                Tag="&#xE8B7;"
+                                                Command="{Binding OpenTelemetryFolderCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Ouvrir le dossier local des données"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Copier le chemin"
+                                                Tag="&#xE8C8;"
+                                                Command="{Binding CopyTelemetryPathCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Copier le chemin du dossier de données"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Exporter"
+                                                Tag="&#xEDE1;"
+                                                Click="ExportTelemetry_Click"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Exporter la session de télémétrie"
+                                                Margin="0,0,8,8" />
                                     </WrapPanel>
                                     <Expander Header="Chemin complet" IsExpanded="False" Margin="0,2,0,0">
                                         <TextBlock Text="{Binding TelemetryPath}"
@@ -602,9 +662,23 @@
                                     <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
                                     <CheckBox Content="Télécharger automatiquement" IsChecked="{Binding AutoDownloadUpdates}" />
                                     <WrapPanel Margin="0,10,0,0">
-                                        <Button Content="Rechercher maintenant" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Ouvrir GitHub Releases" Command="{Binding OpenGitHubReleasesCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Copier diagnostic" Command="{Binding CopyUpdateDiagnosticCommand}" />
+                                        <Button Content="Rechercher maintenant"
+                                                Tag="&#xE721;"
+                                                Command="{Binding CheckForUpdatesCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Rechercher les mises à jour disponibles"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Ouvrir GitHub Releases"
+                                                Tag="&#xE8A7;"
+                                                Command="{Binding OpenGitHubReleasesCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Ouvrir la page GitHub Releases"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Copier diagnostic"
+                                                Tag="&#xE8C8;"
+                                                Command="{Binding CopyUpdateDiagnosticCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Copier le diagnostic de mise à jour" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -621,8 +695,17 @@
                                     <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
                                     <WrapPanel>
-                                        <Button Content="Réparer la tâche" Command="{Binding RepairStartupCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Supprimer la tâche" Command="{Binding DeleteStartupCommand}" />
+                                        <Button Content="Réparer la tâche"
+                                                Tag="&#xE90F;"
+                                                Command="{Binding RepairStartupCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Réparer la tâche planifiée de démarrage"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Supprimer la tâche"
+                                                Tag="&#xE74D;"
+                                                Command="{Binding DeleteStartupCommand}"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Supprimer la tâche planifiée de démarrage" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -632,8 +715,18 @@
                                     <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="La réinitialisation conserve la tâche planifiée Windows." Style="{StaticResource MutedText}" Margin="0,0,0,10" />
                                     <WrapPanel>
-                                        <Button Content="Exporter diagnostic" Click="ExportDiagnostics_Click" Margin="0,0,8,8" />
-                                        <Button Content="Réinitialiser" Command="{Binding ResetDefaultsCommand}" HorizontalAlignment="Left" />
+                                        <Button Content="Exporter diagnostic"
+                                                Tag="&#xEDE1;"
+                                                Click="ExportDiagnostics_Click"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Exporter un diagnostic local"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="Réinitialiser"
+                                                Tag="&#xE72C;"
+                                                Click="ResetDefaults_Click"
+                                                Style="{StaticResource IconTextButton}"
+                                                ToolTip="Réinitialiser les préférences locales"
+                                                HorizontalAlignment="Left" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
