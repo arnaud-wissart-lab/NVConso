@@ -88,9 +88,10 @@ namespace NVConso.Tests
             Assert.Contains("Pour l'auto-update, utilisez `WattPilot-Setup.exe`.", readme);
             Assert.Contains("Le ZIP portable `WattPilot-win-x64.zip` ne s'auto-update pas.", readme);
             Assert.Contains("le feed Velopack `releases.stable.json`", readme);
+            Assert.Contains("Vérification de mise à jour au lancement", readme);
             Assert.Contains("`SHA256SUMS.txt` permet de vérifier les fichiers téléchargés.", readme);
-            Assert.Contains("git tag v2.1.3", readme);
-            Assert.Contains("git push origin v2.1.3", readme);
+            Assert.Contains("git tag v2.1.4", readme);
+            Assert.Contains("git push origin v2.1.4", readme);
             Assert.DoesNotContain("NVConso-win-x64.zip", readme);
         }
 

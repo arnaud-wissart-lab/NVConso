@@ -24,6 +24,7 @@ Le workflow de release publie aussi les paquets Velopack et le feed Velopack `re
 - Menu tray WinForms compact pour ouvrir WattPilot, appliquer un profil et quitter.
 - Historique GPU persistant sous `%LOCALAPPDATA%\WattPilot\telemetry\`.
 - Mise à jour automatique via Velopack pour l'installation `WattPilot-Setup.exe`.
+- Vérification de mise à jour au lancement quand l'option automatique est active.
 - Modes portable ZIP et build développeur affichés comme des états attendus, sans erreur rouge.
 
 WattPilot ne modifie pas HDR, VRR, G-Sync, les ventilateurs ou les profils d'affichage Windows.
@@ -70,8 +71,8 @@ dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained tru
 Procédure de release après merge :
 
 ```powershell
-git tag v2.1.3
-git push origin v2.1.3
+git tag v2.1.4
+git push origin v2.1.4
 ```
 
 ## Documentation

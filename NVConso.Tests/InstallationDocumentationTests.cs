@@ -14,6 +14,7 @@ namespace NVConso.Tests
             Assert.Contains("Mode : installé via Velopack", installation);
             Assert.Contains("Mode : portable ZIP — mise à jour manuelle", installation);
             Assert.Contains("Mode : build développeur — auto-update indisponible", installation);
+            Assert.Contains("vérifie les mises à jour au lancement", installation);
             Assert.Contains("Vérification après installation", installation);
             Assert.Contains("l'UAC apparaît seulement à ce moment", installation);
             Assert.Contains("Migration depuis l'ancien nom", installation);
@@ -25,8 +26,8 @@ namespace NVConso.Tests
             string release = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "release.md"));
 
             Assert.Contains("Version de la prochaine release", release);
-            Assert.Contains("`v2.1.3`", release);
-            Assert.Contains("les guards de release et la documentation", release);
+            Assert.Contains("`v2.1.4`", release);
+            Assert.Contains("vérification automatique des mises à jour au lancement", release);
             Assert.Contains("le tag Git", release);
             Assert.Contains("`WattPilot-Setup.exe`", release);
             Assert.Contains("`WattPilot-win-x64.zip`", release);
@@ -35,6 +36,8 @@ namespace NVConso.Tests
             Assert.Contains("Pour l'auto-update, utilisez `WattPilot-Setup.exe`.", release);
             Assert.Contains("Le ZIP portable ne s'auto-update pas.", release);
             Assert.Contains("personnalisation limitée", release);
+            Assert.Contains("vérifie les mises à jour au lancement", release);
+            Assert.Contains("vérifications périodiques pendant une même session", release);
             Assert.Contains("ne fournit pas d'option officielle", release);
             Assert.Contains("évaluer la génération MSI Velopack", release);
             Assert.Contains("Smoke test local Setup", release);

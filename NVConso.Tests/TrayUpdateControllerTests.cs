@@ -35,6 +35,28 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public void IsUpdateCheckDue_ShouldAlwaysCheckOnStartup()
+        {
+            var settings = new AppSettings
+            {
+                LastUpdateCheckUtc = DateTimeOffset.UtcNow.AddMinutes(-10)
+            };
+
+            Assert.True(TrayUpdateController.IsUpdateCheckDue(settings, isStartupCheck: true));
+        }
+
+        [Fact]
+        public void IsUpdateCheckDue_ShouldThrottlePeriodicChecks()
+        {
+            var settings = new AppSettings
+            {
+                LastUpdateCheckUtc = DateTimeOffset.UtcNow.AddMinutes(-10)
+            };
+
+            Assert.False(TrayUpdateController.IsUpdateCheckDue(settings, isStartupCheck: false));
+        }
+
+        [Fact]
         public async Task DownloadUpdateAsync_ShouldShowReadyStatus()
         {
             using TestContext context = CreateContext();

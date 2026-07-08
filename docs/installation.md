@@ -28,6 +28,7 @@ Comportement attendu :
 
 - l'application démarre en droits utilisateur standard ;
 - l'installation ne force pas de lancement administrateur ;
+- WattPilot vérifie les mises à jour au lancement si `Vérifier automatiquement` est activé ;
 - les actions GPU privilégiées demandent l'UAC seulement au moment du clic ;
 - l'update intégré peut télécharger puis appliquer une nouvelle version après confirmation.
 

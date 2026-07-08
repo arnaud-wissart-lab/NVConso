@@ -10,7 +10,7 @@ Ce document décrit le processus de publication actuel de WattPilot.
 - GitHub Actions activé.
 - Tag au format strict `vX.Y.Z`.
 
-Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.3`.
+Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.4`.
 
 ## Version de la prochaine release
 
@@ -18,7 +18,7 @@ Le projet est actuellement en version `2.0.1` dans le `.csproj`. La release publ
 
 Ne pas modifier le `.csproj` uniquement pour publier une release si le tag reste la source de vérité. Éviter toute combinaison où le tag, le titre GitHub Release et les propriétés MSBuild indiqueraient des versions différentes.
 
-Choix recommandé pour cette passe : `v2.1.3`, car `v2.1.2` est déjà publié et les changements en cours portent sur l'UX des paramètres, le nettoyage des reliques, les guards de release et la documentation.
+Choix recommandé pour cette passe : `v2.1.4`, car `v2.1.3` est déjà publié et les changements en cours corrigent la vérification automatique des mises à jour au lancement.
 
 ## Commandes locales avant tag
 
@@ -32,8 +32,8 @@ dotnet publish NVConso/NVConso.csproj -c Release -r win-x64 --self-contained tru
 ## Déclencher une release
 
 ```powershell
-git tag v2.1.3
-git push origin v2.1.3
+git tag v2.1.4
+git push origin v2.1.4
 ```
 
 Le workflow [../.github/workflows/release.yml](../.github/workflows/release.yml) dérive la version depuis le tag. Il échoue si le tag ne respecte pas `vX.Y.Z`.
@@ -131,6 +131,8 @@ Le canal par défaut est `stable`.
 
 Le message affiché hors installation Velopack doit rester explicite sans être présenté comme une erreur : l'auto-update complet nécessite l'installation WattPilot via Velopack, la version ZIP portable doit être mise à jour depuis GitHub Releases, et un build développeur `bin\Debug` ou `bin\Release` ne s'auto-update pas.
 
+Quand `Vérifier automatiquement` est activé, WattPilot vérifie les mises à jour au lancement d'une installation Velopack, même si une vérification a déjà eu lieu dans les 24 dernières heures. Le délai de 24 heures ne sert qu'à limiter les vérifications périodiques pendant une même session.
+
 `WattPilot-Setup.exe` est un installateur one-click avec personnalisation limitée. Les options officielles documentées portent notamment sur `--silent`, `--verbose`, `--log` et `--installto`, ainsi que sur des éléments de packaging comme le titre, l'icône et l'image de démarrage. La documentation consultée ne fournit pas d'option officielle pour remplacer finement l'interface native de réparation. Ne pas ajouter de contournement fragile dans WattPilot pour ce cas.
 
 Si une UI installateur plus complète devient un objectif produit, évaluer la génération MSI Velopack avec WiX plutôt que de bricoler `Setup.exe`.
@@ -203,11 +205,11 @@ Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise
 Pour publier une version standard après merge, créer puis pousser le tag cible :
 
 ```powershell
-git tag v2.1.3
-git push origin v2.1.3
+git tag v2.1.4
+git push origin v2.1.4
 ```
 
-Remplacer `v2.1.3` par la version décidée pour la release si un tag plus récent existe déjà au moment de publier.
+Remplacer `v2.1.4` par la version décidée pour la release si un tag plus récent existe déjà au moment de publier.
 
 Après le push :
 

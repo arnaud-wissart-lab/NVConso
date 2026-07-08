@@ -21,6 +21,7 @@ namespace NVConso
 
         private bool _updateOperationInProgress;
         private bool _downloadedUpdateReady;
+        private bool _startupUpdateCheckPending = true;
         private AppUpdateInfo _availableUpdate;
         private UpdateUiState _currentState;
 
@@ -319,6 +320,9 @@ namespace NVConso
 
         private async Task OnUpdateCheckTimerTickAsync()
         {
+            bool isStartupCheck = _startupUpdateCheckPending;
+            _startupUpdateCheckPending = false;
+
             if (_updateCheckTimer.Interval != UpdateCheckPollingIntervalMs)
                 _updateCheckTimer.Interval = UpdateCheckPollingIntervalMs;
 
@@ -328,7 +332,7 @@ namespace NVConso
                 return;
             }
 
-            if (!IsUpdateCheckDue(_settingsService.Current))
+            if (!IsUpdateCheckDue(_settingsService.Current, isStartupCheck))
                 return;
 
             await CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: true);
@@ -373,8 +377,11 @@ namespace NVConso
             _updateCheckTimer.Start();
         }
 
-        private static bool IsUpdateCheckDue(AppSettings settings)
+        internal static bool IsUpdateCheckDue(AppSettings settings, bool isStartupCheck)
         {
+            if (isStartupCheck)
+                return true;
+
             if (!settings.LastUpdateCheckUtc.HasValue)
                 return true;
 
