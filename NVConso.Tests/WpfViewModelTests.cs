@@ -481,6 +481,10 @@ namespace NVConso.Tests
             Assert.Contains("WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps.", xaml);
             Assert.Contains("Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics.", xaml);
             Assert.Contains("Les mises à jour automatiques fonctionnent avec la version installée de WattPilot.", xaml);
+            Assert.DoesNotContain("ProfileActions", ExtractHomeSection(xaml));
+            Assert.DoesNotContain("SelectedProfileAction", ExtractHomeSection(xaml));
+            Assert.DoesNotContain("TechnicalMetrics", ExtractHomeSection(xaml));
+            Assert.DoesNotContain("Header=\"Détails techniques\"", ExtractHomeSection(xaml));
             Assert.Contains("Détails techniques", ExtractUpdateSection(xaml));
             Assert.Contains("Vérifier maintenant", ExtractUpdateSection(xaml));
             Assert.Contains("PrimaryUpdateCommand", ExtractUpdateSection(xaml));
@@ -631,6 +635,15 @@ namespace NVConso.Tests
         {
             int start = xaml.IndexOf("IsUpdateSectionSelected", StringComparison.Ordinal);
             int end = xaml.IndexOf("IsAdvancedSectionSelected", StringComparison.Ordinal);
+            return start >= 0 && end > start
+                ? xaml[start..end]
+                : xaml;
+        }
+
+        private static string ExtractHomeSection(string xaml)
+        {
+            int start = xaml.IndexOf("IsHomePageVisible", StringComparison.Ordinal);
+            int end = xaml.IndexOf("IsHistoryPageVisible", StringComparison.Ordinal);
             return start >= 0 && end > start
                 ? xaml[start..end]
                 : xaml;
