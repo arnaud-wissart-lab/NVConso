@@ -6,16 +6,23 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+## 2.1.8 - 2026-07-08
+
+### Note
+
+- 2.1.7 est supersédée par 2.1.8.
+
 ### Ajouté
 
 - Affiche la version courte de WattPilot dans l'accueil, la page de mise à jour et le tooltip de la zone de notification.
 - Ajoute des presets de surveillance chaleur : `Discret`, `Équilibré`, `Sensible` et `Personnalisé`.
 - Affiche les bornes numériques sous les champs de réglage.
+- Publie un artefact portable de prévisualisation pour les PR.
 
 ### Modifié
 
 - Remplace la sauvegarde manuelle globale des paramètres par un enregistrement automatique.
-- Simplifie la page Paramètres en retirant les sections et options visibles non essentielles.
+- Simplifie la page Paramètres en retirant `Général`, le thème visible et le bouton `Enregistrer` global.
 - Remplace la boîte de limite personnalisée WinForms par une boîte WPF intégrée.
 - Prépare le renommage public complet vers WattPilot : exécutable `WattPilot.exe`, PackId Velopack `WattPilot`, ZIP portable `WattPilot-win-x64.zip` et tâche planifiée `WattPilot`.
 - Ajoute la migration locale depuis `%LOCALAPPDATA%\NVConso` vers `%LOCALAPPDATA%\WattPilot` avec sauvegarde horodatée.
@@ -24,7 +31,7 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 ### Corrigé
 
 - Empêche la tâche de démarrage Windows de lancer WattPilot avec les privilèges les plus élevés.
-- Empêche une demande UAC préventive lors de l'enregistrement des préférences.
+- Corrige l'élévation au lancement en empêchant une demande UAC préventive lors de l'enregistrement des préférences.
 
 ## [1.1.1] - 2026-07-06
 
