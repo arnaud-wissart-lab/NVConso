@@ -4,6 +4,8 @@ namespace NVConso
     {
         bool IsElevated { get; }
 
+        PrivilegeState State { get; }
+
         bool CanWritePowerLimit { get; }
 
         bool CanManageStartupTask { get; }

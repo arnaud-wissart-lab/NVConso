@@ -25,7 +25,12 @@ namespace NVConso
 
         public static PrivilegeOperationResult CancelledByUser()
         {
-            return new PrivilegeOperationResult(false, cancelled: true, "Action administrateur annulée.");
+            return CancelledByUser("Action administrateur annulée.");
+        }
+
+        public static PrivilegeOperationResult CancelledByUser(string message)
+        {
+            return new PrivilegeOperationResult(false, cancelled: true, message);
         }
 
         public static PrivilegeOperationResult Failed(string message)

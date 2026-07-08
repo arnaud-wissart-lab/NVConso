@@ -8,9 +8,12 @@ namespace NVConso
         public StaticPrivilegeService(bool isElevated)
         {
             IsElevated = isElevated;
+            State = new PrivilegeState(isElevated);
         }
 
         public bool IsElevated { get; }
+
+        public PrivilegeState State { get; }
 
         public bool CanWritePowerLimit => IsElevated;
 

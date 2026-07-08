@@ -167,6 +167,7 @@ namespace NVConso.Tests
         private sealed class FakePrivilegeService(bool isElevated, bool helperSuccess) : IPrivilegeService
         {
             public bool IsElevated { get; } = isElevated;
+            public PrivilegeState State { get; } = new(isElevated);
             public bool CanWritePowerLimit => IsElevated;
             public bool CanManageStartupTask => IsElevated;
             public string CurrentPrivilegeStatusMessage => IsElevated
