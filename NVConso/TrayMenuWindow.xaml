@@ -124,6 +124,9 @@
                 <TextBlock Text="{Binding UpdateStatusItem.Text}"
                            Style="{StaticResource MutedText}"
                            Margin="0,3,0,0" />
+                <TextBlock Text="{Binding UpdateStatusItem.DetailText}"
+                           Style="{StaticResource MutedText}"
+                           Margin="0,2,0,0" />
             </StackPanel>
             <Button Content="{Binding UpdateActionItem.Text}"
                     Command="{Binding UpdateActionItem.Command}"

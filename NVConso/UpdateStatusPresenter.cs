@@ -118,8 +118,8 @@ namespace NVConso
         {
             executionMode ??= AppExecutionModeInfo.InstalledVelopack();
             string message = progressPercent.HasValue
-                ? $"Mise à jour : téléchargement {progressPercent.Value} %"
-                : "Mise à jour : téléchargement...";
+                ? $"Téléchargement {progressPercent.Value} %"
+                : "Téléchargement...";
 
             return Create(
                 UpdateUiStatus.Downloading,
@@ -141,7 +141,7 @@ namespace NVConso
                 UpdateUiStatus.Installing,
                 settings,
                 version,
-                "Mise à jour : installation...",
+                "Installation...",
                 canRunPrimaryAction: false,
                 primaryActionLabel: string.Empty,
                 executionMode: executionMode);
@@ -153,7 +153,7 @@ namespace NVConso
                 UpdateUiStatus.Unknown,
                 settings,
                 latestVersion: string.Empty,
-                message: "Mise à jour : non vérifiée",
+                message: "Non vérifiée",
                 canRunPrimaryAction: false,
                 primaryActionLabel: string.Empty,
                 executionMode: executionMode);

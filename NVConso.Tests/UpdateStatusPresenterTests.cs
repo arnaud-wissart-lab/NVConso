@@ -18,7 +18,7 @@ namespace NVConso.Tests
             Assert.Equal(settings.LastUpdateCheckUtc, state.LastCheckedAt);
             Assert.Equal(ProductNames.DisplayVersion, state.CurrentVersion);
             Assert.Equal(ProductNames.DisplayVersion, state.LatestVersion);
-            Assert.Equal("Mise à jour : à jour — vérifiée à 14:32", state.Message);
+            Assert.Equal("À jour", state.Message);
             Assert.False(state.CanRunPrimaryAction);
             Assert.Equal(string.Empty, state.PrimaryActionLabel);
         }
@@ -40,7 +40,7 @@ namespace NVConso.Tests
 
             Assert.Equal(UpdateUiStatus.UpdateAvailable, state.Status);
             Assert.Equal("1.1.0", state.LatestVersion);
-            Assert.Equal("Mise à jour disponible : v1.1.0", state.Message);
+            Assert.Equal("Nouvelle version disponible : v1.1.0", state.Message);
             Assert.True(state.CanRunPrimaryAction);
             Assert.Equal("Mettre à jour vers v1.1.0...", state.PrimaryActionLabel);
         }
@@ -59,9 +59,9 @@ namespace NVConso.Tests
 
             Assert.Equal(UpdateUiStatus.ReadyToInstall, state.Status);
             Assert.Equal("1.1.0", state.LatestVersion);
-            Assert.Equal("Mise à jour prête : v1.1.0", state.Message);
+            Assert.Equal("Prête à installer : v1.1.0", state.Message);
             Assert.True(state.CanRunPrimaryAction);
-            Assert.Equal("Installer et redémarrer...", state.PrimaryActionLabel);
+            Assert.Equal("Installer maintenant", state.PrimaryActionLabel);
         }
 
         [Fact]
@@ -154,7 +154,7 @@ namespace NVConso.Tests
                 AppUpdateOperationResult.Failed(AppUpdateStatus.NetworkUnavailable, "Réseau indisponible."));
 
             Assert.Equal(UpdateUiStatus.Error, state.Status);
-            Assert.Equal("Mise à jour : erreur", state.Message);
+            Assert.Equal("Erreur", state.Message);
             Assert.Equal("Réseau indisponible.", state.DetailMessage);
             Assert.False(state.CanRunPrimaryAction);
         }
@@ -165,7 +165,7 @@ namespace NVConso.Tests
             UpdateUiState state = UpdateStatusPresenter.Downloading(new AppSettings(), 75);
 
             Assert.Equal(UpdateUiStatus.Downloading, state.Status);
-            Assert.Equal("Mise à jour : téléchargement 75 %", state.Message);
+            Assert.Equal("Téléchargement 75 %", state.Message);
             Assert.False(state.CanRunPrimaryAction);
         }
 

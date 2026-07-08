@@ -21,10 +21,10 @@ namespace NVConso
                 return executionMode.UpdateStatusMessage;
 
             if (!string.IsNullOrWhiteSpace(settings?.LastUpdateError))
-                return "Mise à jour : erreur";
+                return UpdateLabels.ErrorStatus;
 
             if (settings?.LastUpdateCheckUtc is null)
-                return "Mise à jour : non vérifiée";
+                return "Non vérifiée";
 
             return UpdateLabels.FormatUpToDate(settings.LastUpdateCheckUtc);
         }

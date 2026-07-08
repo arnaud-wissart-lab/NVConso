@@ -6,6 +6,7 @@ namespace NVConso
     public sealed class TrayMenuActionItem : INotifyPropertyChanged
     {
         private string _text;
+        private string _detailText;
         private string _icon;
         private string _toolTipText;
         private bool _isEnabled = true;
@@ -29,6 +30,12 @@ namespace NVConso
         {
             get => _icon;
             set => SetProperty(ref _icon, value ?? string.Empty, nameof(Icon));
+        }
+
+        public string DetailText
+        {
+            get => _detailText;
+            set => SetProperty(ref _detailText, value ?? string.Empty, nameof(DetailText));
         }
 
         public string ToolTipText
