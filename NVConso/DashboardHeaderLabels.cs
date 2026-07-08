@@ -43,9 +43,9 @@ namespace NVConso
         public static string FormatCaniculeGuardStatus(CaniculeGuardState state)
         {
             if (state is null)
-                return "Canicule Guard : état inconnu";
+                return "Surveillance chaleur : état inconnu";
 
-            return $"Canicule Guard : {state.Message}";
+            return $"Surveillance chaleur : {state.Message}";
         }
     }
 }

@@ -5,7 +5,7 @@ namespace NVConso.ViewModels
     public sealed class DashboardStatusViewModel : ObservableObject
     {
         private string _dailySummary = "Historique du jour : --";
-        private string _caniculeGuardSummary = "Canicule Guard : --";
+        private string _caniculeGuardSummary = "Surveillance chaleur : --";
         private string _maxPowerToday = "--";
         private string _maxTemperatureToday = "--";
         private string _peakCountToday = "0";
@@ -19,7 +19,7 @@ namespace NVConso.ViewModels
         public string CaniculeGuardSummary
         {
             get => _caniculeGuardSummary;
-            set => SetProperty(ref _caniculeGuardSummary, string.IsNullOrWhiteSpace(value) ? "Canicule Guard : --" : value);
+            set => SetProperty(ref _caniculeGuardSummary, string.IsNullOrWhiteSpace(value) ? "Surveillance chaleur : --" : value);
         }
 
         public string MaxPowerToday

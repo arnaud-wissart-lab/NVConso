@@ -24,5 +24,18 @@ namespace NVConso
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? typeof(ProductNames).Assembly.GetName().Version?.ToString()
             ?? "version inconnue";
+
+        public static string ShortDisplayVersion => FormatShortVersion(DisplayVersion);
+
+        public static string FormatShortVersion(string version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return "version inconnue";
+
+            int metadataIndex = version.IndexOf('+');
+            return metadataIndex > 0
+                ? version[..metadataIndex]
+                : version;
+        }
     }
 }

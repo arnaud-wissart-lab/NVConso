@@ -31,12 +31,12 @@ namespace NVConso.Tests
 
             Assert.False(result.IsValid);
             Assert.Contains(result.Errors, error => error.Contains("historique graphique", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("puissance Canicule Guard", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("température Canicule Guard", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("durée avant alerte", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("cooldown Canicule Guard", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("intervalle d'historisation GPU", StringComparison.Ordinal));
-            Assert.Contains(result.Errors, error => error.Contains("rétention de l'historique GPU", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("puissance de surveillance chaleur", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("température de surveillance chaleur", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("délai avant première alerte", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("nouvelle alerte de surveillance chaleur", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("fréquence d'enregistrement", StringComparison.Ordinal));
+            Assert.Contains(result.Errors, error => error.Contains("conservation des données", StringComparison.Ordinal));
             Assert.Contains(result.Errors, error => error.Contains("pic de puissance", StringComparison.Ordinal));
             Assert.Contains(result.Errors, error => error.Contains("pic de température", StringComparison.Ordinal));
         }

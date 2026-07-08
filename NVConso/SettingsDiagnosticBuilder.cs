@@ -35,9 +35,9 @@ namespace NVConso
             builder.AppendLine(FormattableString.Invariant($"Auto update : {settings.AutoCheckUpdates}"));
             builder.AppendLine(FormattableString.Invariant($"Dernière vérification update : {settings.LastUpdateCheckUtc:O}"));
             builder.AppendLine(FormattableString.Invariant($"Dernière erreur update : {settings.LastUpdateError ?? "--"}"));
-            builder.AppendLine(FormattableString.Invariant($"Canicule Guard activé : {settings.CaniculeGuardEnabled}"));
-            builder.AppendLine(FormattableString.Invariant($"Canicule Guard puissance W : {settings.CaniculeGuardPowerThresholdWatts}"));
-            builder.AppendLine(FormattableString.Invariant($"Canicule Guard température °C : {settings.CaniculeGuardTemperatureThresholdCelsius}"));
+            builder.AppendLine(FormattableString.Invariant($"Surveillance chaleur activée : {settings.CaniculeGuardEnabled}"));
+            builder.AppendLine(FormattableString.Invariant($"Surveillance chaleur puissance W : {settings.CaniculeGuardPowerThresholdWatts}"));
+            builder.AppendLine(FormattableString.Invariant($"Surveillance chaleur température °C : {settings.CaniculeGuardTemperatureThresholdCelsius}"));
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU activée : {settings.RecordingEnabled}"));
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU intervalle s : {settings.RecordingIntervalSeconds}"));
             builder.AppendLine(FormattableString.Invariant($"Historisation GPU rétention jours : {settings.TelemetryRetentionDays}"));

@@ -52,7 +52,7 @@ namespace NVConso.Tests
             DashboardTelemetryViewModel model = DashboardTelemetryViewModel.FromSnapshot(snapshot);
 
             Assert.Equal("#0 - Mock GPU", model.GpuName);
-            Assert.Equal("Custom", model.ProfileName);
+            Assert.Equal("Personnalisé", model.ProfileName);
             Assert.Equal(0.5, model.PowerGaugeValue);
             Assert.Equal(0.5, model.GpuUsageGaugeValue);
             Assert.Equal(DashboardMetricState.Normal, model.PowerState);

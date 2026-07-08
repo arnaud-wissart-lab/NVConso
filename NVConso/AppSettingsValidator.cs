@@ -38,42 +38,42 @@ namespace NVConso
                 settings.CaniculeGuardPowerThresholdWatts,
                 MinimumCaniculePowerThresholdWatts,
                 MaximumCaniculePowerThresholdWatts,
-                "Le seuil de puissance Canicule Guard");
+                "Le seuil de puissance de surveillance chaleur");
 
             AddRangeError(
                 errors,
                 settings.CaniculeGuardTemperatureThresholdCelsius,
                 MinimumCaniculeTemperatureThresholdCelsius,
                 MaximumCaniculeTemperatureThresholdCelsius,
-                "Le seuil de température Canicule Guard");
+                "Le seuil de température de surveillance chaleur");
 
             AddRangeError(
                 errors,
                 settings.CaniculeGuardAlertDelaySeconds,
                 MinimumCaniculeAlertDelaySeconds,
                 MaximumCaniculeAlertDelaySeconds,
-                "La durée avant alerte Canicule Guard");
+                "Le délai avant première alerte de surveillance chaleur");
 
             AddRangeError(
                 errors,
                 settings.CaniculeGuardCooldownSeconds,
                 MinimumCaniculeCooldownSeconds,
                 MaximumCaniculeCooldownSeconds,
-                "Le cooldown Canicule Guard");
+                "Le délai avant nouvelle alerte de surveillance chaleur");
 
             AddRangeError(
                 errors,
                 settings.RecordingIntervalSeconds,
                 MinimumRecordingIntervalSeconds,
                 MaximumRecordingIntervalSeconds,
-                "L'intervalle d'historisation GPU");
+                "La fréquence d'enregistrement");
 
             AddRangeError(
                 errors,
                 settings.TelemetryRetentionDays,
                 MinimumTelemetryRetentionDays,
                 MaximumTelemetryRetentionDays,
-                "La rétention de l'historique GPU");
+                "La conservation des données");
 
             AddRangeError(
                 errors,

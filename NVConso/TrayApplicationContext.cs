@@ -255,7 +255,7 @@ namespace NVConso
                 return;
 
             _notifications.SetStatus(alert.Message);
-            _notifications.ShowWarning("Canicule Guard", alert.Message, 3500);
+            _notifications.ShowWarning("Surveillance chaleur", alert.Message, 3500);
             _wattPilotWindow?.DashboardViewModel.RefreshCaniculeGuardSummary();
         }
 

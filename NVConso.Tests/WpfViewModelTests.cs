@@ -71,7 +71,7 @@ namespace NVConso.Tests
             Assert.Equal("--", model.MaxPowerToday);
             Assert.Equal("--", model.MaxTemperatureToday);
             Assert.Equal("0", model.PeakCountToday);
-            Assert.Equal("Canicule Guard : état inconnu", model.CaniculeGuardSummary);
+            Assert.Equal("Surveillance chaleur : état inconnu", model.CaniculeGuardSummary);
         }
 
         [Fact]
@@ -145,8 +145,8 @@ namespace NVConso.Tests
             Assert.Equal(
                 PrimaryMetricTitles,
                 model.PrimaryMetrics.Select(metric => metric.Title).ToArray());
-            Assert.Equal("Normal / Stock", model.PrimaryMetrics.Last().Value);
-            Assert.Equal("Normal / Stock revient au comportement constructeur du GPU.", model.SelectedProfileDescription);
+            Assert.Equal("Normal", model.PrimaryMetrics.Last().Value);
+            Assert.Equal("Normal revient au comportement constructeur du GPU.", model.SelectedProfileDescription);
         }
 
         [Fact]
@@ -279,15 +279,45 @@ namespace NVConso.Tests
 
             var model = context.CreatePreferencesViewModel();
 
-            Assert.Equal(["Général", "Profils", "Historique", "Mise à jour", "Avancé"], model.PreferenceSections.Select(section => section.Label).ToArray());
+            Assert.Equal(["Général", "Modes GPU", "Surveillance chaleur", "Historique", "Mise à jour", "Avancé"], model.PreferenceSections.Select(section => section.Label).ToArray());
             Assert.True(model.IsGeneralSectionSelected);
             model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.Profiles);
             Assert.True(model.IsProfilesSectionSelected);
+            model.SelectedPreferenceSection = model.PreferenceSections.First(section => section.Value == PreferenceSection.HeatMonitoring);
+            Assert.True(model.IsHeatMonitoringSectionSelected);
             Assert.True(model.ShowDashboardOnStartup);
             Assert.Equal(UiTheme.Dark, model.SelectedTheme.Value);
             Assert.Equal(GpuPowerMode.Canicule, model.SelectedStartupProfile.Value);
             Assert.True(model.CaniculeGuardEnabled);
             Assert.Equal(55, model.CaniculePowerThresholdWatts);
+        }
+
+        [Fact]
+        public void PreferencesViewModel_ShouldResetHeatMonitoringRecommendedValues()
+        {
+            using ViewModelTestContext context = ViewModelTestContext.Create();
+            var model = context.CreatePreferencesViewModel();
+            model.CaniculePowerThresholdWatts = 10;
+            model.CaniculeTemperatureThresholdCelsius = 30;
+            model.CaniculeAlertDelaySeconds = 1;
+            model.CaniculeCooldownSeconds = 10;
+
+            model.ResetCaniculeGuardCommand.Execute(null);
+
+            Assert.Equal(CaniculeGuardDefaults.PowerThresholdWatts, model.CaniculePowerThresholdWatts);
+            Assert.Equal(CaniculeGuardDefaults.TemperatureThresholdCelsius, model.CaniculeTemperatureThresholdCelsius);
+            Assert.Equal(CaniculeGuardDefaults.AlertDelaySeconds, model.CaniculeAlertDelaySeconds);
+            Assert.Equal(CaniculeGuardDefaults.CooldownSeconds, model.CaniculeCooldownSeconds);
+            Assert.Contains("Valeurs recommandées", model.StatusMessage);
+        }
+
+        [Fact]
+        public void NumericBox_ShouldNormalizeValuesWithinConfiguredBounds()
+        {
+            Assert.Equal(10, NumericBox.NormalizeValue(0, 10, 100));
+            Assert.Equal(55, NumericBox.NormalizeValue(55, 10, 100));
+            Assert.Equal(100, NumericBox.NormalizeValue(120, 10, 100));
+            Assert.Equal(50, NumericBox.NormalizeValue(50, 100, 10));
         }
 
         [Theory]
@@ -336,7 +366,7 @@ namespace NVConso.Tests
 
             Assert.False(saved);
             Assert.Equal(30, context.SettingsService.Current.TelemetryRetentionDays);
-            Assert.Contains("La rétention de l'historique GPU doit être compris", model.StatusMessage);
+            Assert.Contains("La conservation des données doit être compris", model.StatusMessage);
         }
 
         [Fact]
@@ -381,8 +411,36 @@ namespace NVConso.Tests
             Assert.Contains("Modifications non enregistrées", xaml);
             Assert.Contains("PreferenceSections", xaml);
             Assert.Contains("<controls:ThemeOptionControl", xaml);
+            Assert.Contains("<controls:NumericBox", xaml);
+            Assert.Contains("Modes GPU", xaml);
+            Assert.Contains("Surveillance chaleur", xaml);
+            Assert.Contains("Personnalisez l'apparence et le comportement général de WattPilot.", xaml);
+            Assert.Contains("Choisissez comment WattPilot limite la carte graphique selon votre usage.", xaml);
+            Assert.Contains("WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps.", xaml);
+            Assert.Contains("Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics.", xaml);
+            Assert.Contains("Les mises à jour automatiques fonctionnent avec la version installée de WattPilot.", xaml);
+            Assert.Contains("Réglages système et maintenance. À modifier seulement si nécessaire.", xaml);
+            Assert.Contains("ne modifie pas les ventilateurs", xaml);
+            Assert.Contains("Délai avant nouvelle alerte", xaml);
+            Assert.Contains("Durée affichée sur le graphe", xaml);
+            Assert.Contains("Fréquence d'enregistrement", xaml);
+            Assert.Contains("Conservation des données", xaml);
+            Assert.Contains("Dossier de données local", xaml);
+            Assert.Contains("Copier le chemin", xaml);
+            Assert.Contains("Copier diagnostic", xaml);
             Assert.DoesNotContain("x:Name=\"PreferencesPanel\"", xaml);
             Assert.DoesNotContain("ItemsSource=\"{Binding ThemeOptions}\" SelectedItem=\"{Binding SelectedTheme}\" DisplayMemberPath=\"Label\"", xaml);
+            Assert.DoesNotContain(">Profils<", xaml);
+            Assert.DoesNotContain("Text=\"Profils\"", xaml);
+            Assert.DoesNotContain("Text=\"Canicule Guard\"", xaml);
+            Assert.DoesNotContain("Content=\"Inclure les préversions\"", ExtractUpdateSection(xaml));
+            Assert.DoesNotContain("UpdateStatus.Detail", xaml);
+            Assert.DoesNotContain("TextBox Text=\"{Binding CaniculePowerThresholdWatts", xaml);
+            Assert.DoesNotContain("TextBox Text=\"{Binding RecordingIntervalSeconds", xaml);
+            Assert.DoesNotContain("Text=\"Intervalle d'écriture\"", xaml);
+            Assert.DoesNotContain("Text=\"Rétention\"", xaml);
+            Assert.DoesNotContain("Text=\"Fenêtre graphique\"", xaml);
+            Assert.DoesNotContain("Text=\"Pause alerte\"", xaml);
             Assert.DoesNotContain("Width=\"680\"", xaml);
             Assert.DoesNotContain("HorizontalAlignment=\"Right\"", xaml);
             Assert.DoesNotContain("IsSettingsPanelOpen", xaml);
@@ -390,6 +448,37 @@ namespace NVConso.Tests
             Assert.DoesNotContain("<TabControl", xaml);
             Assert.DoesNotContain("<TabItem", xaml);
             Assert.DoesNotContain("PreferencesWindow", xaml);
+        }
+
+        [Fact]
+        public void UpdateStatus_ShouldShortenVersionsForSettingsView()
+        {
+            var model = new UpdateStatusViewModel();
+            var state = new UpdateUiState(
+                UpdateUiStatus.UpdateAvailable,
+                DateTimeOffset.UtcNow,
+                "2.1.3+sha.1234567890abcdef",
+                "2.2.0-beta.1+sha.abcdef",
+                "Mise à jour disponible.",
+                canRunPrimaryAction: true,
+                "Mettre à jour",
+                "Diagnostic détaillé",
+                AppExecutionModeInfo.InstalledVelopack());
+
+            model.Apply(state);
+
+            Assert.Equal("2.1.3", model.CurrentVersion);
+            Assert.Equal("2.2.0-beta.1", model.LatestVersion);
+            Assert.Equal("Diagnostic détaillé", model.Detail);
+        }
+
+        private static string ExtractUpdateSection(string xaml)
+        {
+            int start = xaml.IndexOf("IsUpdateSectionSelected", StringComparison.Ordinal);
+            int end = xaml.IndexOf("IsAdvancedSectionSelected", StringComparison.Ordinal);
+            return start >= 0 && end > start
+                ? xaml[start..end]
+                : xaml;
         }
 
         private static TelemetryLogReadResult CreateHistoryResult()

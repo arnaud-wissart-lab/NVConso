@@ -3,7 +3,7 @@ namespace NVConso
     public sealed class CaniculeGuardState
     {
         public CaniculeGuardStatus Status { get; set; } = CaniculeGuardStatus.Disabled;
-        public string Message { get; set; } = "Canicule Guard désactivé.";
+        public string Message { get; set; } = "Surveillance chaleur désactivée.";
         public GpuPowerMode? Profile { get; set; }
         public double? PowerUsageW { get; set; }
         public double? PowerThresholdW { get; set; }

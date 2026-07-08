@@ -4,6 +4,7 @@ namespace NVConso
     {
         General,
         Profiles,
+        HeatMonitoring,
         History,
         Update,
         Advanced

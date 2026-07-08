@@ -11,7 +11,7 @@ namespace NVConso.Tests
             Assert.Equal("2100 MHz", GpuTelemetryFormatter.FormatMegahertz(2100));
             Assert.Equal("P8", GpuTelemetryFormatter.FormatPerformanceState(8));
             Assert.Equal("Vidéo / surf", GpuTelemetryFormatter.FormatPowerMode(GpuPowerMode.VideoSurf));
-            Assert.Equal("Custom", GpuTelemetryFormatter.FormatPowerMode(GpuPowerMode.Custom, isCustomPowerLimit: true));
+            Assert.Equal("Personnalisé", GpuTelemetryFormatter.FormatPowerMode(GpuPowerMode.Custom, isCustomPowerLimit: true));
             Assert.Equal("v1.2.3", GpuTelemetryFormatter.FormatVersion(" v1.2.3 "));
         }
 

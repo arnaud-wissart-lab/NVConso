@@ -5,7 +5,7 @@ namespace NVConso.ViewModels
         private UpdateUiStatus _status = UpdateUiStatus.Unknown;
         private string _message = "Mise à jour : non vérifiée";
         private string _detail = string.Empty;
-        private string _currentVersion = ProductNames.DisplayVersion;
+        private string _currentVersion = ProductNames.ShortDisplayVersion;
         private string _latestVersion = string.Empty;
         private string _primaryActionLabel = string.Empty;
         private string _executionModeLabel = UpdateLabels.FormatExecutionMode(AppExecutionMode.InstalledVelopack);
@@ -81,8 +81,10 @@ namespace NVConso.ViewModels
             Status = state.Status;
             Message = state.Message;
             Detail = state.DetailMessage ?? string.Empty;
-            CurrentVersion = state.CurrentVersion;
-            LatestVersion = state.LatestVersion;
+            CurrentVersion = ProductNames.FormatShortVersion(state.CurrentVersion);
+            LatestVersion = string.IsNullOrWhiteSpace(state.LatestVersion)
+                ? string.Empty
+                : ProductNames.FormatShortVersion(state.LatestVersion);
             PrimaryActionLabel = state.PrimaryActionLabel ?? string.Empty;
             ExecutionModeLabel = state.ExecutionModeLabel;
             LastCheckedLabel = FormatLastChecked(state.LastCheckedAt);

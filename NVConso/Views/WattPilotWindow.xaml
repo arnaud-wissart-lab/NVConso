@@ -87,6 +87,11 @@
             <Style x:Key="PreferenceInfoLine" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
                 <Setter Property="Margin" Value="0,6,0,0" />
             </Style>
+
+            <Style x:Key="PreferenceSectionHelp" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+                <Setter Property="Margin" Value="0,4,0,14" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -458,6 +463,8 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Général" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Personnalisez l'apparence et le comportement général de WattPilot."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
                                     <TextBlock Text="Thème" Style="{StaticResource PreferenceFieldLabel}" Margin="0,0,0,3" />
                                     <controls:ThemeOptionControl ItemsSource="{Binding ThemeOptions}"
                                                                  SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
@@ -469,32 +476,61 @@
                         <StackPanel Visibility="{Binding IsProfilesSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
-                                    <TextBlock Text="Profils" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Modes GPU" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Choisissez comment WattPilot limite la carte graphique selon votre usage."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Appliquer le profil sauvegardé" IsChecked="{Binding AutoApplySavedMode}" />
-                                    <TextBlock Text="Profil au démarrage" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <TextBlock Text="Mode au démarrage" Style="{StaticResource PreferenceFieldLabel}" />
                                     <ComboBox ItemsSource="{Binding StartupProfileOptions}" SelectedItem="{Binding SelectedStartupProfile}" DisplayMemberPath="Label" />
                                     <TextBlock Text="Limite personnalisée" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBox Text="{Binding CustomPowerLimitWatts, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsCustomPowerLimitEnabled}" Width="90" />
-                                        <TextBlock Text="W" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding GpuRange}" Style="{StaticResource PreferenceInfoLine}" />
+                                    <controls:NumericBox Value="{Binding CustomPowerLimitWatts, Mode=TwoWay}"
+                                                         Minimum="0"
+                                                         Maximum="2000"
+                                                         Unit="W"
+                                                         RecommendationText="{Binding GpuRange}"
+                                                         IsEnabled="{Binding IsCustomPowerLimitEnabled}" />
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
 
+                        <StackPanel Visibility="{Binding IsHeatMonitoringSectionSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
-                                    <TextBlock Text="Canicule Guard" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Surveillance chaleur" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
+                                    <TextBlock Text="La surveillance chaleur ne modifie pas les ventilateurs, ne change pas automatiquement de mode GPU et affiche seulement des alertes."
+                                               Style="{StaticResource MutedText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,12" />
                                     <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
                                     <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding CaniculePowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="À partir de combien de watts WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
+                                    <controls:NumericBox Value="{Binding CaniculePowerThresholdWatts, Mode=TwoWay}"
+                                                         Minimum="10"
+                                                         Maximum="1000"
+                                                         Unit="W"
+                                                         RecommendationText="{Binding CaniculePowerRecommendation}" />
                                     <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding CaniculeTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <TextBlock Text="Délai alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding CaniculeAlertDelaySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <TextBlock Text="Pause alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding CaniculeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <Button Content="Réinitialiser" Command="{Binding ResetCaniculeGuardCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                    <TextBlock Text="À partir de quelle température WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
+                                    <controls:NumericBox Value="{Binding CaniculeTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                         Minimum="30"
+                                                         Maximum="110"
+                                                         Unit="°C"
+                                                         RecommendationText="{Binding CaniculeTemperatureRecommendation}" />
+                                    <TextBlock Text="Délai avant première alerte" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <controls:NumericBox Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
+                                                         Minimum="1"
+                                                         Maximum="3600"
+                                                         Unit="secondes"
+                                                         RecommendationText="{Binding CaniculeAlertDelayRecommendation}" />
+                                    <TextBlock Text="Délai avant nouvelle alerte" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <controls:NumericBox Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
+                                                         Minimum="10"
+                                                         Maximum="86400"
+                                                         Unit="secondes"
+                                                         RecommendationText="{Binding CaniculeCooldownRecommendation}" />
+                                    <Button Content="Valeurs recommandées" Command="{Binding ResetCaniculeGuardCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -503,22 +539,52 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Historique" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Historiser le GPU" IsChecked="{Binding RecordingEnabled}" />
-                                    <TextBlock Text="Intervalle d'écriture" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding RecordingIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <TextBlock Text="Rétention" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding TelemetryRetentionDays, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <TextBlock Text="Fenêtre graphique" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding TelemetryHistorySeconds, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Text="Fréquence d'enregistrement" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <controls:NumericBox Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
+                                                         Minimum="1"
+                                                         Maximum="60"
+                                                         Unit="secondes"
+                                                         RecommendationText="{Binding RecordingIntervalRecommendation}" />
+                                    <TextBlock Text="Conservation des données" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <controls:NumericBox Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
+                                                         Minimum="1"
+                                                         Maximum="365"
+                                                         Unit="jours"
+                                                         RecommendationText="{Binding TelemetryRetentionRecommendation}" />
+                                    <TextBlock Text="Durée affichée sur le graphe" Style="{StaticResource PreferenceFieldLabel}" />
+                                    <controls:NumericBox Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
+                                                         Minimum="30"
+                                                         Maximum="3600"
+                                                         Unit="secondes"
+                                                         RecommendationText="{Binding TelemetryHistoryRecommendation}" />
                                     <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding PeakPowerThresholdWatts, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
+                                    <controls:NumericBox Value="{Binding PeakPowerThresholdWatts, Mode=TwoWay}"
+                                                         Minimum="1"
+                                                         Maximum="2000"
+                                                         Unit="W"
+                                                         RecommendationText="{Binding PeakPowerRecommendation}" />
                                     <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBox Text="{Binding PeakTemperatureThresholdCelsius, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" />
-                                    <TextBlock Text="{Binding TelemetryPath}" Style="{StaticResource PreferenceInfoLine}" Margin="0,12,0,8" />
+                                    <controls:NumericBox Value="{Binding PeakTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                         Minimum="1"
+                                                         Maximum="150"
+                                                         Unit="°C"
+                                                         RecommendationText="{Binding PeakTemperatureRecommendation}" />
+                                    <TextBlock Text="Dossier de données local"
+                                               Style="{StaticResource PreferenceFieldLabel}"
+                                               ToolTip="{Binding TelemetryPath}" />
                                     <WrapPanel>
-                                        <Button Content="Ouvrir dossier" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,0,8,8" />
-                                        <Button Content="Exporter session" Click="ExportTelemetry_Click" Margin="0,0,8,8" />
+                                        <Button Content="Ouvrir" Command="{Binding OpenTelemetryFolderCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Copier le chemin" Command="{Binding CopyTelemetryPathCommand}" Margin="0,0,8,8" />
+                                        <Button Content="Exporter" Click="ExportTelemetry_Click" Margin="0,0,8,8" />
                                     </WrapPanel>
+                                    <Expander Header="Chemin complet" IsExpanded="False" Margin="0,2,0,0">
+                                        <TextBlock Text="{Binding TelemetryPath}"
+                                                   Style="{StaticResource PreferenceInfoLine}"
+                                                   TextWrapping="Wrap" />
+                                    </Expander>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -527,17 +593,17 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Mise à jour" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Les mises à jour automatiques fonctionnent avec la version installée de WattPilot."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
                                     <TextBlock Text="{Binding UpdateStatus.ExecutionModeLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.LastCheckedLabel}" Style="{StaticResource PreferenceInfoLine}" />
                                     <TextBlock Text="{Binding UpdateStatus.Message}" Style="{StaticResource PreferenceInfoLine}" />
-                                    <TextBlock Text="{Binding UpdateStatus.Detail}" Style="{StaticResource PreferenceInfoLine}" />
                                     <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
                                     <TextBlock Text="Version disponible" Style="{StaticResource PreferenceFieldLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.LatestVersion}" />
                                     <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
                                     <CheckBox Content="Télécharger automatiquement" IsChecked="{Binding AutoDownloadUpdates}" />
-                                    <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <WrapPanel Margin="0,10,0,0">
                                         <Button Content="Rechercher maintenant" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,8" />
                                         <Button Content="Ouvrir GitHub Releases" Command="{Binding OpenGitHubReleasesCommand}" Margin="0,0,8,8" />
@@ -551,8 +617,11 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Avancé" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Réglages système et maintenance. À modifier seulement si nécessaire."
+                                               Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding StartWithWindows}" />
                                     <CheckBox Content="Démarrer réduit" IsChecked="{Binding StartMinimized}" />
+                                    <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
                                     <WrapPanel>
                                         <Button Content="Réparer la tâche" Command="{Binding RepairStartupCommand}" Margin="0,0,8,8" />

@@ -12,7 +12,7 @@ namespace NVConso
             ToolStripMenuItem statusItem = CreateInfoItem("Statut : initialisation...");
 
             ToolStripMenuItem openDashboardItem = new("Ouvrir WattPilot");
-            ToolStripMenuItem profilesMenuItem = new("Profils");
+            ToolStripMenuItem profilesMenuItem = new("Modes GPU");
             var profileItems = new Dictionary<GpuPowerMode, ToolStripMenuItem>();
 
             foreach (GpuPowerMode mode in GpuProfileController.ProfileOrder)

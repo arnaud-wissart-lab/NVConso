@@ -42,7 +42,7 @@ namespace NVConso
                 _state = new CaniculeGuardState
                 {
                     Status = CaniculeGuardStatus.Disabled,
-                    Message = "Canicule Guard désactivé.",
+                    Message = "Surveillance chaleur désactivée.",
                     TemperatureThresholdC = settings.CaniculeGuardTemperatureThresholdCelsius
                 };
                 return CreateResult(alerts);
@@ -54,7 +54,7 @@ namespace NVConso
                 _state = new CaniculeGuardState
                 {
                     Status = CaniculeGuardStatus.Unavailable,
-                    Message = "Canicule Guard en attente d'une télémétrie GPU disponible.",
+                    Message = "Surveillance chaleur en attente d'une télémétrie GPU disponible.",
                     TemperatureThresholdC = settings.CaniculeGuardTemperatureThresholdCelsius
                 };
                 return CreateResult(alerts);
@@ -212,7 +212,7 @@ namespace NVConso
             }
             catch (Exception exception)
             {
-                _logger?.LogWarning(exception, "Journalisation du pic Canicule Guard impossible.");
+                _logger?.LogWarning(exception, "Journalisation du pic de surveillance chaleur impossible.");
             }
         }
 
@@ -277,18 +277,18 @@ namespace NVConso
         {
             string profileName = profile.HasValue ? ProfileLabels.GetDisplayName(profile.Value) : "--";
             if (temperatureHigh)
-                return $"Canicule Guard surveille une température élevée en {profileName} ({temperatureC} °C / seuil {temperatureThresholdC} °C).";
+                return $"Surveillance chaleur : température élevée en {profileName} ({temperatureC} °C / seuil {temperatureThresholdC} °C).";
 
             if (powerHigh)
-                return $"Canicule Guard surveille une puissance élevée en {profileName} ({powerUsageW:0.#} W / seuil {powerThresholdW:0.#} W).";
+                return $"Surveillance chaleur : puissance élevée en {profileName} ({powerUsageW:0.#} W / seuil {powerThresholdW:0.#} W).";
 
             string powerText = powerThresholdW.HasValue
                 ? $"{FormatNumber(powerUsageW)} W / seuil {powerThresholdW.Value:0.#} W"
                 : "alerte puissance désactivée pour ce profil";
 
             return settings.CaniculeGuardEnabled
-                ? $"Canicule Guard actif en {profileName} : {powerText}, température {FormatNumber(temperatureC.HasValue ? (double?)temperatureC.Value : null)} °C / seuil {temperatureThresholdC} °C."
-                : "Canicule Guard désactivé.";
+                ? $"Surveillance chaleur active en {profileName} : {powerText}, température {FormatNumber(temperatureC.HasValue ? (double?)temperatureC.Value : null)} °C / seuil {temperatureThresholdC} °C."
+                : "Surveillance chaleur désactivée.";
         }
 
         private static string FormatNumber(double? value)
@@ -308,7 +308,7 @@ namespace NVConso
             string profileName = profile.HasValue ? ProfileLabels.GetDisplayName(profile.Value) : "--";
             if (type == CaniculeGuardAlertType.TemperatureHigh)
             {
-                return $"Température élevée en {profileName} : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Envisager Canicule/Stock ou vérifier l'airflow.";
+                return $"Température élevée en {profileName} : {value:0.#} {unit} (seuil {threshold:0.#} {unit}). Envisager Canicule/Normal ou vérifier l'airflow.";
             }
 
             return profile switch

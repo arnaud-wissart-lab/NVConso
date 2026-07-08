@@ -15,7 +15,7 @@ namespace NVConso.Tests
                 .ToArray();
 
             Assert.Contains("Ouvrir WattPilot", topLevelTexts);
-            Assert.Contains("Profils", topLevelTexts);
+            Assert.Contains("Modes GPU", topLevelTexts);
             Assert.Contains(UpdateLabels.FormatUpToDate(null), topLevelTexts);
             Assert.Contains("Quitter", topLevelTexts);
 
@@ -48,9 +48,10 @@ namespace NVConso.Tests
             Assert.Contains("Canicule", profileTexts);
             Assert.Contains("Vidéo / surf", profileTexts);
             Assert.Contains("Indie 2D", profileTexts);
-            Assert.Contains("Normal / Stock", profileTexts);
+            Assert.Contains("Normal", profileTexts);
             Assert.Contains("Max", profileTexts);
             Assert.Contains("Limite personnalisée...", profileTexts);
+            Assert.DoesNotContain("Normal / Stock", profileTexts);
         }
 
         [Fact]

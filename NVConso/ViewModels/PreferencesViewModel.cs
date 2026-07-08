@@ -40,6 +40,15 @@ namespace NVConso.ViewModels
         private string _startupStatus = "--";
         private string _gpuRange = "--";
         private string _telemetryPath = "--";
+        private readonly string _caniculePowerRecommendation = $"Recommandé : {CaniculeGuardDefaults.PowerThresholdWatts} W";
+        private readonly string _caniculeTemperatureRecommendation = $"Recommandé : {CaniculeGuardDefaults.TemperatureThresholdCelsius} °C";
+        private readonly string _caniculeAlertDelayRecommendation = $"Recommandé : {CaniculeGuardDefaults.AlertDelaySeconds} secondes";
+        private readonly string _caniculeCooldownRecommendation = $"Recommandé : {CaniculeGuardDefaults.CooldownSeconds} secondes";
+        private readonly string _recordingIntervalRecommendation = "Recommandé : 1 seconde";
+        private readonly string _telemetryRetentionRecommendation = "Recommandé : 30 jours";
+        private readonly string _telemetryHistoryRecommendation = $"Recommandé : {GpuTelemetryHistory.DefaultCapacitySeconds} secondes";
+        private readonly string _peakPowerRecommendation = "Recommandé : 100 W";
+        private readonly string _peakTemperatureRecommendation = "Recommandé : 70 °C";
         private SelectionOption<UiTheme> _selectedTheme;
         private SelectionOption<GpuPowerMode> _selectedStartupProfile;
         private SelectionOption<PreferenceSection> _selectedPreferenceSection;
@@ -67,7 +76,8 @@ namespace NVConso.ViewModels
             ThemeOptions.Add(new SelectionOption<UiTheme>("Sombre", UiTheme.Dark, "\uE708", "Forcer le thème sombre"));
 
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Général", PreferenceSection.General));
-            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Profils", PreferenceSection.Profiles));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Modes GPU", PreferenceSection.Profiles));
+            PreferenceSections.Add(new SelectionOption<PreferenceSection>("Surveillance chaleur", PreferenceSection.HeatMonitoring));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Historique", PreferenceSection.History));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Mise à jour", PreferenceSection.Update));
             PreferenceSections.Add(new SelectionOption<PreferenceSection>("Avancé", PreferenceSection.Advanced));
@@ -95,6 +105,7 @@ namespace NVConso.ViewModels
             ResetCaniculeGuardCommand = new RelayCommand(ResetCaniculeGuardDefaults);
             ResetDefaultsCommand = new RelayCommand(ResetToDefaults);
             OpenTelemetryFolderCommand = new RelayCommand(OpenTelemetryFolder);
+            CopyTelemetryPathCommand = new RelayCommand(CopyTelemetryPath);
 
             LoadFromSettings(_settingsService.Current);
             RefreshStartupStatus();
@@ -114,6 +125,17 @@ namespace NVConso.ViewModels
         public ICommand ResetCaniculeGuardCommand { get; }
         public ICommand ResetDefaultsCommand { get; }
         public ICommand OpenTelemetryFolderCommand { get; }
+        public ICommand CopyTelemetryPathCommand { get; }
+
+        public string CaniculePowerRecommendation => _caniculePowerRecommendation;
+        public string CaniculeTemperatureRecommendation => _caniculeTemperatureRecommendation;
+        public string CaniculeAlertDelayRecommendation => _caniculeAlertDelayRecommendation;
+        public string CaniculeCooldownRecommendation => _caniculeCooldownRecommendation;
+        public string RecordingIntervalRecommendation => _recordingIntervalRecommendation;
+        public string TelemetryRetentionRecommendation => _telemetryRetentionRecommendation;
+        public string TelemetryHistoryRecommendation => _telemetryHistoryRecommendation;
+        public string PeakPowerRecommendation => _peakPowerRecommendation;
+        public string PeakTemperatureRecommendation => _peakTemperatureRecommendation;
 
         public bool ShowDashboardOnStartup
         {
@@ -269,6 +291,7 @@ namespace NVConso.ViewModels
 
                 OnPropertyChanged(nameof(IsGeneralSectionSelected));
                 OnPropertyChanged(nameof(IsProfilesSectionSelected));
+                OnPropertyChanged(nameof(IsHeatMonitoringSectionSelected));
                 OnPropertyChanged(nameof(IsHistorySectionSelected));
                 OnPropertyChanged(nameof(IsUpdateSectionSelected));
                 OnPropertyChanged(nameof(IsAdvancedSectionSelected));
@@ -277,6 +300,7 @@ namespace NVConso.ViewModels
 
         public bool IsGeneralSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.General;
         public bool IsProfilesSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Profiles;
+        public bool IsHeatMonitoringSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.HeatMonitoring;
         public bool IsHistorySectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.History;
         public bool IsUpdateSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Update;
         public bool IsAdvancedSectionSelected => SelectedPreferenceSection?.Value == PreferenceSection.Advanced;
@@ -551,11 +575,11 @@ namespace NVConso.ViewModels
                     _updateWorkflow?.GetExecutionMode(),
                     settings,
                     state));
-                StatusMessage = "Diagnostic update copié.";
+                StatusMessage = "Diagnostic de mise à jour copié.";
             }
             catch (Exception exception)
             {
-                StatusMessage = $"Copie du diagnostic update impossible : {exception.Message}";
+                StatusMessage = $"Copie du diagnostic de mise à jour impossible : {exception.Message}";
             }
         }
 
@@ -624,7 +648,7 @@ namespace NVConso.ViewModels
             CaniculeTemperatureThresholdCelsius = CaniculeGuardDefaults.TemperatureThresholdCelsius;
             CaniculeAlertDelaySeconds = CaniculeGuardDefaults.AlertDelaySeconds;
             CaniculeCooldownSeconds = CaniculeGuardDefaults.CooldownSeconds;
-            StatusMessage = "Valeurs Canicule Guard réinitialisées dans le formulaire.";
+            StatusMessage = "Valeurs recommandées de surveillance chaleur appliquées dans le formulaire.";
         }
 
         private void ResetToDefaults()
@@ -667,6 +691,19 @@ namespace NVConso.ViewModels
             catch (Exception exception)
             {
                 StatusMessage = $"Ouverture du dossier telemetry impossible : {exception.Message}";
+            }
+        }
+
+        private void CopyTelemetryPath()
+        {
+            try
+            {
+                System.Windows.Clipboard.SetText(_telemetryRecorder.TelemetryRootPath);
+                StatusMessage = "Chemin du dossier de données copié.";
+            }
+            catch (Exception exception)
+            {
+                StatusMessage = $"Copie du chemin impossible : {exception.Message}";
             }
         }
 
