@@ -323,6 +323,46 @@ namespace NVConso.Tests
             Assert.Contains(ElevatedCommandLine.SetPowerLimitCommand, launcher.Arguments);
         }
 
+        [Fact]
+        public async Task RestoreStockWithoutPromptAsync_ShouldUseActiveGpuSessionWithoutPrompt()
+        {
+            var prompt = new FakeElevationPrompt(confirm: false);
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Stock restauré.",
+                200000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                prompt,
+                new FakeElevatedProcessLauncher(),
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.RestoreStockWithoutPromptAsync(
+                0,
+                TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.Equal(0, prompt.ConfirmCallCount);
+            Assert.Equal(1, gpuSessionManager.SendCallCount);
+            Assert.Equal(ElevatedGpuSessionCommand.RestoreStock, gpuSessionManager.LastRequest.Command);
+        }
+
+        [Fact]
+        public async Task StopGpuSessionAsync_ShouldStopActiveSession()
+        {
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Profil appliqué.",
+                120000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                new FakeElevationPrompt(confirm: false),
+                new FakeElevatedProcessLauncher(),
+                gpuSessionManager);
+
+            await service.StopGpuSessionAsync(TestContext.Current.CancellationToken);
+
+            Assert.False(gpuSessionManager.HasActiveSession);
+        }
+
         private sealed class FakePrivilegeDetector(bool isElevated) : IPrivilegeDetector
         {
             public bool IsElevated { get; } = isElevated;
@@ -428,6 +468,12 @@ namespace NVConso.Tests
             public void ForgetSession()
             {
                 HasActiveSession = false;
+            }
+
+            public Task StopSessionAsync(CancellationToken cancellationToken = default)
+            {
+                HasActiveSession = false;
+                return Task.CompletedTask;
             }
 
             public void Dispose()

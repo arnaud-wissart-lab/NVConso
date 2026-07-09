@@ -17,6 +17,7 @@ namespace NVConso
         private readonly TrayMenuActionItem _updateActionItem;
         private readonly Action _openUpdatePreferences;
         private readonly Func<string, string, bool> _confirmUpdate;
+        private readonly Func<CancellationToken, Task> _beforeApplyUpdateAsync;
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly System.Windows.Forms.Timer _updateCheckTimer;
 
@@ -35,6 +36,7 @@ namespace NVConso
             TrayMenuActionItem updateActionItem,
             Action openUpdatePreferences = null,
             Func<string, string, bool> confirmUpdate = null,
+            Func<CancellationToken, Task> beforeApplyUpdateAsync = null,
             Microsoft.Extensions.Logging.ILogger logger = null)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
@@ -45,6 +47,7 @@ namespace NVConso
             _updateActionItem = updateActionItem ?? throw new ArgumentNullException(nameof(updateActionItem));
             _openUpdatePreferences = openUpdatePreferences ?? (() => { });
             _confirmUpdate = confirmUpdate ?? ConfirmWithWpfDialog;
+            _beforeApplyUpdateAsync = beforeApplyUpdateAsync ?? (_ => Task.CompletedTask);
             _logger = logger;
 
             _updateStatusItem.IsEnabled = true;
@@ -336,6 +339,7 @@ namespace NVConso
             AppSettings settings = _settingsService.Current;
             AppExecutionModeInfo executionMode = _updateWorkflow.GetExecutionMode();
             ApplyState(UpdateStatusPresenter.Installing(settings, version, executionMode));
+            await _beforeApplyUpdateAsync(CancellationToken.None);
             AppUpdateOperationResult result = await _updateWorkflow.ApplyUpdateAndRestartAsync(
                 settings,
             [

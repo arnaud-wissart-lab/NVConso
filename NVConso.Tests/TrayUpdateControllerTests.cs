@@ -144,6 +144,36 @@ namespace NVConso.Tests
         }
 
         [Fact]
+        public async Task RunVisibleUpdateActionAsync_ShouldStopGpuSessionBeforeApplyingUpdate()
+        {
+            var events = new List<string>();
+            using TestContext context = CreateContext(
+                beforeApplyUpdateAsync: _ =>
+                {
+                    events.Add("before");
+                    return Task.CompletedTask;
+                });
+            context.Updater.Events = events;
+            context.Updater.CheckResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.UpdateAvailable,
+                "Mise à jour disponible : 1.2.3",
+                CreateUpdate("1.2.3"));
+            context.Updater.DownloadResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.Downloaded,
+                "Mise à jour téléchargée : 1.2.3",
+                CreateUpdate("1.2.3"));
+            context.Updater.ApplyResult = AppUpdateOperationResult.Succeeded(
+                AppUpdateStatus.PendingRestart,
+                "Installation lancée.");
+
+            await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: false);
+            await context.Controller.RunVisibleUpdateActionAsync();
+
+            Assert.Equal(["before", "apply"], events);
+            Assert.Equal(1, context.Updater.ApplyCallCount);
+        }
+
+        [Fact]
         public async Task CheckForUpdatesAsync_ShouldPromptWithoutDeadNotification_WhenAutomaticUpdateIsAvailable()
         {
             int confirmCount = 0;
@@ -238,7 +268,9 @@ namespace NVConso.Tests
             Assert.Equal(new[] { StartupLaunchOptions.TrayArgument }, context.Updater.LastRestartArgs);
         }
 
-        private static TestContext CreateContext(Func<string, string, bool> confirmUpdate = null)
+        private static TestContext CreateContext(
+            Func<string, string, bool> confirmUpdate = null,
+            Func<CancellationToken, Task> beforeApplyUpdateAsync = null)
         {
             string settingsPath = Path.Combine(Path.GetTempPath(), "NVConso-tests", Guid.NewGuid().ToString("N"), "settings.json");
             var settingsService = new AppSettingsService(new AppSettingsStore(settingsPath));
@@ -256,7 +288,8 @@ namespace NVConso.Tests
                 notifications,
                 updateStatusItem,
                 updateActionItem,
-                confirmUpdate: confirmUpdate ?? ((_, _) => true));
+                confirmUpdate: confirmUpdate ?? ((_, _) => true),
+                beforeApplyUpdateAsync: beforeApplyUpdateAsync);
 
             return new TestContext(
                 settingsPath,
@@ -360,6 +393,7 @@ namespace NVConso.Tests
             public string[] LastRestartArgs { get; private set; }
             public int DownloadCallCount { get; private set; }
             public int ApplyCallCount { get; private set; }
+            public List<string> Events { get; set; }
 
             public Task<AppUpdateOperationResult> CheckForUpdatesAsync(
                 string channel,
@@ -389,6 +423,7 @@ namespace NVConso.Tests
                 bool includePrerelease,
                 string[] restartArgs = null)
             {
+                Events?.Add("apply");
                 ApplyCallCount++;
                 LastApplyChannel = channel;
                 LastApplyIncludePrerelease = includePrerelease;

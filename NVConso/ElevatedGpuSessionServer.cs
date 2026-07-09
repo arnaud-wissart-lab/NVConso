@@ -56,8 +56,14 @@ namespace NVConso
                     }
 
                     using NamedPipeServerStream pipe = CreatePipe();
-                    bool connected = await WaitForConnectionAsync(pipe, cancellationToken).ConfigureAwait(false);
-                    if (!connected)
+                    ElevatedGpuSessionWaitResult waitResult = await WaitForConnectionAsync(pipe, cancellationToken).ConfigureAwait(false);
+                    if (waitResult == ElevatedGpuSessionWaitResult.ParentMissing)
+                    {
+                        _logger?.LogInformation("Arrêt du helper GPU de session : processus parent absent.");
+                        return ElevatedCommandExitCode.Failed;
+                    }
+
+                    if (waitResult == ElevatedGpuSessionWaitResult.TimedOut)
                     {
                         _logger?.LogInformation("Arrêt du helper GPU de session : inactivité prolongée.");
                         return ElevatedCommandExitCode.Success;
@@ -83,7 +89,7 @@ namespace NVConso
                 PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         }
 
-        private async Task<bool> WaitForConnectionAsync(
+        private async Task<ElevatedGpuSessionWaitResult> WaitForConnectionAsync(
             NamedPipeServerStream pipe,
             CancellationToken cancellationToken)
         {
@@ -95,19 +101,42 @@ namespace NVConso
                     : _idleTimeout;
 
             if (waitTimeout <= TimeSpan.Zero)
-                return false;
+                return ElevatedGpuSessionWaitResult.TimedOut;
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(waitTimeout);
+            Task waitForConnection = pipe.WaitForConnectionAsync(timeout.Token);
 
             try
             {
-                await pipe.WaitForConnectionAsync(timeout.Token).ConfigureAwait(false);
-                return true;
+                while (!waitForConnection.IsCompleted)
+                {
+                    if (!_parentProcessProbe.IsProcessRunning(_options.ParentProcessId))
+                    {
+                        timeout.Cancel();
+                        try
+                        {
+                            await waitForConnection.ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+
+                        return ElevatedGpuSessionWaitResult.ParentMissing;
+                    }
+
+                    TimeSpan delay = waitTimeout < TimeSpan.FromSeconds(1)
+                        ? waitTimeout
+                        : TimeSpan.FromSeconds(1);
+                    await Task.Delay(delay, timeout.Token).ConfigureAwait(false);
+                }
+
+                await waitForConnection.ConfigureAwait(false);
+                return ElevatedGpuSessionWaitResult.Connected;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                return false;
+                return ElevatedGpuSessionWaitResult.TimedOut;
             }
         }
 
@@ -161,5 +190,12 @@ namespace NVConso
                     "Commande GPU impossible.");
             }
         }
+    }
+
+    internal enum ElevatedGpuSessionWaitResult
+    {
+        Connected = 0,
+        TimedOut = 1,
+        ParentMissing = 2
     }
 }

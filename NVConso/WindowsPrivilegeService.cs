@@ -6,7 +6,7 @@ using System.Windows;
 
 namespace NVConso
 {
-    public sealed class WindowsPrivilegeService : IPrivilegeService, IDisposable
+    public sealed class WindowsPrivilegeService : IPrivilegeService, IGpuSessionPrivilegeService, IDisposable
     {
         private const int ErrorCancelled = 1223;
         internal static readonly TimeSpan DefaultElevationPromptSuppressionDuration = TimeSpan.FromMinutes(5);
@@ -72,6 +72,8 @@ namespace NVConso
         public bool CanWritePowerLimit => IsElevated;
 
         public bool CanManageStartupTask => IsElevated;
+
+        public bool HasActiveGpuSession => _gpuSessionManager?.HasActiveSession == true;
 
         public string CurrentPrivilegeStatusMessage
         {
@@ -139,6 +141,35 @@ namespace NVConso
         {
             _elevationRequestGate.Dispose();
             _gpuSessionManager?.Dispose();
+        }
+
+        public async Task<PrivilegeOperationResult> RestoreStockWithoutPromptAsync(
+            int gpuIndex,
+            CancellationToken cancellationToken = default)
+        {
+            if (_gpuSessionManager?.HasActiveSession != true)
+                return PrivilegeOperationResult.Failed("Helper GPU de session inactif.");
+
+            try
+            {
+                ElevatedGpuSessionResponse response = await _gpuSessionManager
+                    .SendAsync(session => BuildRestoreStockRequest(session, gpuIndex), cancellationToken)
+                    .ConfigureAwait(true);
+
+                return response.Success
+                    ? PrivilegeOperationResult.Succeeded(response.Message, response.PowerLimitMilliwatt)
+                    : PrivilegeOperationResult.Failed(response.Message);
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogDebug(exception, "Restauration Stock via helper de session ignorée.");
+                return PrivilegeOperationResult.Failed("Restauration Stock via helper indisponible.");
+            }
+        }
+
+        public Task StopGpuSessionAsync(CancellationToken cancellationToken = default)
+        {
+            return _gpuSessionManager?.StopSessionAsync(cancellationToken) ?? Task.CompletedTask;
         }
 
         private async Task<PrivilegeOperationResult> ExecuteGpuCommandAsync(
@@ -388,6 +419,17 @@ namespace NVConso
         bool Confirm(ElevationReason reason);
 
         ElevationPromptChoice Choose(ElevationReason reason);
+    }
+
+    internal interface IGpuSessionPrivilegeService
+    {
+        bool HasActiveGpuSession { get; }
+
+        Task<PrivilegeOperationResult> RestoreStockWithoutPromptAsync(
+            int gpuIndex,
+            CancellationToken cancellationToken = default);
+
+        Task StopGpuSessionAsync(CancellationToken cancellationToken = default);
     }
 
     internal sealed class WindowsElevationPrompt : IElevationPrompt

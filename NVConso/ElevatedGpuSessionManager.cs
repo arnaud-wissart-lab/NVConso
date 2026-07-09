@@ -14,6 +14,8 @@ namespace NVConso
             CancellationToken cancellationToken = default);
 
         void ForgetSession();
+
+        Task StopSessionAsync(CancellationToken cancellationToken = default);
     }
 
     internal sealed class ElevatedGpuSessionManager : IElevatedGpuSessionManager
@@ -35,6 +37,7 @@ namespace NVConso
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly ILogger<ElevatedGpuSessionManager> _logger;
         private ElevatedGpuSessionHelperOptions _activeSession;
+        private int? _activeHelperProcessId;
 
         public ElevatedGpuSessionManager(
             IElevatedGpuSessionLauncher launcher,
@@ -97,6 +100,29 @@ namespace NVConso
         public void ForgetSession()
         {
             _activeSession = null;
+            _activeHelperProcessId = null;
+        }
+
+        public async Task StopSessionAsync(CancellationToken cancellationToken = default)
+        {
+            int? processId = _activeHelperProcessId;
+            ForgetSession();
+
+            if (!processId.HasValue)
+                return;
+
+            try
+            {
+                using Process process = Process.GetProcessById(processId.Value);
+                if (process.HasExited)
+                    return;
+
+                process.Kill(entireProcessTree: false);
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+            }
         }
 
         private async Task<ElevatedGpuSessionLaunchResult> EnsureSessionAsync(CancellationToken cancellationToken)
@@ -113,6 +139,7 @@ namespace NVConso
             }
 
             _activeSession = launchResult.Options;
+            _activeHelperProcessId = launchResult.HelperProcessId;
             return launchResult;
         }
 
@@ -163,7 +190,7 @@ namespace NVConso
 
                 return Task.FromResult(process is null
                     ? ElevatedGpuSessionLaunchResult.Failed("Helper GPU de session impossible à lancer.")
-                    : ElevatedGpuSessionLaunchResult.Succeeded(options));
+                    : ElevatedGpuSessionLaunchResult.Succeeded(options, process.Id));
             }
             catch (Win32Exception exception) when (exception.NativeErrorCode == 1223)
             {
@@ -200,11 +227,13 @@ namespace NVConso
             bool success,
             bool cancelled,
             ElevatedGpuSessionHelperOptions options,
+            int? helperProcessId,
             string message)
         {
             Success = success;
             Cancelled = cancelled;
             Options = options;
+            HelperProcessId = helperProcessId;
             Message = message;
         }
 
@@ -214,17 +243,21 @@ namespace NVConso
 
         public ElevatedGpuSessionHelperOptions Options { get; }
 
+        public int? HelperProcessId { get; }
+
         public string Message { get; }
 
-        public static ElevatedGpuSessionLaunchResult Succeeded(ElevatedGpuSessionHelperOptions options)
+        public static ElevatedGpuSessionLaunchResult Succeeded(
+            ElevatedGpuSessionHelperOptions options,
+            int? helperProcessId = null)
         {
             ArgumentNullException.ThrowIfNull(options);
-            return new ElevatedGpuSessionLaunchResult(true, false, options, "Helper GPU de session lancé.");
+            return new ElevatedGpuSessionLaunchResult(true, false, options, helperProcessId, "Helper GPU de session lancé.");
         }
 
         public static ElevatedGpuSessionLaunchResult CancelledByUser()
         {
-            return new ElevatedGpuSessionLaunchResult(false, true, null, "Autorisation Windows annulée.");
+            return new ElevatedGpuSessionLaunchResult(false, true, null, null, "Autorisation Windows annulée.");
         }
 
         public static ElevatedGpuSessionLaunchResult Failed(string message)
@@ -232,6 +265,7 @@ namespace NVConso
             return new ElevatedGpuSessionLaunchResult(
                 false,
                 false,
+                null,
                 null,
                 string.IsNullOrWhiteSpace(message) ? "Helper GPU de session indisponible." : message);
         }

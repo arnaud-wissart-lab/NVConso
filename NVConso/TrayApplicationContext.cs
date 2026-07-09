@@ -140,6 +140,7 @@ namespace NVConso
                 _updateStatusItem,
                 _updateActionItem,
                 OpenPreferences,
+                beforeApplyUpdateAsync: StopGpuSessionForLifecycleAsync,
                 logger: _logger);
             _updateController.Initialize();
             InitializeRuntime();
@@ -503,6 +504,7 @@ namespace NVConso
                         nvmlReady: true,
                         _logger,
                         _privilegeService);
+                    StopGpuSessionForLifecycleAsync(CancellationToken.None).GetAwaiter().GetResult();
                     _gpuProfiles.Shutdown();
                 }
 
@@ -515,6 +517,23 @@ namespace NVConso
             }
 
             base.Dispose(disposing);
+        }
+
+        private async Task StopGpuSessionForLifecycleAsync(CancellationToken cancellationToken)
+        {
+            if (_privilegeService is not IGpuSessionPrivilegeService gpuSessionPrivilegeService)
+                return;
+
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TimeSpan.FromSeconds(2));
+                await gpuSessionPrivilegeService.StopGpuSessionAsync(timeout.Token).ConfigureAwait(true);
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogDebug(exception, "Arrêt du helper GPU de session ignoré.");
+            }
         }
     }
 }
