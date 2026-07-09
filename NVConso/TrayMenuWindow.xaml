@@ -12,6 +12,7 @@
         Background="Transparent"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Deactivated="Window_Deactivated">
     <Window.Resources>
         <ResourceDictionary>

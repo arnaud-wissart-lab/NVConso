@@ -4,6 +4,14 @@ using DrawingPoint = System.Drawing.Point;
 
 namespace NVConso
 {
+    public interface ITrayMenuWindow
+    {
+        Dispatcher Dispatcher { get; }
+        void ShowAt(DrawingPoint screenPoint);
+        void Hide();
+        void Close();
+    }
+
     public sealed class TrayMenuView : IDisposable
     {
         private readonly bool _ownsWindow;
@@ -11,7 +19,7 @@ namespace NVConso
         public TrayMenuView(
             TrayMenuViewModel viewModel,
             IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> profileItems,
-            TrayMenuWindow window = null)
+            ITrayMenuWindow window = null)
         {
             ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             ProfileItems = profileItems ?? throw new ArgumentNullException(nameof(profileItems));
@@ -28,7 +36,7 @@ namespace NVConso
         }
 
         public TrayMenuViewModel ViewModel { get; }
-        public TrayMenuWindow Window { get; }
+        public ITrayMenuWindow Window { get; }
         public TrayMenuActionItem StatusItem => ViewModel.StatusItem;
         public TrayMenuActionItem OpenDashboardItem => ViewModel.OpenDashboardItem;
         public TrayMenuActionItem ProfilesMenuItem => ViewModel.ProfilesMenuItem;
