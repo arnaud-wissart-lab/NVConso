@@ -225,21 +225,21 @@
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Exporter CSV"
                                         AutomationProperties.Name="Exporter CSV"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE8C8;"
                                         Click="CopyHistorySummary_Click"
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Copier le résumé"
                                         AutomationProperties.Name="Copier le résumé"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE72C;"
                                         Command="{Binding RefreshHistoryCommand}"
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Actualiser"
                                         AutomationProperties.Name="Actualiser"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE8B7;"
                                         Command="{Binding OpenTelemetryFolderCommand}"
@@ -249,34 +249,41 @@
                             </WrapPanel>
                         </Grid>
 
-                        <WrapPanel Grid.Row="1" Margin="0,0,0,12" VerticalAlignment="Top">
-                            <StackPanel Width="132" Margin="0,0,8,8">
-                                <TextBlock Text="Date" Style="{StaticResource MutedText}" />
+                        <Grid Grid.Row="1" Margin="0,0,0,10" VerticalAlignment="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="132" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Date" Style="{StaticResource HistoryFilterLabel}" />
                                 <DatePicker SelectedDate="{Binding HistoryDate}"
                                             Style="{StaticResource CompactDatePicker}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="GPU" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryGpus}"
                                           SelectedItem="{Binding SelectedHistoryGpu}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="2" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Profil" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryProfiles}"
                                           SelectedItem="{Binding SelectedHistoryProfile}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="Mesure" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="3" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Mesure" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryMetrics}"
                                           SelectedItem="{Binding SelectedHistoryMetric}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                        </WrapPanel>
+                        </Grid>
 
                         <Grid Grid.Row="2" Margin="0,2,0,0">
                             <Grid.RowDefinitions>
@@ -288,13 +295,13 @@
                                        Margin="0,0,0,8" />
                             <controls:TelemetrySparkline Grid.Row="1"
                                                          Chart="{Binding HistoryChart}"
-                                                         MinHeight="220"
-                                                         MaxHeight="280" />
+                                                         MinHeight="200"
+                                                         MaxHeight="260" />
                         </Grid>
 
-                        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
                             <TextBlock Text="{Binding HistorySummary}" />
-                            <Grid Margin="0,8,0,0">
+                            <Grid Margin="0,6,0,0">
                                 <DataGrid ItemsSource="{Binding HistoryPeaks}"
                                           AutoGenerateColumns="False"
                                           Style="{StaticResource ModernDataGrid}">
@@ -313,14 +320,13 @@
                                         <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
                                     </DataGrid.Columns>
                                 </DataGrid>
-                                <Border Background="{DynamicResource SurfaceBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
+                                <Border Style="{StaticResource HistoryEmptyState}"
                                         Visibility="{Binding HistoryPeaks.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
                                     <TextBlock Text="Aucun pic enregistré pour cette période."
                                                Style="{StaticResource MutedText}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
+                                               TextAlignment="Center"
                                                Margin="16" />
                                 </Border>
                             </Grid>
