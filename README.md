@@ -34,6 +34,8 @@ WattPilot ne modifie pas HDR, VRR, G-Sync, les ventilateurs ou les profils d'aff
 
 WattPilot démarre sans droits administrateur. L'UAC est demandé uniquement pour une action privilégiée : appliquer une limite GPU, restaurer `Stock`, créer/réparer la tâche de démarrage Windows ou la supprimer.
 
+Pour les modes GPU, WattPilot peut autoriser un helper élevé local pour la session afin d'éviter une nouvelle demande UAC à chaque changement de profil. Les actions de démarrage Windows restent en autorisation ponctuelle.
+
 Le manifeste doit rester en `asInvoker`. La CI échoue si `requireAdministrator` revient, si `Program.Main` relance l'application avec `runas`, si un asset principal `NVConso-*` réapparaît, ou si l'application repasse à plusieurs fenêtres WPF principales.
 
 ## Installation

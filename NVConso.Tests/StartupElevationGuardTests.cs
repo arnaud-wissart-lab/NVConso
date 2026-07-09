@@ -37,6 +37,7 @@ namespace NVConso.Tests
 
             Assert.Contains("runWithHighestPrivileges: false", startupManager);
             Assert.DoesNotContain("runWithHighestPrivileges: true", startupManager, StringComparison.Ordinal);
+            Assert.DoesNotContain("--elevated-session-helper", startupManager, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -150,6 +151,26 @@ namespace NVConso.Tests
                 foreach (string forbiddenFragment in forbiddenFragments)
                     Assert.DoesNotContain(forbiddenFragment, content, StringComparison.OrdinalIgnoreCase);
             }
+        }
+
+        [Fact]
+        public void ElevatedGpuSessionHelper_ShouldNotInstallPermanentServiceOrTask()
+        {
+            string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
+            string combinedSource = string.Join(
+                Environment.NewLine,
+                Directory.EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+                    .Where(path =>
+                        !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                        && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                    .Select(File.ReadAllText));
+
+            Assert.DoesNotContain("ServiceBase", combinedSource, StringComparison.Ordinal);
+            Assert.DoesNotContain("CreateService", combinedSource, StringComparison.Ordinal);
+            Assert.DoesNotContain("WindowsServiceLifetime", combinedSource, StringComparison.Ordinal);
+
+            string startupManager = File.ReadAllText(Path.Combine(sourceRoot, "WindowsTaskSchedulerStartupManager.cs"));
+            Assert.DoesNotContain(ElevatedGpuSessionHelperCommandLine.HelperSwitch, startupManager, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

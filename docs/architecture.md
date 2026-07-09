@@ -45,6 +45,30 @@ Les limites sont calculées depuis les bornes NVML du GPU actif :
 
 La limite personnalisée est saisie en watts dans l'interface, puis convertie en milliwatts pour NVML.
 
+### Helper élevé de session
+
+WattPilot reste lancé en droits utilisateur standard. Pour les changements de mode GPU, l'utilisateur peut choisir :
+
+- `Autoriser pour cette session` : Windows demande une autorisation une fois, puis WattPilot réutilise un helper élevé local pendant la session ;
+- `Une seule fois` : WattPilot conserve l'élévation ponctuelle historique pour l'action demandée ;
+- `Annuler` : aucune commande GPU n'est envoyée et le profil n'est pas enregistré comme appliqué.
+
+Le helper de session est le même exécutable lancé en mode strict `--elevated-session-helper`. Ce mode est routé avant l'initialisation de l'interface et n'affiche aucune fenêtre. Il accepte uniquement les arguments structurés nécessaires au protocole : nom de pipe, jeton de session, version de protocole, PID parent, expiration UTC et SID de l'utilisateur appelant.
+
+L'IPC utilise un named pipe local au nom imprévisible `WattPilot.GpuSession.{sessionId}.{randomSuffix}`. Le pipe est créé avec `PipeOptions.CurrentUserOnly`, puis chaque requête effectue un handshake avec un jeton de session généré sur au moins 256 bits. Les logs ne contiennent pas ce jeton.
+
+Le protocole accepte uniquement trois commandes GPU :
+
+- `ApplyGpuProfile` ;
+- `ApplyCustomPowerLimit` ;
+- `RestoreStock`.
+
+Les commandes de démarrage Windows et de réparation de tâche planifiée restent sur l'élévation ponctuelle. Elles ne passent pas par le helper GPU. Le helper n'installe aucun service Windows, ne crée aucune tâche planifiée permanente et ne reçoit aucun argument libre.
+
+La session expire après 15 minutes d'inactivité. Le helper s'arrête aussi si le processus WattPilot parent disparaît. À la fermeture, WattPilot utilise le helper déjà actif pour restaurer `Stock` si l'option est activée, sans afficher une nouvelle demande UAC. Avant l'application d'une mise à jour Velopack, WattPilot demande l'arrêt du helper.
+
+Si l'UAC est validé avec un autre compte administrateur, le pipe limité au compte du helper empêche la réutilisation silencieuse depuis la session utilisateur d'origine. WattPilot retombe alors sur le flux ponctuel ou échoue discrètement selon le contexte.
+
 ## Télémétrie
 
 [GpuTelemetryService.cs](../NVConso/GpuTelemetryService.cs) interroge NVML et publie un snapshot partagé. La fenêtre principale, Canicule Guard et l'enregistreur persistent utilisent cette source commune.

@@ -100,6 +100,31 @@ try {
         $runasMatches | ForEach-Object { Write-Host $_ }
     }
 
+    Write-Host "Recherche d'une tâche planifiée permanente pour le helper GPU"
+    $helperStartupTaskMatches = @(Select-String -Path $startupManagerPath -Pattern '--elevated-session-helper')
+    if ($helperStartupTaskMatches.Count -gt 0) {
+        $helperStartupTaskMatches | ForEach-Object { Write-Host $_ }
+        throw "Le helper GPU de session ne doit pas être installé via une tâche planifiée permanente."
+    }
+
+    Write-Host "Aucun résultat."
+
+    Write-Host "Recherche d'API de service Windows permanent"
+    $serviceMatches = @(
+        Get-ChildItem -Path $sourceRoot -Filter "*.cs" -Recurse |
+            Where-Object {
+                $_.FullName -notmatch "\\bin\\" -and
+                $_.FullName -notmatch "\\obj\\"
+            } |
+            Select-String -Pattern 'ServiceBase|CreateService|WindowsServiceLifetime'
+    )
+    if ($serviceMatches.Count -gt 0) {
+        $serviceMatches | ForEach-Object { Write-Host $_ }
+        throw "Le helper GPU de session ne doit pas installer de service Windows permanent."
+    }
+
+    Write-Host "Aucun résultat."
+
     Write-Host "Recherche des fenêtres WPF principales"
     $windowDeclarations = @(
         Get-ChildItem -Path $viewsRoot -Filter "*.xaml" -Recurse |
