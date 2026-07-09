@@ -50,17 +50,19 @@
                                    Style="{StaticResource PreferenceInfoLine}" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Historique"
+                        <Button Content=""
                                 Tag="&#xE81C;"
                                 Command="{Binding NavigateHistoryCommand}"
-                                Style="{StaticResource ButtonGhost}"
+                                Style="{StaticResource IconOnlyButton}"
                                 ToolTip="Afficher l'historique détaillé"
-                                Margin="0,0,8,0" />
-                        <Button Content="Paramètres"
+                                AutomationProperties.Name="Afficher l'historique détaillé"
+                                Margin="0,0,6,0" />
+                        <Button Content=""
                                 Tag="&#xE713;"
                                 Command="{Binding NavigateSettingsCommand}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Ouvrir les paramètres" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Ouvrir les paramètres"
+                                AutomationProperties.Name="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
@@ -181,17 +183,19 @@
                                    Margin="0,4,0,0" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Accueil"
+                        <Button Content=""
                                 Tag="&#xE80F;"
                                 Command="{Binding NavigateHomeCommand}"
-                                Style="{StaticResource ButtonGhost}"
+                                Style="{StaticResource IconOnlyButton}"
                                 ToolTip="Revenir à l'accueil"
-                                Margin="0,0,8,0" />
-                        <Button Content="Paramètres"
+                                AutomationProperties.Name="Revenir à l'accueil"
+                                Margin="0,0,6,0" />
+                        <Button Content=""
                                 Tag="&#xE713;"
                                 Command="{Binding NavigateSettingsCommand}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Ouvrir les paramètres" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Ouvrir les paramètres"
+                                AutomationProperties.Name="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
@@ -221,21 +225,21 @@
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Exporter CSV"
                                         AutomationProperties.Name="Exporter CSV"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE8C8;"
                                         Click="CopyHistorySummary_Click"
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Copier le résumé"
                                         AutomationProperties.Name="Copier le résumé"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE72C;"
                                         Command="{Binding RefreshHistoryCommand}"
                                         Style="{StaticResource IconOnlyButton}"
                                         ToolTip="Actualiser"
                                         AutomationProperties.Name="Actualiser"
-                                        Margin="0,0,6,0" />
+                                        Margin="0,0,4,0" />
                                 <Button Content=""
                                         Tag="&#xE8B7;"
                                         Command="{Binding OpenTelemetryFolderCommand}"
@@ -245,34 +249,41 @@
                             </WrapPanel>
                         </Grid>
 
-                        <WrapPanel Grid.Row="1" Margin="0,0,0,12" VerticalAlignment="Top">
-                            <StackPanel Width="132" Margin="0,0,8,8">
-                                <TextBlock Text="Date" Style="{StaticResource MutedText}" />
+                        <Grid Grid.Row="1" Margin="0,0,0,10" VerticalAlignment="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="132" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="178" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Date" Style="{StaticResource HistoryFilterLabel}" />
                                 <DatePicker SelectedDate="{Binding HistoryDate}"
                                             Style="{StaticResource CompactDatePicker}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="GPU" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="GPU" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryGpus}"
                                           SelectedItem="{Binding SelectedHistoryGpu}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="Profil" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="2" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Profil" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryProfiles}"
                                           SelectedItem="{Binding SelectedHistoryProfile}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                            <StackPanel Width="178" Margin="0,0,8,8">
-                                <TextBlock Text="Mesure" Style="{StaticResource MutedText}" />
+                            <StackPanel Grid.Column="3" Style="{StaticResource HistoryFilterField}">
+                                <TextBlock Text="Mesure" Style="{StaticResource HistoryFilterLabel}" />
                                 <ComboBox ItemsSource="{Binding HistoryMetrics}"
                                           SelectedItem="{Binding SelectedHistoryMetric}"
                                           DisplayMemberPath="Label"
                                           Style="{StaticResource CompactComboBox}" />
                             </StackPanel>
-                        </WrapPanel>
+                        </Grid>
 
                         <Grid Grid.Row="2" Margin="0,2,0,0">
                             <Grid.RowDefinitions>
@@ -284,13 +295,13 @@
                                        Margin="0,0,0,8" />
                             <controls:TelemetrySparkline Grid.Row="1"
                                                          Chart="{Binding HistoryChart}"
-                                                         MinHeight="220"
-                                                         MaxHeight="280" />
+                                                         MinHeight="200"
+                                                         MaxHeight="260" />
                         </Grid>
 
-                        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
                             <TextBlock Text="{Binding HistorySummary}" />
-                            <Grid Margin="0,8,0,0">
+                            <Grid Margin="0,6,0,0">
                                 <DataGrid ItemsSource="{Binding HistoryPeaks}"
                                           AutoGenerateColumns="False"
                                           Style="{StaticResource ModernDataGrid}">
@@ -309,14 +320,13 @@
                                         <DataGridTextColumn Header="GPU" Binding="{Binding Gpu}" Width="*" />
                                     </DataGrid.Columns>
                                 </DataGrid>
-                                <Border Background="{DynamicResource SurfaceBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
+                                <Border Style="{StaticResource HistoryEmptyState}"
                                         Visibility="{Binding HistoryPeaks.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
                                     <TextBlock Text="Aucun pic enregistré pour cette période."
                                                Style="{StaticResource MutedText}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
+                                               TextAlignment="Center"
                                                Margin="16" />
                                 </Border>
                             </Grid>
@@ -357,18 +367,19 @@
                         </Border>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Retour"
+                        <Button Content=""
                                 Tag="&#xE72B;"
                                 Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Retourner à la page précédente" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Retourner à la page précédente"
+                                AutomationProperties.Name="Retourner à la page précédente" />
                     </WrapPanel>
                 </Grid>
 
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="25" />
+                        <ColumnDefinition Width="142" />
+                        <ColumnDefinition Width="18" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
@@ -390,42 +401,82 @@
                                     <TextBlock Text="Surveillance chaleur" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps."
                                                Style="{StaticResource PreferenceSectionHelp}" />
-                                    <TextBlock Text="La surveillance chaleur ne modifie pas les ventilateurs, ne change pas automatiquement de mode GPU et affiche seulement des alertes."
+                                    <TextBlock Text="WattPilot ne modifie pas les ventilateurs ni le mode GPU."
                                                Style="{StaticResource MutedText}"
                                                TextWrapping="Wrap"
-                                               Margin="0,0,0,12" />
+                                               Margin="0,0,0,10" />
                                     <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
-                                    <TextBlock Text="Réglage des alertes" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <ComboBox ItemsSource="{Binding CaniculePresetOptions}"
-                                              SelectedItem="{Binding SelectedCaniculePreset, Mode=TwoWay}"
-                                              DisplayMemberPath="Label"
-                                              MinWidth="190" />
-                                    <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBlock Text="À partir de combien de watts WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
-                                    <controls:NumericBox Value="{Binding CaniculePowerThresholdWatts, Mode=TwoWay}"
-                                                         Minimum="10"
-                                                         Maximum="1000"
-                                                         Unit="W"
-                                                         RecommendationText="{Binding CaniculePowerRecommendation}" />
-                                    <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBlock Text="À partir de quelle température WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
-                                    <controls:NumericBox Value="{Binding CaniculeTemperatureThresholdCelsius, Mode=TwoWay}"
-                                                         Minimum="30"
-                                                         Maximum="110"
-                                                         Unit="°C"
-                                                         RecommendationText="{Binding CaniculeTemperatureRecommendation}" />
-                                    <TextBlock Text="Délai avant première alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="3600"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding CaniculeAlertDelayRecommendation}" />
-                                    <TextBlock Text="Délai avant nouvelle alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
-                                                         Minimum="10"
-                                                         Maximum="86400"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding CaniculeCooldownRecommendation}" />
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Réglage des alertes" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <ComboBox Grid.Column="1"
+                                                  ItemsSource="{Binding CaniculePresetOptions}"
+                                                  SelectedItem="{Binding SelectedCaniculePreset, Mode=TwoWay}"
+                                                  DisplayMemberPath="Label"
+                                                  Style="{StaticResource CompactComboBox}"
+                                                  MinWidth="190" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldTitle}" />
+                                            <TextBlock Text="Watts déclenchant une alerte." Style="{StaticResource PreferenceInfoLine}" />
+                                        </StackPanel>
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculePowerThresholdWatts, Mode=TwoWay}"
+                                                             Minimum="10"
+                                                             Maximum="1000"
+                                                             Unit="W"
+                                                             RecommendationText="{Binding CaniculePowerRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldTitle}" />
+                                            <TextBlock Text="Température déclenchant une alerte." Style="{StaticResource PreferenceInfoLine}" />
+                                        </StackPanel>
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                             Minimum="30"
+                                                             Maximum="110"
+                                                             Unit="°C"
+                                                             RecommendationText="{Binding CaniculeTemperatureRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Première alerte après" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="3600"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding CaniculeAlertDelayRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Nouvelle alerte après" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
+                                                             Minimum="10"
+                                                             Maximum="86400"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding CaniculeCooldownRecommendation}" />
+                                    </Grid>
                                     <Button Content="Valeurs recommandées"
                                             Tag="&#xE72C;"
                                             Command="{Binding ResetCaniculeGuardCommand}"
@@ -444,58 +495,96 @@
                                     <TextBlock Text="Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics."
                                                Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Historiser le GPU" IsChecked="{Binding RecordingEnabled}" />
-                                    <TextBlock Text="Fréquence d'enregistrement" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="60"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding RecordingIntervalRecommendation}" />
-                                    <TextBlock Text="Conservation des données" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="365"
-                                                         Unit="jours"
-                                                         RecommendationText="{Binding TelemetryRetentionRecommendation}" />
-                                    <TextBlock Text="Durée affichée sur le graphe" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
-                                                         Minimum="30"
-                                                         Maximum="3600"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding TelemetryHistoryRecommendation}" />
-                                    <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding PeakPowerThresholdWatts, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="2000"
-                                                         Unit="W"
-                                                         RecommendationText="{Binding PeakPowerRecommendation}" />
-                                    <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding PeakTemperatureThresholdCelsius, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="150"
-                                                         Unit="°C"
-                                                         RecommendationText="{Binding PeakTemperatureRecommendation}" />
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Fréquence" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="60"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding RecordingIntervalRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Conservation" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="365"
+                                                             Unit="jours"
+                                                             RecommendationText="{Binding TelemetryRetentionRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Durée du graphe" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
+                                                             Minimum="30"
+                                                             Maximum="3600"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding TelemetryHistoryRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding PeakPowerThresholdWatts, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="2000"
+                                                             Unit="W"
+                                                             RecommendationText="{Binding PeakPowerRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding PeakTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="150"
+                                                             Unit="°C"
+                                                             RecommendationText="{Binding PeakTemperatureRecommendation}" />
+                                    </Grid>
                                     <TextBlock Text="Dossier de données local"
                                                Style="{StaticResource PreferenceFieldLabel}"
                                                ToolTip="{Binding TelemetryPath}" />
-                                    <WrapPanel>
-                                        <Button Content="Ouvrir dossier"
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
+                                        <Button Content=""
                                                 Tag="&#xE8B7;"
                                                 Command="{Binding OpenTelemetryFolderCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir le dossier local des données"
-                                                Margin="0,0,8,8" />
-                                        <Button Content="Copier le chemin"
+                                                AutomationProperties.Name="Ouvrir le dossier local des données"
+                                                Margin="0,0,4,0" />
+                                        <Button Content=""
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyTelemetryPathCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Copier le chemin du dossier de données"
-                                                Margin="0,0,8,8" />
-                                        <Button Content="Exporter"
+                                                AutomationProperties.Name="Copier le chemin du dossier de données"
+                                                Margin="0,0,4,0" />
+                                        <Button Content=""
                                                 Tag="&#xEDE1;"
                                                 Click="ExportTelemetry_Click"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Exporter la session de télémétrie"
-                                                Margin="0,0,8,8" />
+                                                AutomationProperties.Name="Exporter la session de télémétrie"
+                                                Margin="0,0,4,0" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -513,26 +602,27 @@
                                     <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
                                     <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
-                                    <WrapPanel Margin="0,10,0,0">
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
                                         <Button Content="Vérifier maintenant"
                                                 Tag="&#xE721;"
                                                 Command="{Binding CheckForUpdatesCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Rechercher les mises à jour disponibles"
-                                                Margin="0,0,8,8" />
-                                        <Button Content="Ouvrir GitHub Releases"
+                                                Margin="0,0,8,0" />
+                                        <Button Content=""
                                                 Tag="&#xE8A7;"
                                                 Command="{Binding OpenGitHubReleasesCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir la page GitHub Releases"
-                                                Margin="0,0,8,8" />
+                                                AutomationProperties.Name="Ouvrir la page GitHub Releases"
+                                                Margin="0,0,8,0" />
                                         <Button Content="{Binding UpdateStatus.PrimaryActionLabel}"
                                                 Tag="&#xE895;"
                                                 Command="{Binding PrimaryUpdateCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Télécharger ou installer la mise à jour disponible"
                                                 Visibility="{Binding UpdateStatus.CanRunPrimaryAction, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                     </WrapPanel>
                                     <Expander Header="Détails techniques" IsExpanded="False" Margin="0,8,0,0">
                                         <StackPanel Margin="0,8,0,0">
@@ -548,11 +638,12 @@
                                             <TextBlock Text="{Binding UpdateStatus.LastTechnicalMessage}"
                                                        Style="{StaticResource PreferenceInfoLine}"
                                                        TextWrapping="Wrap" />
-                                            <Button Content="Copier diagnostic"
+                                            <Button Content=""
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyUpdateDiagnosticCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Copier le diagnostic de mise à jour"
+                                                AutomationProperties.Name="Copier le diagnostic de mise à jour"
                                                 HorizontalAlignment="Left"
                                                 Margin="0,10,0,0" />
                                         </StackPanel>
@@ -572,13 +663,13 @@
                                     <CheckBox Content="Télécharger automatiquement les mises à jour" IsChecked="{Binding AutoDownloadUpdates}" />
                                     <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
-                                    <WrapPanel>
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
                                         <Button Content="Réparer la tâche"
                                                 Tag="&#xE90F;"
                                                 Command="{Binding RepairStartupCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Réparer la tâche planifiée de démarrage"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content="Supprimer la tâche"
                                                 Tag="&#xE74D;"
                                                 Command="{Binding DeleteStartupCommand}"
@@ -591,14 +682,14 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}" />
-                                    <TextBlock Text="La réinitialisation conserve la tâche planifiée Windows." Style="{StaticResource MutedText}" Margin="0,0,0,10" />
-                                    <WrapPanel>
+                                    <TextBlock Text="La réinitialisation conserve le démarrage Windows." Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}" Margin="0">
                                         <Button Content="Exporter diagnostic"
                                                 Tag="&#xEDE1;"
                                                 Click="ExportDiagnostics_Click"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Exporter un diagnostic local"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content="Réinitialiser"
                                                 Tag="&#xE72C;"
                                                 Click="ResetDefaults_Click"

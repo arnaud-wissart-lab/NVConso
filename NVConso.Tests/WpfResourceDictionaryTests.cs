@@ -40,6 +40,26 @@ public sealed class WpfResourceDictionaryTests
         });
     }
 
+    [Fact]
+    public void PrimaryButton_ShouldKeepReadableForegroundAcrossStates()
+    {
+        RunOnStaThread(() =>
+        {
+            var resources = new ResourceDictionary();
+            resources.MergedDictionaries.Add(LoadResourceDictionary("Themes/LightTheme.xaml"));
+            resources.MergedDictionaries.Add(LoadResourceDictionary("Themes/CommonStyles.xaml"));
+
+            var primaryButton = Assert.IsType<Style>(resources["ButtonPrimary"]);
+            var aliasButton = Assert.IsType<Style>(resources["PrimaryButton"]);
+
+            Assert.Same(primaryButton, aliasButton.BasedOn);
+            AssertWhiteForeground(FindSetter(primaryButton, Control.ForegroundProperty));
+            AssertWhiteForeground(FindTriggerSetter(primaryButton, Button.IsMouseOverProperty, Control.ForegroundProperty));
+            AssertWhiteForeground(FindTriggerSetter(primaryButton, Button.IsPressedProperty, Control.ForegroundProperty));
+            AssertWhiteForeground(FindTriggerSetter(primaryButton, UIElement.IsKeyboardFocusWithinProperty, Control.ForegroundProperty));
+        });
+    }
+
     [Theory]
     [InlineData(1.0)]
     [InlineData(1.25)]
@@ -130,6 +150,56 @@ public sealed class WpfResourceDictionaryTests
     {
         var style = Assert.IsType<Style>(resources[key]);
         Assert.Equal(typeof(TTarget), style.TargetType);
+    }
+
+    private static Setter FindSetter(Style style, DependencyProperty property)
+    {
+        Style current = style;
+        while (current is not null)
+        {
+            Setter setter = current.Setters
+                .OfType<Setter>()
+                .FirstOrDefault(item => item.Property == property);
+            if (setter is not null)
+                return setter;
+
+            current = current.BasedOn;
+        }
+
+        throw new Xunit.Sdk.XunitException($"Setter introuvable pour {property.Name}.");
+    }
+
+    private static Setter FindTriggerSetter(
+        Style style,
+        DependencyProperty triggerProperty,
+        DependencyProperty setterProperty)
+    {
+        Style current = style;
+        while (current is not null)
+        {
+            foreach (Trigger trigger in current.Triggers.OfType<Trigger>())
+            {
+                if (trigger.Property != triggerProperty)
+                    continue;
+
+                Setter setter = trigger.Setters
+                    .OfType<Setter>()
+                    .FirstOrDefault(item => item.Property == setterProperty);
+                if (setter is not null)
+                    return setter;
+            }
+
+            current = current.BasedOn;
+        }
+
+        throw new Xunit.Sdk.XunitException(
+            $"Setter de trigger introuvable pour {triggerProperty.Name} vers {setterProperty.Name}.");
+    }
+
+    private static void AssertWhiteForeground(Setter setter)
+    {
+        var brush = Assert.IsType<SolidColorBrush>(setter.Value);
+        Assert.Equal(Colors.White, brush.Color);
     }
 
     private static void RunOnStaThread(Action assertion)

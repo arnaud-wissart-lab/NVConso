@@ -210,7 +210,7 @@ Procédure attendue pour valider une mise à jour réelle :
 5. Vérifier dans le dashboard ou les préférences que le mode affiché est `Mode : installé via Velopack`.
 6. Publier une version supérieure.
 7. Relancer WattPilot installé ou attendre la vérification automatique.
-8. Vérifier que l'action unique `Mettre à jour vers vX.Y.Z...` apparaît.
+8. Vérifier que l'action unique `Installer` apparaît avec le statut `Version X.Y.Z disponible`.
 9. Lancer l'action et vérifier que le téléchargement, l'installation et le redémarrage passent par Velopack.
 
 Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise à jour reste manuelle. Un build développeur sert à valider le code local ; il doit afficher `Mise à jour : indisponible en mode développeur`.

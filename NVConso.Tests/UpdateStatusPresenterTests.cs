@@ -18,7 +18,7 @@ namespace NVConso.Tests
             Assert.Equal(settings.LastUpdateCheckUtc, state.LastCheckedAt);
             Assert.Equal(ProductNames.DisplayVersion, state.CurrentVersion);
             Assert.Equal(ProductNames.DisplayVersion, state.LatestVersion);
-            Assert.Equal("À jour", state.Message);
+            Assert.Equal(UpdateLabels.UpToDateStatus, state.Message);
             Assert.False(state.CanRunPrimaryAction);
             Assert.Equal(string.Empty, state.PrimaryActionLabel);
         }
@@ -40,9 +40,9 @@ namespace NVConso.Tests
 
             Assert.Equal(UpdateUiStatus.UpdateAvailable, state.Status);
             Assert.Equal("1.1.0", state.LatestVersion);
-            Assert.Equal("Nouvelle version disponible : v1.1.0", state.Message);
+            Assert.Equal("Version 1.1.0 disponible", state.Message);
             Assert.True(state.CanRunPrimaryAction);
-            Assert.Equal("Mettre à jour vers v1.1.0...", state.PrimaryActionLabel);
+            Assert.Equal("Installer", state.PrimaryActionLabel);
         }
 
         [Fact]
@@ -61,7 +61,7 @@ namespace NVConso.Tests
             Assert.Equal("1.1.0", state.LatestVersion);
             Assert.Equal("Prête à installer : v1.1.0", state.Message);
             Assert.True(state.CanRunPrimaryAction);
-            Assert.Equal("Installer maintenant", state.PrimaryActionLabel);
+            Assert.Equal("Installer", state.PrimaryActionLabel);
         }
 
         [Fact]
@@ -154,7 +154,7 @@ namespace NVConso.Tests
                 AppUpdateOperationResult.Failed(AppUpdateStatus.NetworkUnavailable, "Réseau indisponible."));
 
             Assert.Equal(UpdateUiStatus.Error, state.Status);
-            Assert.Equal("Erreur", state.Message);
+            Assert.Equal(UpdateLabels.ErrorStatus, state.Message);
             Assert.Equal("Réseau indisponible.", state.DetailMessage);
             Assert.False(state.CanRunPrimaryAction);
         }

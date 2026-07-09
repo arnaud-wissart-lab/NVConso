@@ -497,15 +497,16 @@ namespace NVConso.Tests
             Assert.Contains("Réglages système et maintenance. À modifier seulement si nécessaire.", xaml);
             Assert.Contains("Content=\"Télécharger automatiquement les mises à jour\"", xaml);
             Assert.Contains("ne modifie pas les ventilateurs", xaml);
-            Assert.Contains("Délai avant nouvelle alerte", xaml);
-            Assert.Contains("Durée affichée sur le graphe", xaml);
-            Assert.Contains("Fréquence d'enregistrement", xaml);
-            Assert.Contains("Conservation des données", xaml);
+            Assert.Contains("Nouvelle alerte après", xaml);
+            Assert.Contains("Durée du graphe", xaml);
+            Assert.Contains("Fréquence", xaml);
+            Assert.Contains("Conservation", xaml);
             Assert.Contains("Dossier de données local", xaml);
-            Assert.Contains("Copier le chemin", xaml);
-            Assert.Contains("Copier diagnostic", xaml);
+            Assert.Contains("AutomationProperties.Name=\"Copier le chemin du dossier de données\"", xaml);
+            Assert.Contains("AutomationProperties.Name=\"Copier le diagnostic de mise à jour\"", xaml);
             Assert.DoesNotContain("Chemin complet", xaml);
-            Assert.Equal(2, CountOccurrences(xaml, "Content=\"Paramètres\""));
+            Assert.Equal(2, CountOccurrences(xaml, "AutomationProperties.Name=\"Ouvrir les paramètres\""));
+            Assert.DoesNotContain("Content=\"Paramètres\"", xaml);
             Assert.DoesNotContain("Content=\"Enregistrer\"", xaml);
             Assert.DoesNotContain("SaveCommand", xaml);
             Assert.DoesNotContain("<controls:ThemeOptionControl", xaml);
@@ -600,7 +601,7 @@ namespace NVConso.Tests
 
             Assert.Equal(UpdateUiStatus.UpToDate, model.Status);
             Assert.Equal("Mode : Installé", model.SimpleExecutionModeLabel);
-            Assert.Equal("Statut : À jour", model.SimpleStatusLabel);
+            Assert.Equal($"Statut : {UpdateLabels.UpToDateStatus}", model.SimpleStatusLabel);
             Assert.Equal(ProductNames.ShortDisplayVersion, model.CurrentVersion);
             Assert.Equal("--", model.LastTechnicalMessage);
         }

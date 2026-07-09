@@ -2,8 +2,9 @@ namespace NVConso
 {
     public static class UpdateLabels
     {
-        public const string CheckingStatus = "Vérification...";
-        public const string ErrorStatus = "Erreur";
+        public const string UpToDateStatus = "Dernière version";
+        public const string CheckingStatus = "Recherche de mise à jour...";
+        public const string ErrorStatus = "Vérification impossible";
         public const string PreferencesStatus = "Voir les paramètres";
         public const string DeveloperUnavailableStatus = "Indisponible en mode développeur";
         public const string PortableManualStatus = "Mise à jour manuelle";
@@ -12,7 +13,7 @@ namespace NVConso
         public static string FormatUpToDate(DateTimeOffset? checkedAtUtc)
         {
             _ = checkedAtUtc;
-            return "À jour";
+            return UpToDateStatus;
         }
 
         public static string FormatLastChecked(DateTimeOffset? checkedAtUtc)
@@ -33,7 +34,10 @@ namespace NVConso
 
         public static string FormatAvailableStatus(string version)
         {
-            return $"Nouvelle version disponible : {FormatVersion(version)}";
+            if (string.IsNullOrWhiteSpace(version))
+                return "Version disponible";
+
+            return $"Version {FormatVersionNumber(version)} disponible";
         }
 
         public static string FormatDownloadedStatus(string version)
@@ -43,12 +47,14 @@ namespace NVConso
 
         public static string FormatUpdateNowAction(string version)
         {
-            return $"Mettre à jour vers {FormatVersion(version)}...";
+            _ = version;
+            return "Installer";
         }
 
         public static string FormatInstallAction(string version)
         {
-            return "Installer maintenant";
+            _ = version;
+            return "Installer";
         }
 
         public static string FormatExecutionMode(AppExecutionMode mode)
@@ -97,6 +103,14 @@ namespace NVConso
             return trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase)
                 ? trimmed
                 : $"v{trimmed}";
+        }
+
+        private static string FormatVersionNumber(string version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return "disponible";
+
+            return version.Trim().TrimStart('v', 'V');
         }
     }
 }
