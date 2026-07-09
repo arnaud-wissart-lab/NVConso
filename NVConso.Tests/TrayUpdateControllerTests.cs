@@ -12,8 +12,9 @@ namespace NVConso.Tests
 
             await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: true, isAutomatic: false);
 
-            Assert.Equal("À jour", context.UpdateStatusItem.Text);
+            Assert.Equal(UpdateLabels.UpToDateStatus, context.UpdateStatusItem.Text);
             Assert.StartsWith("Dernière vérification : ", context.UpdateStatusItem.DetailText);
+            Assert.Contains("aujourd’hui", context.UpdateStatusItem.DetailText);
             Assert.False(context.UpdateActionItem.Available);
         }
 
@@ -28,9 +29,9 @@ namespace NVConso.Tests
 
             await context.Controller.CheckForUpdatesAsync(showUpToDateStatus: false, isAutomatic: false);
 
-            Assert.Equal("Nouvelle version disponible : v1.2.3", context.UpdateStatusItem.Text);
+            Assert.Equal("Version 1.2.3 disponible", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
-            Assert.Equal("Mettre à jour vers v1.2.3...", context.UpdateActionItem.Text);
+            Assert.Equal("Installer", context.UpdateActionItem.Text);
         }
 
         [Fact]
@@ -68,7 +69,7 @@ namespace NVConso.Tests
 
             Assert.Equal("Prête à installer : v1.2.3", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
-            Assert.Equal("Installer maintenant", context.UpdateActionItem.Text);
+            Assert.Equal("Installer", context.UpdateActionItem.Text);
         }
 
         [Fact]
@@ -81,7 +82,7 @@ namespace NVConso.Tests
 
             Assert.Equal("Prête à installer : v1.2.3", context.UpdateStatusItem.Text);
             Assert.True(context.UpdateActionItem.Available);
-            Assert.Equal("Installer maintenant", context.UpdateActionItem.Text);
+            Assert.Equal("Installer", context.UpdateActionItem.Text);
         }
 
         [Fact]

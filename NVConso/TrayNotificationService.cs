@@ -20,7 +20,7 @@ namespace NVConso
 
         public void SetStatus(string message)
         {
-            _statusItem.Text = $"Statut : {NormalizeStatusMessage(message)}";
+            _statusItem.Text = NormalizeStatusMessage(message);
         }
 
         public void ShowInfo(string title, string message, int timeoutMilliseconds = 1000)
@@ -36,7 +36,7 @@ namespace NVConso
         private static string NormalizeStatusMessage(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
-                return "--";
+                return "Prêt";
 
             string normalized = message.Trim();
             string[] prefixes = ["✅ ", "ℹ️ ", "⚠️ ", "❌ "];

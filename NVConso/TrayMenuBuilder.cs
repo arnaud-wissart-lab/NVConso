@@ -10,7 +10,7 @@ namespace NVConso
 
         public static TrayMenuViewModel CreateViewModel(out IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> profileItems)
         {
-            TrayMenuActionItem statusItem = CreateInfoItem("Statut : initialisation...");
+            TrayMenuActionItem statusItem = CreateInfoItem("Prêt");
             TrayMenuActionItem openDashboardItem = new("Ouvrir WattPilot", "\uE8A7")
             {
                 ToolTipText = "Ouvrir WattPilot"
@@ -37,7 +37,7 @@ namespace NVConso
 
             TrayMenuActionItem updateStatusItem = CreateInfoItem(UpdateLabels.FormatUpToDate(null));
             updateStatusItem.ToolTipText = "Ouvrir les paramètres de mise à jour";
-            TrayMenuActionItem updateActionItem = new("Mettre à jour maintenant...", "\uE895")
+            TrayMenuActionItem updateActionItem = new("Installer", "\uE895")
             {
                 Available = false,
                 ToolTipText = "Installer la mise à jour disponible"

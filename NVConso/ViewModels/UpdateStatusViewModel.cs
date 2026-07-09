@@ -164,7 +164,7 @@ namespace NVConso.ViewModels
         {
             return status switch
             {
-                UpdateUiStatus.UpToDate => "Statut : À jour",
+                UpdateUiStatus.UpToDate => $"Statut : {UpdateLabels.UpToDateStatus}",
                 UpdateUiStatus.UpdateAvailable or UpdateUiStatus.ReadyToInstall => "Statut : Mise à jour disponible",
                 UpdateUiStatus.Checking => "Statut : Vérification en cours",
                 UpdateUiStatus.Downloading => "Statut : Téléchargement en cours",

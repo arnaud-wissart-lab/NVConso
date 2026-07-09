@@ -601,7 +601,7 @@ namespace NVConso.Tests
 
             Assert.Equal(UpdateUiStatus.UpToDate, model.Status);
             Assert.Equal("Mode : Installé", model.SimpleExecutionModeLabel);
-            Assert.Equal("Statut : À jour", model.SimpleStatusLabel);
+            Assert.Equal($"Statut : {UpdateLabels.UpToDateStatus}", model.SimpleStatusLabel);
             Assert.Equal(ProductNames.ShortDisplayVersion, model.CurrentVersion);
             Assert.Equal("--", model.LastTechnicalMessage);
         }

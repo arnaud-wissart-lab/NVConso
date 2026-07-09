@@ -118,9 +118,6 @@
 
             <Border Style="{StaticResource UpdateStatusBlock}" Margin="4,0,4,4">
                 <StackPanel>
-                    <TextBlock Text="Mise à jour"
-                               Style="{StaticResource TraySectionLabel}"
-                               Margin="0,0,0,5" />
                     <TextBlock Text="{Binding InstalledVersionLabel}"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding UpdateStatusItem.Text}"

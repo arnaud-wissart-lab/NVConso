@@ -101,7 +101,7 @@ namespace NVConso
                 ApplyState(UpdateStatusPresenter.Checking(_settingsService.Current, executionMode));
 
                 if (!isAutomatic)
-                    _notifications.SetStatus("Recherche de mise à jour Velopack en cours...");
+                    _notifications.SetStatus(UpdateLabels.CheckingStatus);
 
                 AppSettings settings = _settingsService.Current;
                 AppUpdateOperationResult result = await _updateWorkflow.CheckForUpdatesAsync(settings);
@@ -126,7 +126,7 @@ namespace NVConso
                     _downloadedUpdateReady = false;
                     UpdateUiState state = UpdateStatusPresenter.FromCheckResult(settings, result, executionMode);
                     ApplyState(state);
-                    _notifications.SetStatus($"Nouvelle version disponible : {UpdateLabels.FormatVersion(result.Update.Version)}");
+                    _notifications.SetStatus(UpdateLabels.FormatAvailableStatus(result.Update.Version));
 
                     if (isAutomatic)
                         await HandleAutomaticUpdateAvailableAsync(settings, result.Update);

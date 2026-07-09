@@ -270,9 +270,6 @@ namespace NVConso
                 return;
             }
 
-            if (!_privilegeService.CanWritePowerLimit)
-                _notifications.SetStatus(_privilegeService.CurrentPrivilegeStatusMessage);
-
             if (_settings.AutoApplySavedMode && _settings.HasSavedMode)
                 ApplySavedPowerLimit();
 
@@ -350,9 +347,9 @@ namespace NVConso
             GpuProfileOperationResult result = _gpuProfiles.ApplySavedPowerLimit(_settings);
             if (!result.Success)
             {
-                _notifications.SetStatus(result.RequiresElevation
-                    ? _privilegeService.CurrentPrivilegeStatusMessage
-                    : result.Message);
+                if (!result.RequiresElevation)
+                    _notifications.SetStatus(result.Message);
+
                 return;
             }
 

@@ -40,6 +40,10 @@ Cet audit prépare la passe compacte après le hotfix `v2.1.10`, sans changement
 - `UpdatePromptDialog` : les boutons restent texte, car la décision d'installation doit être explicite.
 - Les dialogues sont globalement cohérents ; il faut éviter de rendre les actions critiques moins lisibles.
 
+## Dette technique
+
+- L'élévation actuelle reste ponctuelle : Windows peut redemander une autorisation à chaque changement de mode GPU. Une amélioration future serait un helper élevé persistant pour la session, ou une architecture équivalente, à traiter dans une PR dédiée.
+
 ## Synthèse des ajustements prévus
 
 - Convertir en icônes seules les navigations d'en-tête et les actions secondaires non destructrices.
