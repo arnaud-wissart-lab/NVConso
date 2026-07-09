@@ -6,6 +6,16 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+## 2.1.11 - 2026-07-09
+
+- Compacte les actions secondaires avec icônes, info-bulles et noms accessibles.
+- Harmonise les champs, filtres et formulaires.
+- Améliore la densité visuelle de l'historique.
+- Clarifie les paramètres sans changer le comportement fonctionnel.
+- Clarifie le statut de mise à jour dans le menu tray.
+- Retire les statuts permanents anxiogènes autour de l'élévation.
+- Corrige le contraste des boutons WPF.
+
 ## 2.1.10 - 2026-07-09
 
 - Corrige le positionnement du menu tray WPF.
