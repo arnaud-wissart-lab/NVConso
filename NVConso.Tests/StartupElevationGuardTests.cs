@@ -43,7 +43,11 @@ namespace NVConso.Tests
         public void Runas_ShouldOnlyBeUsedByExplicitPrivilegeService()
         {
             string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
-            string expectedFile = Path.Combine(sourceRoot, "WindowsPrivilegeService.cs");
+            string[] expectedFiles =
+            [
+                Path.Combine(sourceRoot, "WindowsPrivilegeService.cs"),
+                Path.Combine(sourceRoot, "ElevatedGpuSessionManager.cs")
+            ];
 
             string[] filesUsingRunas = Directory
                 .EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
@@ -57,8 +61,7 @@ namespace NVConso.Tests
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            string runasFile = Assert.Single(filesUsingRunas);
-            Assert.Equal(expectedFile, runasFile);
+            Assert.Equal(expectedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase), filesUsingRunas);
         }
 
         [Fact]

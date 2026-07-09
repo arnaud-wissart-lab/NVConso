@@ -11,7 +11,10 @@ $startupManagerPath = Join-Path $repositoryRoot "NVConso/WindowsTaskSchedulerSta
 $sourceRoot = Join-Path $repositoryRoot "NVConso"
 $viewsRoot = Join-Path $sourceRoot "Views"
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
-$allowedRunasFile = Join-Path $sourceRoot "WindowsPrivilegeService.cs"
+$allowedRunasFiles = @(
+    (Join-Path $sourceRoot "WindowsPrivilegeService.cs"),
+    (Join-Path $sourceRoot "ElevatedGpuSessionManager.cs")
+)
 $allowedMainWindow = "NVConso.Views.WattPilotWindow"
 
 Push-Location $repositoryRoot
@@ -79,13 +82,16 @@ try {
     $unauthorizedMatches = @(
         $runasMatches |
             Where-Object {
-                -not [string]::Equals($_.Path, $allowedRunasFile, [System.StringComparison]::OrdinalIgnoreCase)
+                $path = $_.Path
+                -not ($allowedRunasFiles | Where-Object {
+                    [string]::Equals($path, $_, [System.StringComparison]::OrdinalIgnoreCase)
+                })
             }
     )
 
     if ($unauthorizedMatches.Count -gt 0) {
         $unauthorizedMatches | ForEach-Object { Write-Host $_ }
-        throw 'Verb = "runas" est autorisé uniquement dans WindowsPrivilegeService.'
+        throw 'Verb = "runas" est autorisé uniquement dans les lanceurs explicitement autorisés.'
     }
 
     if ($runasMatches.Count -eq 0) {

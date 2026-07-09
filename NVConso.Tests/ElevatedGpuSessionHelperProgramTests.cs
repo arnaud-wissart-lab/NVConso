@@ -11,6 +11,7 @@ namespace NVConso.Tests
                 CreateArguments(expiresAtUtc: UtcNow.AddMinutes(15)),
                 new FakePrivilegeDetector(isElevated: true),
                 new FakeParentProcessProbe(isRunning: true),
+                new FakeServerRunner(ElevatedCommandExitCode.Success),
                 () => UtcNow);
 
             Assert.Equal(ElevatedCommandExitCode.Success, exitCode);
@@ -23,6 +24,7 @@ namespace NVConso.Tests
                 [ElevatedGpuSessionHelperCommandLine.HelperSwitch],
                 new FakePrivilegeDetector(isElevated: true),
                 new FakeParentProcessProbe(isRunning: true),
+                new FakeServerRunner(ElevatedCommandExitCode.Success),
                 () => UtcNow);
 
             Assert.Equal(ElevatedCommandExitCode.InvalidArguments, exitCode);
@@ -35,6 +37,7 @@ namespace NVConso.Tests
                 CreateArguments(expiresAtUtc: UtcNow.AddMinutes(15)),
                 new FakePrivilegeDetector(isElevated: false),
                 new FakeParentProcessProbe(isRunning: true),
+                new FakeServerRunner(ElevatedCommandExitCode.Success),
                 () => UtcNow);
 
             Assert.Equal(ElevatedCommandExitCode.NotElevated, exitCode);
@@ -47,6 +50,7 @@ namespace NVConso.Tests
                 CreateArguments(expiresAtUtc: UtcNow.AddMinutes(15)),
                 new FakePrivilegeDetector(isElevated: true),
                 new FakeParentProcessProbe(isRunning: false),
+                new FakeServerRunner(ElevatedCommandExitCode.Success),
                 () => UtcNow);
 
             Assert.Equal(ElevatedCommandExitCode.Failed, exitCode);
@@ -59,6 +63,7 @@ namespace NVConso.Tests
                 CreateArguments(expiresAtUtc: UtcNow.AddSeconds(-1)),
                 new FakePrivilegeDetector(isElevated: true),
                 new FakeParentProcessProbe(isRunning: true),
+                new FakeServerRunner(ElevatedCommandExitCode.Success),
                 () => UtcNow);
 
             Assert.Equal(ElevatedCommandExitCode.InvalidArguments, exitCode);
@@ -85,6 +90,14 @@ namespace NVConso.Tests
             public bool IsProcessRunning(int processId)
             {
                 return isRunning;
+            }
+        }
+
+        private sealed class FakeServerRunner(int exitCode) : IElevatedGpuSessionServerRunner
+        {
+            public Task<int> RunAsync(ElevatedGpuSessionHelperOptions options, CancellationToken cancellationToken = default)
+            {
+                return Task.FromResult(exitCode);
             }
         }
     }

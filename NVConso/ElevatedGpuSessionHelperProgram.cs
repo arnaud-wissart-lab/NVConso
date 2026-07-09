@@ -8,6 +8,7 @@ namespace NVConso
                 args,
                 new WindowsPrivilegeDetector(),
                 new WindowsParentProcessProbe(),
+                new ElevatedGpuSessionServerRunner(),
                 () => DateTime.UtcNow);
         }
 
@@ -15,10 +16,12 @@ namespace NVConso
             string[] args,
             IPrivilegeDetector privilegeDetector,
             IParentProcessProbe parentProcessProbe,
+            IElevatedGpuSessionServerRunner serverRunner,
             Func<DateTime> utcNow)
         {
             ArgumentNullException.ThrowIfNull(privilegeDetector);
             ArgumentNullException.ThrowIfNull(parentProcessProbe);
+            ArgumentNullException.ThrowIfNull(serverRunner);
             ArgumentNullException.ThrowIfNull(utcNow);
 
             if (!ElevatedGpuSessionHelperCommandLine.TryParse(args, out ElevatedGpuSessionHelperOptions options, out _))
@@ -33,7 +36,7 @@ namespace NVConso
             if (!parentProcessProbe.IsProcessRunning(options.ParentProcessId))
                 return ElevatedCommandExitCode.Failed;
 
-            return ElevatedCommandExitCode.Success;
+            return serverRunner.RunAsync(options).GetAwaiter().GetResult();
         }
     }
 }
