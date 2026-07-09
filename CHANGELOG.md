@@ -6,6 +6,11 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+## 2.1.10 - 2026-07-09
+
+- Corrige le positionnement du menu tray WPF.
+- Empêche le menu de sortir de l'écran avec DPI élevé, multi-écran ou barre des tâches déplacée.
+
 ## 2.1.9 - 2026-07-08
 
 ### Modifié
