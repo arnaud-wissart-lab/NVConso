@@ -108,9 +108,17 @@ namespace NVConso.Tests
         [Fact]
         public void ElevationPrompt_ShouldUseRequiredGpuMessageAndActions()
         {
+            Assert.Equal("Autoriser WattPilot pour cette session ?", PrivilegeMessages.GpuSessionAuthorizationTitle);
+            Assert.Equal("Windows demandera une autorisation. Ensuite, les changements de mode pourront être appliqués sans nouvelle demande pendant cette session.", PrivilegeMessages.GpuSessionAuthorizationMessage);
+            Assert.Equal("Autoriser pour cette session", PrivilegeMessages.AuthorizeForSessionButton);
+            Assert.Equal("Une seule fois", PrivilegeMessages.OneTimeAuthorizationButton);
+            Assert.Equal("Annuler", PrivilegeMessages.CancelButton);
+        }
+
+        [Fact]
+        public void StartupTaskElevationPrompt_ShouldKeepOneShotMessageAndActions()
+        {
             Assert.Equal("Autorisation requise", PrivilegeMessages.AuthorizationTitle);
-            Assert.Equal("Windows va demander une autorisation pour appliquer ce mode GPU.", PrivilegeMessages.GpuPowerLimitRequiresElevation);
-            Assert.Equal("WattPilot restera ouvert normalement.", PrivilegeMessages.GpuPowerLimitElevationDetail);
             Assert.Equal("Windows va demander une autorisation pour réparer le démarrage automatique.", PrivilegeMessages.StartupTaskRequiresElevation);
             Assert.Equal("Cela ne relance pas WattPilot en mode administrateur.", PrivilegeMessages.StartupTaskElevationDetail);
             Assert.Equal("Autoriser", PrivilegeMessages.AuthorizeButton);

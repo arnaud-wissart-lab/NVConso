@@ -295,6 +295,34 @@ namespace NVConso.Tests
             Assert.Contains(ElevatedCommandLine.SetPowerLimitCommand, launcher.Arguments);
         }
 
+        [Fact]
+        public async Task SetPowerLimitAsync_ShouldUseOneShotElevation_WhenUserChoosesOneTime()
+        {
+            var launcher = new FakeElevatedProcessLauncher();
+            var prompt = new FakeElevationPrompt(confirm: true)
+            {
+                Choice = ElevationPromptChoice.OneTime
+            };
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Profil appliqué.",
+                120000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                prompt,
+                launcher,
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.SetPowerLimitAsync(
+                0,
+                GpuPowerMode.Canicule,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.True(launcher.WasCalled);
+            Assert.Equal(0, gpuSessionManager.SendCallCount);
+            Assert.Contains(ElevatedCommandLine.SetPowerLimitCommand, launcher.Arguments);
+        }
+
         private sealed class FakePrivilegeDetector(bool isElevated) : IPrivilegeDetector
         {
             public bool IsElevated { get; } = isElevated;
@@ -303,12 +331,26 @@ namespace NVConso.Tests
         private sealed class FakeElevationPrompt(bool confirm) : IElevationPrompt
         {
             public bool IsConfirmed { get; set; } = confirm;
+            public ElevationPromptChoice Choice { get; set; } = confirm
+                ? ElevationPromptChoice.Session
+                : ElevationPromptChoice.Cancel;
             public int ConfirmCallCount { get; private set; }
 
             public bool Confirm(ElevationReason reason)
             {
                 ConfirmCallCount++;
                 return IsConfirmed;
+            }
+
+            public ElevationPromptChoice Choose(ElevationReason reason)
+            {
+                ConfirmCallCount++;
+                if (!IsConfirmed)
+                    return ElevationPromptChoice.Cancel;
+
+                return Choice == ElevationPromptChoice.Cancel
+                    ? ElevationPromptChoice.Session
+                    : Choice;
             }
         }
 

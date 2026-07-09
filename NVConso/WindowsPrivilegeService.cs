@@ -167,10 +167,11 @@ namespace NVConso
 
                 MarkElevationRequested();
 
-                if (!_elevationPrompt.Confirm(ElevationReason.GpuPowerLimit))
+                ElevationPromptChoice promptChoice = _elevationPrompt.Choose(ElevationReason.GpuPowerLimit);
+                if (promptChoice == ElevationPromptChoice.Cancel)
                     return MarkElevationDeniedAndCancel();
 
-                if (_gpuSessionManager is not null)
+                if (promptChoice == ElevationPromptChoice.Session && _gpuSessionManager is not null)
                 {
                     ElevatedGpuSessionResponse helperResult = await _gpuSessionManager
                         .SendAsync(buildSessionRequest, cancellationToken)
@@ -385,6 +386,8 @@ namespace NVConso
     internal interface IElevationPrompt
     {
         bool Confirm(ElevationReason reason);
+
+        ElevationPromptChoice Choose(ElevationReason reason);
     }
 
     internal sealed class WindowsElevationPrompt : IElevationPrompt
@@ -395,6 +398,14 @@ namespace NVConso
                 .OfType<Window>()
                 .FirstOrDefault(window => window.IsActive);
             return ElevationPromptDialog.Confirm(reason, owner);
+        }
+
+        public ElevationPromptChoice Choose(ElevationReason reason)
+        {
+            Window owner = System.Windows.Application.Current?.Windows
+                .OfType<Window>()
+                .FirstOrDefault(window => window.IsActive);
+            return ElevationPromptDialog.Choose(reason, owner);
         }
     }
 

@@ -36,15 +36,20 @@
             <StackPanel Grid.Row="2"
                         Orientation="Horizontal"
                         HorizontalAlignment="Right">
-                <Button x:Name="CancelActionButton"
-                        Click="Cancel_Click"
-                        Style="{StaticResource ButtonSecondary}"
-                        MinWidth="92"
-                        Margin="0,0,8,0" />
                 <Button x:Name="AuthorizeActionButton"
                         Click="Authorize_Click"
                         Style="{StaticResource ButtonPrimary}"
-                        MinWidth="104" />
+                        MinWidth="104"
+                        Margin="0,0,8,0" />
+                <Button x:Name="OneTimeActionButton"
+                        Click="OneTime_Click"
+                        Style="{StaticResource ButtonSecondary}"
+                        MinWidth="104"
+                        Margin="0,0,8,0" />
+                <Button x:Name="CancelActionButton"
+                        Click="Cancel_Click"
+                        Style="{StaticResource ButtonSecondary}"
+                        MinWidth="92" />
             </StackPanel>
         </Grid>
     </Border>
