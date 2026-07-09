@@ -378,8 +378,8 @@
 
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="25" />
+                        <ColumnDefinition Width="142" />
+                        <ColumnDefinition Width="18" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
@@ -401,10 +401,10 @@
                                     <TextBlock Text="Surveillance chaleur" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="WattPilot peut vous prévenir si la carte chauffe ou consomme trop longtemps."
                                                Style="{StaticResource PreferenceSectionHelp}" />
-                                    <TextBlock Text="La surveillance chaleur ne modifie pas les ventilateurs, ne change pas automatiquement de mode GPU et affiche seulement des alertes."
+                                    <TextBlock Text="WattPilot ne modifie pas les ventilateurs ni le mode GPU."
                                                Style="{StaticResource MutedText}"
                                                TextWrapping="Wrap"
-                                               Margin="0,0,0,12" />
+                                               Margin="0,0,0,10" />
                                     <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
                                     <Grid Style="{StaticResource PreferenceFieldRow}">
                                         <Grid.ColumnDefinitions>
@@ -456,7 +456,7 @@
                                             <ColumnDefinition Width="230" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Délai avant première alerte" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <TextBlock Text="Première alerte après" Style="{StaticResource PreferenceInlineLabel}" />
                                         <controls:NumericBox Grid.Column="1"
                                                              Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
                                                              Minimum="1"
@@ -469,7 +469,7 @@
                                             <ColumnDefinition Width="230" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Délai avant nouvelle alerte" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <TextBlock Text="Nouvelle alerte après" Style="{StaticResource PreferenceInlineLabel}" />
                                         <controls:NumericBox Grid.Column="1"
                                                              Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
                                                              Minimum="10"
@@ -500,7 +500,7 @@
                                             <ColumnDefinition Width="230" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Fréquence d'enregistrement" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <TextBlock Text="Fréquence" Style="{StaticResource PreferenceInlineLabel}" />
                                         <controls:NumericBox Grid.Column="1"
                                                              Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
                                                              Minimum="1"
@@ -513,7 +513,7 @@
                                             <ColumnDefinition Width="230" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Conservation des données" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <TextBlock Text="Conservation" Style="{StaticResource PreferenceInlineLabel}" />
                                         <controls:NumericBox Grid.Column="1"
                                                              Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
                                                              Minimum="1"
@@ -526,7 +526,7 @@
                                             <ColumnDefinition Width="230" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Durée affichée sur le graphe" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <TextBlock Text="Durée du graphe" Style="{StaticResource PreferenceInlineLabel}" />
                                         <controls:NumericBox Grid.Column="1"
                                                              Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
                                                              Minimum="30"
@@ -563,28 +563,28 @@
                                     <TextBlock Text="Dossier de données local"
                                                Style="{StaticResource PreferenceFieldLabel}"
                                                ToolTip="{Binding TelemetryPath}" />
-                                    <WrapPanel>
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
                                         <Button Content=""
                                                 Tag="&#xE8B7;"
                                                 Command="{Binding OpenTelemetryFolderCommand}"
                                                 Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir le dossier local des données"
                                                 AutomationProperties.Name="Ouvrir le dossier local des données"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,4,0" />
                                         <Button Content=""
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyTelemetryPathCommand}"
                                                 Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Copier le chemin du dossier de données"
                                                 AutomationProperties.Name="Copier le chemin du dossier de données"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,4,0" />
                                         <Button Content=""
                                                 Tag="&#xEDE1;"
                                                 Click="ExportTelemetry_Click"
                                                 Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Exporter la session de télémétrie"
                                                 AutomationProperties.Name="Exporter la session de télémétrie"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,4,0" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -602,27 +602,27 @@
                                     <TextBlock Text="Version installée" Style="{StaticResource PreferenceFieldLabel}" />
                                     <TextBlock Text="{Binding UpdateStatus.CurrentVersion}" />
                                     <CheckBox Content="Vérifier automatiquement" IsChecked="{Binding AutoCheckUpdates}" Margin="0,12,0,0" />
-                                    <WrapPanel Margin="0,10,0,0">
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
                                         <Button Content="Vérifier maintenant"
                                                 Tag="&#xE721;"
                                                 Command="{Binding CheckForUpdatesCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Rechercher les mises à jour disponibles"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content=""
                                                 Tag="&#xE8A7;"
                                                 Command="{Binding OpenGitHubReleasesCommand}"
                                                 Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir la page GitHub Releases"
                                                 AutomationProperties.Name="Ouvrir la page GitHub Releases"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content="{Binding UpdateStatus.PrimaryActionLabel}"
                                                 Tag="&#xE895;"
                                                 Command="{Binding PrimaryUpdateCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Télécharger ou installer la mise à jour disponible"
                                                 Visibility="{Binding UpdateStatus.CanRunPrimaryAction, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                     </WrapPanel>
                                     <Expander Header="Détails techniques" IsExpanded="False" Margin="0,8,0,0">
                                         <StackPanel Margin="0,8,0,0">
@@ -663,13 +663,13 @@
                                     <CheckBox Content="Télécharger automatiquement les mises à jour" IsChecked="{Binding AutoDownloadUpdates}" />
                                     <CheckBox Content="Inclure les préversions" IsChecked="{Binding IncludePrereleaseUpdates}" />
                                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource PreferenceInfoLine}" Margin="0,8,0,10" />
-                                    <WrapPanel>
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}">
                                         <Button Content="Réparer la tâche"
                                                 Tag="&#xE90F;"
                                                 Command="{Binding RepairStartupCommand}"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Réparer la tâche planifiée de démarrage"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content="Supprimer la tâche"
                                                 Tag="&#xE74D;"
                                                 Command="{Binding DeleteStartupCommand}"
@@ -682,14 +682,14 @@
                             <Border Style="{StaticResource PanelSectionBorder}">
                                 <StackPanel>
                                     <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}" />
-                                    <TextBlock Text="La réinitialisation conserve la tâche planifiée Windows." Style="{StaticResource MutedText}" Margin="0,0,0,10" />
-                                    <WrapPanel>
+                                    <TextBlock Text="La réinitialisation conserve le démarrage Windows." Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+                                    <WrapPanel Style="{StaticResource PreferenceActionToolbar}" Margin="0">
                                         <Button Content="Exporter diagnostic"
                                                 Tag="&#xEDE1;"
                                                 Click="ExportDiagnostics_Click"
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Exporter un diagnostic local"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,0" />
                                         <Button Content="Réinitialiser"
                                                 Tag="&#xE72C;"
                                                 Click="ResetDefaults_Click"
