@@ -400,37 +400,77 @@
                                                TextWrapping="Wrap"
                                                Margin="0,0,0,12" />
                                     <CheckBox Content="Activer la surveillance" IsChecked="{Binding CaniculeGuardEnabled}" />
-                                    <TextBlock Text="Réglage des alertes" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <ComboBox ItemsSource="{Binding CaniculePresetOptions}"
-                                              SelectedItem="{Binding SelectedCaniculePreset, Mode=TwoWay}"
-                                              DisplayMemberPath="Label"
-                                              MinWidth="190" />
-                                    <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBlock Text="À partir de combien de watts WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
-                                    <controls:NumericBox Value="{Binding CaniculePowerThresholdWatts, Mode=TwoWay}"
-                                                         Minimum="10"
-                                                         Maximum="1000"
-                                                         Unit="W"
-                                                         RecommendationText="{Binding CaniculePowerRecommendation}" />
-                                    <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <TextBlock Text="À partir de quelle température WattPilot doit vous alerter." Style="{StaticResource PreferenceInfoLine}" />
-                                    <controls:NumericBox Value="{Binding CaniculeTemperatureThresholdCelsius, Mode=TwoWay}"
-                                                         Minimum="30"
-                                                         Maximum="110"
-                                                         Unit="°C"
-                                                         RecommendationText="{Binding CaniculeTemperatureRecommendation}" />
-                                    <TextBlock Text="Délai avant première alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="3600"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding CaniculeAlertDelayRecommendation}" />
-                                    <TextBlock Text="Délai avant nouvelle alerte" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
-                                                         Minimum="10"
-                                                         Maximum="86400"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding CaniculeCooldownRecommendation}" />
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Réglage des alertes" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <ComboBox Grid.Column="1"
+                                                  ItemsSource="{Binding CaniculePresetOptions}"
+                                                  SelectedItem="{Binding SelectedCaniculePreset, Mode=TwoWay}"
+                                                  DisplayMemberPath="Label"
+                                                  Style="{StaticResource CompactComboBox}"
+                                                  MinWidth="190" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Seuil puissance" Style="{StaticResource PreferenceFieldTitle}" />
+                                            <TextBlock Text="Watts déclenchant une alerte." Style="{StaticResource PreferenceInfoLine}" />
+                                        </StackPanel>
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculePowerThresholdWatts, Mode=TwoWay}"
+                                                             Minimum="10"
+                                                             Maximum="1000"
+                                                             Unit="W"
+                                                             RecommendationText="{Binding CaniculePowerRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Seuil température" Style="{StaticResource PreferenceFieldTitle}" />
+                                            <TextBlock Text="Température déclenchant une alerte." Style="{StaticResource PreferenceInfoLine}" />
+                                        </StackPanel>
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                             Minimum="30"
+                                                             Maximum="110"
+                                                             Unit="°C"
+                                                             RecommendationText="{Binding CaniculeTemperatureRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Délai avant première alerte" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeAlertDelaySeconds, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="3600"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding CaniculeAlertDelayRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Délai avant nouvelle alerte" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding CaniculeCooldownSeconds, Mode=TwoWay}"
+                                                             Minimum="10"
+                                                             Maximum="86400"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding CaniculeCooldownRecommendation}" />
+                                    </Grid>
                                     <Button Content="Valeurs recommandées"
                                             Tag="&#xE72C;"
                                             Command="{Binding ResetCaniculeGuardCommand}"
@@ -449,36 +489,71 @@
                                     <TextBlock Text="Les mesures sont enregistrées localement pour comparer vos usages et repérer les pics."
                                                Style="{StaticResource PreferenceSectionHelp}" />
                                     <CheckBox Content="Historiser le GPU" IsChecked="{Binding RecordingEnabled}" />
-                                    <TextBlock Text="Fréquence d'enregistrement" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="60"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding RecordingIntervalRecommendation}" />
-                                    <TextBlock Text="Conservation des données" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="365"
-                                                         Unit="jours"
-                                                         RecommendationText="{Binding TelemetryRetentionRecommendation}" />
-                                    <TextBlock Text="Durée affichée sur le graphe" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
-                                                         Minimum="30"
-                                                         Maximum="3600"
-                                                         Unit="secondes"
-                                                         RecommendationText="{Binding TelemetryHistoryRecommendation}" />
-                                    <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding PeakPowerThresholdWatts, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="2000"
-                                                         Unit="W"
-                                                         RecommendationText="{Binding PeakPowerRecommendation}" />
-                                    <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceFieldLabel}" />
-                                    <controls:NumericBox Value="{Binding PeakTemperatureThresholdCelsius, Mode=TwoWay}"
-                                                         Minimum="1"
-                                                         Maximum="150"
-                                                         Unit="°C"
-                                                         RecommendationText="{Binding PeakTemperatureRecommendation}" />
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Fréquence d'enregistrement" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding RecordingIntervalSeconds, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="60"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding RecordingIntervalRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Conservation des données" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding TelemetryRetentionDays, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="365"
+                                                             Unit="jours"
+                                                             RecommendationText="{Binding TelemetryRetentionRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Durée affichée sur le graphe" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding TelemetryHistorySeconds, Mode=TwoWay}"
+                                                             Minimum="30"
+                                                             Maximum="3600"
+                                                             Unit="secondes"
+                                                             RecommendationText="{Binding TelemetryHistoryRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Seuil pic puissance" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding PeakPowerThresholdWatts, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="2000"
+                                                             Unit="W"
+                                                             RecommendationText="{Binding PeakPowerRecommendation}" />
+                                    </Grid>
+                                    <Grid Style="{StaticResource PreferenceFieldRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Seuil pic température" Style="{StaticResource PreferenceInlineLabel}" />
+                                        <controls:NumericBox Grid.Column="1"
+                                                             Value="{Binding PeakTemperatureThresholdCelsius, Mode=TwoWay}"
+                                                             Minimum="1"
+                                                             Maximum="150"
+                                                             Unit="°C"
+                                                             RecommendationText="{Binding PeakTemperatureRecommendation}" />
+                                    </Grid>
                                     <TextBlock Text="Dossier de données local"
                                                Style="{StaticResource PreferenceFieldLabel}"
                                                ToolTip="{Binding TelemetryPath}" />

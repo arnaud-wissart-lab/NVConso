@@ -52,6 +52,7 @@
                        Margin="0" />
             <TextBox x:Name="PowerLimitTextBox"
                      Grid.Column="1"
+                     Style="{StaticResource CompactTextBox}"
                      HorizontalContentAlignment="Right"
                      PreviewTextInput="PowerLimitTextBox_PreviewTextInput"
                      TextChanged="PowerLimitTextBox_TextChanged"

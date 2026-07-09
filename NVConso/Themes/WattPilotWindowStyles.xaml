@@ -60,14 +60,28 @@
     </Style>
 
     <Style x:Key="PreferenceFieldLabel" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
-        <Setter Property="Margin" Value="0,10,0,3" />
+        <Setter Property="Margin" Value="0,8,0,2" />
     </Style>
 
     <Style x:Key="PreferenceInfoLine" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource HelpText}">
-        <Setter Property="Margin" Value="0,6,0,0" />
+        <Setter Property="Margin" Value="0,4,0,0" />
     </Style>
 
     <Style x:Key="PreferenceSectionHelp" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource HelpText}">
-        <Setter Property="Margin" Value="0,4,0,14" />
+        <Setter Property="Margin" Value="0,4,0,10" />
+    </Style>
+
+    <Style x:Key="PreferenceFieldRow" TargetType="{x:Type Grid}">
+        <Setter Property="Margin" Value="0,8,0,0" />
+    </Style>
+
+    <Style x:Key="PreferenceFieldTitle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+
+    <Style x:Key="PreferenceInlineLabel" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedText}">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,12,0" />
     </Style>
 </ResourceDictionary>
