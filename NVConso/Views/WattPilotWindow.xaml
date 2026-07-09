@@ -50,17 +50,19 @@
                                    Style="{StaticResource PreferenceInfoLine}" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Historique"
+                        <Button Content=""
                                 Tag="&#xE81C;"
                                 Command="{Binding NavigateHistoryCommand}"
-                                Style="{StaticResource ButtonGhost}"
+                                Style="{StaticResource IconOnlyButton}"
                                 ToolTip="Afficher l'historique détaillé"
-                                Margin="0,0,8,0" />
-                        <Button Content="Paramètres"
+                                AutomationProperties.Name="Afficher l'historique détaillé"
+                                Margin="0,0,6,0" />
+                        <Button Content=""
                                 Tag="&#xE713;"
                                 Command="{Binding NavigateSettingsCommand}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Ouvrir les paramètres" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Ouvrir les paramètres"
+                                AutomationProperties.Name="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
@@ -181,17 +183,19 @@
                                    Margin="0,4,0,0" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Accueil"
+                        <Button Content=""
                                 Tag="&#xE80F;"
                                 Command="{Binding NavigateHomeCommand}"
-                                Style="{StaticResource ButtonGhost}"
+                                Style="{StaticResource IconOnlyButton}"
                                 ToolTip="Revenir à l'accueil"
-                                Margin="0,0,8,0" />
-                        <Button Content="Paramètres"
+                                AutomationProperties.Name="Revenir à l'accueil"
+                                Margin="0,0,6,0" />
+                        <Button Content=""
                                 Tag="&#xE713;"
                                 Command="{Binding NavigateSettingsCommand}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Ouvrir les paramètres" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Ouvrir les paramètres"
+                                AutomationProperties.Name="Ouvrir les paramètres" />
                     </WrapPanel>
                 </Grid>
 
@@ -357,11 +361,12 @@
                         </Border>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                        <Button Content="Retour"
+                        <Button Content=""
                                 Tag="&#xE72B;"
                                 Command="{Binding DataContext.CloseSettingsPanelCommand, ElementName=RootWindow}"
-                                Style="{StaticResource ButtonGhost}"
-                                ToolTip="Retourner à la page précédente" />
+                                Style="{StaticResource IconOnlyButton}"
+                                ToolTip="Retourner à la page précédente"
+                                AutomationProperties.Name="Retourner à la page précédente" />
                     </WrapPanel>
                 </Grid>
 
@@ -478,23 +483,26 @@
                                                Style="{StaticResource PreferenceFieldLabel}"
                                                ToolTip="{Binding TelemetryPath}" />
                                     <WrapPanel>
-                                        <Button Content="Ouvrir dossier"
+                                        <Button Content=""
                                                 Tag="&#xE8B7;"
                                                 Command="{Binding OpenTelemetryFolderCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir le dossier local des données"
+                                                AutomationProperties.Name="Ouvrir le dossier local des données"
                                                 Margin="0,0,8,8" />
-                                        <Button Content="Copier le chemin"
+                                        <Button Content=""
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyTelemetryPathCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Copier le chemin du dossier de données"
+                                                AutomationProperties.Name="Copier le chemin du dossier de données"
                                                 Margin="0,0,8,8" />
-                                        <Button Content="Exporter"
+                                        <Button Content=""
                                                 Tag="&#xEDE1;"
                                                 Click="ExportTelemetry_Click"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Exporter la session de télémétrie"
+                                                AutomationProperties.Name="Exporter la session de télémétrie"
                                                 Margin="0,0,8,8" />
                                     </WrapPanel>
                                 </StackPanel>
@@ -520,11 +528,12 @@
                                                 Style="{StaticResource IconTextButton}"
                                                 ToolTip="Rechercher les mises à jour disponibles"
                                                 Margin="0,0,8,8" />
-                                        <Button Content="Ouvrir GitHub Releases"
+                                        <Button Content=""
                                                 Tag="&#xE8A7;"
                                                 Command="{Binding OpenGitHubReleasesCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Ouvrir la page GitHub Releases"
+                                                AutomationProperties.Name="Ouvrir la page GitHub Releases"
                                                 Margin="0,0,8,8" />
                                         <Button Content="{Binding UpdateStatus.PrimaryActionLabel}"
                                                 Tag="&#xE895;"
@@ -548,11 +557,12 @@
                                             <TextBlock Text="{Binding UpdateStatus.LastTechnicalMessage}"
                                                        Style="{StaticResource PreferenceInfoLine}"
                                                        TextWrapping="Wrap" />
-                                            <Button Content="Copier diagnostic"
+                                            <Button Content=""
                                                 Tag="&#xE8C8;"
                                                 Command="{Binding CopyUpdateDiagnosticCommand}"
-                                                Style="{StaticResource IconTextButton}"
+                                                Style="{StaticResource IconOnlyButton}"
                                                 ToolTip="Copier le diagnostic de mise à jour"
+                                                AutomationProperties.Name="Copier le diagnostic de mise à jour"
                                                 HorizontalAlignment="Left"
                                                 Margin="0,10,0,0" />
                                         </StackPanel>

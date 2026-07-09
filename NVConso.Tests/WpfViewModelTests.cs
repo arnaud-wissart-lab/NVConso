@@ -502,10 +502,11 @@ namespace NVConso.Tests
             Assert.Contains("Fréquence d'enregistrement", xaml);
             Assert.Contains("Conservation des données", xaml);
             Assert.Contains("Dossier de données local", xaml);
-            Assert.Contains("Copier le chemin", xaml);
-            Assert.Contains("Copier diagnostic", xaml);
+            Assert.Contains("AutomationProperties.Name=\"Copier le chemin du dossier de données\"", xaml);
+            Assert.Contains("AutomationProperties.Name=\"Copier le diagnostic de mise à jour\"", xaml);
             Assert.DoesNotContain("Chemin complet", xaml);
-            Assert.Equal(2, CountOccurrences(xaml, "Content=\"Paramètres\""));
+            Assert.Equal(2, CountOccurrences(xaml, "AutomationProperties.Name=\"Ouvrir les paramètres\""));
+            Assert.DoesNotContain("Content=\"Paramètres\"", xaml);
             Assert.DoesNotContain("Content=\"Enregistrer\"", xaml);
             Assert.DoesNotContain("SaveCommand", xaml);
             Assert.DoesNotContain("<controls:ThemeOptionControl", xaml);
