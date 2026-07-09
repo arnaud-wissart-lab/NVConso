@@ -3,7 +3,15 @@ using System.Text;
 
 namespace NVConso
 {
-    internal sealed class ElevatedGpuSessionClient
+    internal interface IElevatedGpuSessionClient
+    {
+        Task<ElevatedGpuSessionResponse> SendAsync(
+            string pipeName,
+            ElevatedGpuSessionRequest request,
+            CancellationToken cancellationToken = default);
+    }
+
+    internal sealed class ElevatedGpuSessionClient : IElevatedGpuSessionClient
     {
         public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
 

@@ -346,6 +346,7 @@ namespace NVConso
         AccessDenied = 9,
         Timeout = 10,
         ParentProcessUnavailable = 11,
-        ExecutionFailed = 12
+        ExecutionFailed = 12,
+        AuthorizationCancelled = 13
     }
 }

@@ -5,7 +5,18 @@ using System.Security.Principal;
 
 namespace NVConso
 {
-    internal sealed class ElevatedGpuSessionManager : IDisposable
+    internal interface IElevatedGpuSessionManager : IDisposable
+    {
+        bool HasActiveSession { get; }
+
+        Task<ElevatedGpuSessionResponse> SendAsync(
+            Func<ElevatedGpuSessionHelperOptions, ElevatedGpuSessionRequest> buildRequest,
+            CancellationToken cancellationToken = default);
+
+        void ForgetSession();
+    }
+
+    internal sealed class ElevatedGpuSessionManager : IElevatedGpuSessionManager
     {
         private static readonly Action<Microsoft.Extensions.Logging.ILogger, ElevatedGpuSessionErrorCode, Exception> SessionForgottenLog =
             LoggerMessage.Define<ElevatedGpuSessionErrorCode>(
@@ -20,14 +31,14 @@ namespace NVConso
                 "Helper GPU de session non lancé : {Message}");
 
         private readonly IElevatedGpuSessionLauncher _launcher;
-        private readonly ElevatedGpuSessionClient _client;
+        private readonly IElevatedGpuSessionClient _client;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly ILogger<ElevatedGpuSessionManager> _logger;
         private ElevatedGpuSessionHelperOptions _activeSession;
 
         public ElevatedGpuSessionManager(
             IElevatedGpuSessionLauncher launcher,
-            ElevatedGpuSessionClient client = null,
+            IElevatedGpuSessionClient client = null,
             ILogger<ElevatedGpuSessionManager> logger = null)
         {
             _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
@@ -52,16 +63,18 @@ namespace NVConso
 
             try
             {
-                ElevatedGpuSessionHelperOptions session = await EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
-                if (session is null)
+                ElevatedGpuSessionLaunchResult launchResult = await EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
+                if (!launchResult.Success)
                 {
                     return ElevatedGpuSessionProtocol.CreateFailureResponse(
-                        ElevatedGpuSessionErrorCode.ExecutionFailed,
-                        "Helper GPU de session indisponible.");
+                        launchResult.Cancelled
+                            ? ElevatedGpuSessionErrorCode.AuthorizationCancelled
+                            : ElevatedGpuSessionErrorCode.ExecutionFailed,
+                        launchResult.Message);
                 }
 
                 ElevatedGpuSessionResponse response = await _client
-                    .SendAsync(session.PipeName, buildRequest(session), cancellationToken)
+                    .SendAsync(launchResult.Options.PipeName, buildRequest(launchResult.Options), cancellationToken)
                     .ConfigureAwait(false);
 
                 if (response.ErrorCode is ElevatedGpuSessionErrorCode.ProtocolVersionMismatch
@@ -86,21 +99,21 @@ namespace NVConso
             _activeSession = null;
         }
 
-        private async Task<ElevatedGpuSessionHelperOptions> EnsureSessionAsync(CancellationToken cancellationToken)
+        private async Task<ElevatedGpuSessionLaunchResult> EnsureSessionAsync(CancellationToken cancellationToken)
         {
             if (HasActiveSession)
-                return _activeSession;
+                return ElevatedGpuSessionLaunchResult.Succeeded(_activeSession);
 
             ElevatedGpuSessionLaunchResult launchResult = await _launcher.LaunchAsync(cancellationToken).ConfigureAwait(false);
             if (!launchResult.Success)
             {
                 if (_logger is not null)
                     HelperNotLaunchedLog(_logger, launchResult.Message, null);
-                return null;
+                return launchResult;
             }
 
             _activeSession = launchResult.Options;
-            return _activeSession;
+            return launchResult;
         }
 
         public void Dispose()
@@ -242,19 +255,30 @@ namespace NVConso
             _logger = logger;
         }
 
-        public Task<int> RunAsync(
+        public async Task<int> RunAsync(
             ElevatedGpuSessionHelperOptions options,
             CancellationToken cancellationToken = default)
         {
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddSimpleConsole(loggingOptions =>
+                {
+                    loggingOptions.SingleLine = true;
+                    loggingOptions.TimestampFormat = "[HH:mm:ss] ";
+                });
+            });
+
+            var executor = new ElevatedGpuSessionCommandExecutor(
+                new NvmlManager(loggerFactory.CreateLogger<NvmlManager>()),
+                new WindowsPrivilegeDetector(),
+                loggerFactory.CreateLogger<ElevatedGpuSessionCommandExecutor>());
             var server = new ElevatedGpuSessionServer(
                 options,
                 _parentProcessProbe,
-                (_, _) => Task.FromResult(ElevatedGpuSessionProtocol.CreateFailureResponse(
-                    ElevatedGpuSessionErrorCode.ExecutionFailed,
-                    "Commande GPU indisponible dans ce helper.")),
+                executor.ExecuteAsync,
                 logger: _logger);
 
-            return server.RunAsync(cancellationToken);
+            return await server.RunAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

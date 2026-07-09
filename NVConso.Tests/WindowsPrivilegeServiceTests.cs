@@ -197,6 +197,104 @@ namespace NVConso.Tests
             Assert.Equal(PrivilegeMessages.ElevatedMode, service.CurrentPrivilegeStatusMessage);
         }
 
+        [Fact]
+        public async Task SetPowerLimitAsync_ShouldUseGpuSessionHelper_WhenAvailable()
+        {
+            var launcher = new FakeElevatedProcessLauncher();
+            var prompt = new FakeElevationPrompt(confirm: true);
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Profil appliqué.",
+                120000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                prompt,
+                launcher,
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.SetPowerLimitAsync(
+                0,
+                GpuPowerMode.Canicule,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, prompt.ConfirmCallCount);
+            Assert.False(launcher.WasCalled);
+            Assert.Equal(1, gpuSessionManager.SendCallCount);
+            Assert.Equal(ElevatedGpuSessionCommand.ApplyGpuProfile, gpuSessionManager.LastRequest.Command);
+            Assert.Equal(GpuPowerMode.Canicule, gpuSessionManager.LastRequest.ProfileMode);
+        }
+
+        [Fact]
+        public async Task SetPowerLimitAsync_ShouldUseGpuSessionHelper_ForCustomLimit()
+        {
+            var launcher = new FakeElevatedProcessLauncher();
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Limite appliquée.",
+                180000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                new FakeElevationPrompt(confirm: true),
+                launcher,
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.SetPowerLimitAsync(
+                0,
+                GpuPowerMode.Custom,
+                customLimitMilliwatt: 180000,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.False(launcher.WasCalled);
+            Assert.Equal(ElevatedGpuSessionCommand.ApplyCustomPowerLimit, gpuSessionManager.LastRequest.Command);
+            Assert.Equal(180000u, gpuSessionManager.LastRequest.CustomPowerLimitMilliwatt);
+        }
+
+        [Fact]
+        public async Task RestoreStockAsync_ShouldUseGpuSessionHelper_WhenAvailable()
+        {
+            var launcher = new FakeElevatedProcessLauncher();
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateSuccessResponse(
+                "Stock restauré.",
+                200000));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                new FakeElevationPrompt(confirm: true),
+                launcher,
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.RestoreStockAsync(
+                0,
+                TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.False(launcher.WasCalled);
+            Assert.Equal(ElevatedGpuSessionCommand.RestoreStock, gpuSessionManager.LastRequest.Command);
+        }
+
+        [Fact]
+        public async Task SetPowerLimitAsync_ShouldFallbackToOneShotElevation_WhenGpuSessionFails()
+        {
+            var launcher = new FakeElevatedProcessLauncher();
+            var gpuSessionManager = new FakeGpuSessionManager(ElevatedGpuSessionProtocol.CreateFailureResponse(
+                ElevatedGpuSessionErrorCode.Timeout,
+                "Helper indisponible."));
+            var service = new WindowsPrivilegeService(
+                new FakePrivilegeDetector(isElevated: false),
+                new FakeElevationPrompt(confirm: true),
+                launcher,
+                gpuSessionManager);
+
+            PrivilegeOperationResult result = await service.SetPowerLimitAsync(
+                0,
+                GpuPowerMode.Canicule,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.True(launcher.WasCalled);
+            Assert.Equal(1, gpuSessionManager.SendCallCount);
+            Assert.Contains(ElevatedCommandLine.SetPowerLimitCommand, launcher.Arguments);
+        }
+
         private sealed class FakePrivilegeDetector(bool isElevated) : IPrivilegeDetector
         {
             public bool IsElevated { get; } = isElevated;
@@ -261,6 +359,37 @@ namespace NVConso.Tests
             public void Advance(TimeSpan duration)
             {
                 _utcNow = _utcNow.Add(duration);
+            }
+        }
+
+        private sealed class FakeGpuSessionManager(ElevatedGpuSessionResponse response) : IElevatedGpuSessionManager
+        {
+            public bool HasActiveSession { get; set; } = true;
+            public int SendCallCount { get; private set; }
+            public ElevatedGpuSessionRequest LastRequest { get; private set; }
+
+            public Task<ElevatedGpuSessionResponse> SendAsync(
+                Func<ElevatedGpuSessionHelperOptions, ElevatedGpuSessionRequest> buildRequest,
+                CancellationToken cancellationToken = default)
+            {
+                SendCallCount++;
+                LastRequest = buildRequest(new ElevatedGpuSessionHelperOptions(
+                    ElevatedGpuSessionProtocol.CreatePipeName(sessionId: 1),
+                    ElevatedGpuSessionProtocol.GenerateSessionToken(),
+                    ElevatedGpuSessionProtocol.CurrentProtocolVersion,
+                    parentProcessId: 42,
+                    DateTime.UtcNow.AddMinutes(15),
+                    "S-1-5-21-1000000000-1000000000-1000000000-1001"));
+                return Task.FromResult(response);
+            }
+
+            public void ForgetSession()
+            {
+                HasActiveSession = false;
+            }
+
+            public void Dispose()
+            {
             }
         }
     }
