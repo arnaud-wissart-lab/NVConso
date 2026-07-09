@@ -21,8 +21,13 @@ namespace NVConso.Tests
             Assert.Contains("VelopackApp.Build()", program);
             Assert.Contains(".SetAutoApplyOnStartup(false)", program);
             Assert.Contains("EnsureWpfApplication();", program);
+            Assert.Contains("ElevatedGpuSessionHelperCommandLine.IsHelperMode(args)", program);
             Assert.DoesNotContain("Verb = \"runas\"", program, StringComparison.Ordinal);
             Assert.DoesNotContain("IsRunAsAdmin", program, StringComparison.Ordinal);
+
+            Assert.True(
+                program.IndexOf("ElevatedGpuSessionHelperCommandLine.IsHelperMode(args)", StringComparison.Ordinal)
+                < program.IndexOf("EnsureWpfApplication();", StringComparison.Ordinal));
         }
 
         [Fact]
