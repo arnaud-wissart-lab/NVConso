@@ -1,4 +1,6 @@
+using System.Drawing;
 using System.Windows.Forms;
+using System.Windows.Threading;
 
 namespace NVConso.Tests
 {
@@ -62,9 +64,45 @@ namespace NVConso.Tests
             Assert.Equal(TrayIconMouseAction.None, TrayIconMouseActions.FromMouseDoubleClick(MouseButtons.Right));
         }
 
+        [Fact]
+        public void TrayMenuView_ShowAt_ShouldDelegateScreenPointToWindow()
+        {
+            TrayMenuViewModel viewModel = TrayMenuBuilder.CreateViewModel(out IReadOnlyDictionary<GpuPowerMode, TrayMenuActionItem> profileItems);
+            var window = new FakeTrayMenuWindow();
+            using var view = new TrayMenuView(viewModel, profileItems, window);
+            var point = new Point(123, 456);
+
+            view.ShowAt(point);
+
+            Assert.Equal(point, window.LastShowAt);
+        }
+
         private static TrayMenuViewModel CreateMenuView()
         {
             return TrayMenuBuilder.CreateViewModel(out _);
+        }
+
+        private sealed class FakeTrayMenuWindow : ITrayMenuWindow
+        {
+            public Dispatcher Dispatcher { get; } = Dispatcher.CurrentDispatcher;
+            public Point? LastShowAt { get; private set; }
+            public bool Hidden { get; private set; }
+            public bool Closed { get; private set; }
+
+            public void ShowAt(Point screenPoint)
+            {
+                LastShowAt = screenPoint;
+            }
+
+            public void Hide()
+            {
+                Hidden = true;
+            }
+
+            public void Close()
+            {
+                Closed = true;
+            }
         }
     }
 }
