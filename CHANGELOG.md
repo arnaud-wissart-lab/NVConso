@@ -6,6 +6,8 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+- Ferme le menu de la zone de notification dès que l'utilisateur clique en dehors.
+
 ## 2.1.11 - 2026-07-09
 
 - Compacte les actions secondaires avec icônes, info-bulles et noms accessibles.

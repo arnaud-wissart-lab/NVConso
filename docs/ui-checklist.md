@@ -42,6 +42,7 @@ Cette checklist sert de blocage manuel avant toute release lorsque l'interface a
 - [ ] Détails techniques repliés : l'accueil reste centré sur les informations essentielles.
 - [ ] Détails techniques dépliés : les métriques secondaires restent lisibles et ne masquent pas les actions principales.
 - [ ] Menu tray : entrée d'ouverture WattPilot, modes GPU, statut de mise à jour et action quitter visibles.
+- [ ] Menu tray : un clic en dehors ferme le menu sans appliquer de nouveau le mode GPU actif.
 
 ## Validation de sortie
 

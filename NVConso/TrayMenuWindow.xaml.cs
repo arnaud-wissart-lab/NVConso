@@ -24,6 +24,9 @@ namespace NVConso
             _placementService = placementService ?? new TrayMenuPlacementService();
             InitializeComponent();
             DataContext = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            Mouse.AddPreviewMouseDownOutsideCapturedElementHandler(
+                this,
+                Window_PreviewMouseDownOutsideCapturedElement);
         }
 
         public void ShowAt(DrawingPoint screenPoint)
@@ -44,8 +47,15 @@ namespace NVConso
             });
 
             ApplyPhysicalBounds(finalBounds);
+            Activate();
+            Mouse.Capture(this, CaptureMode.SubTree);
             System.Diagnostics.Debug.WriteLine(
                 $"Tray menu placement: cursor={screenPoint}, screen={screen.Bounds}, working={screen.WorkingArea}, dpi={dpiScale.DpiScaleX:0.##}/{dpiScale.DpiScaleY:0.##}, size={menuSize}, final={finalBounds}");
+        }
+
+        void ITrayMenuWindow.Hide()
+        {
+            HideMenu();
         }
 
         private DrawingSize MeasureMenuSizePhysical(DpiScale dpiScale)
@@ -99,7 +109,12 @@ namespace NVConso
 
         private void Window_Deactivated(object sender, EventArgs e)
         {
-            Hide();
+            HideMenu();
+        }
+
+        private void Window_PreviewMouseDownOutsideCapturedElement(object sender, MouseButtonEventArgs e)
+        {
+            HideMenu();
         }
 
         private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -107,8 +122,16 @@ namespace NVConso
             if (e.Key != Key.Escape)
                 return;
 
-            Hide();
+            HideMenu();
             e.Handled = true;
+        }
+
+        private void HideMenu()
+        {
+            if (IsMouseCaptureWithin)
+                Mouse.Capture(null);
+
+            Hide();
         }
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
