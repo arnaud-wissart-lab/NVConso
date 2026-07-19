@@ -67,7 +67,7 @@ namespace NVConso.Tests
 
                 try
                 {
-                    Assert.Equal("Autorisation requise", dialog.Title);
+                    Assert.Equal("Autoriser WattPilot pour cette session ?", dialog.Title);
                     Assert.NotNull(dialog.Content);
                 }
                 finally

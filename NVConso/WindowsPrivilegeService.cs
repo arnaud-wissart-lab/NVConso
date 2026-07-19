@@ -6,14 +6,20 @@ using System.Windows;
 
 namespace NVConso
 {
-    public sealed class WindowsPrivilegeService : IPrivilegeService, IDisposable
+    public sealed class WindowsPrivilegeService : IPrivilegeService, IGpuSessionPrivilegeService, IDisposable
     {
         private const int ErrorCancelled = 1223;
         internal static readonly TimeSpan DefaultElevationPromptSuppressionDuration = TimeSpan.FromMinutes(5);
+        private static readonly Action<Microsoft.Extensions.Logging.ILogger, ElevatedGpuSessionErrorCode, Exception> GpuSessionFallbackLog =
+            LoggerMessage.Define<ElevatedGpuSessionErrorCode>(
+                LogLevel.Information,
+                new EventId(1, nameof(GpuSessionFallbackLog)),
+                "Helper GPU de session indisponible, fallback ponctuel : {ErrorCode}");
 
         private readonly IPrivilegeDetector _privilegeDetector;
         private readonly IElevationPrompt _elevationPrompt;
         private readonly IElevatedProcessLauncher _processLauncher;
+        private readonly IElevatedGpuSessionManager _gpuSessionManager;
         private readonly Func<DateTime> _utcNow;
         private readonly TimeSpan _elevationPromptSuppressionDuration;
         private readonly SemaphoreSlim _elevationRequestGate = new(1, 1);
@@ -27,6 +33,7 @@ namespace NVConso
                 new WindowsPrivilegeDetector(),
                 new WindowsElevationPrompt(),
                 new WindowsElevatedProcessLauncher(executablePath ?? System.Windows.Forms.Application.ExecutablePath),
+                new ElevatedGpuSessionManager(new ElevatedGpuSessionLauncher(executablePath ?? System.Windows.Forms.Application.ExecutablePath)),
                 logger)
         {
         }
@@ -35,6 +42,7 @@ namespace NVConso
             IPrivilegeDetector privilegeDetector,
             IElevationPrompt elevationPrompt,
             IElevatedProcessLauncher processLauncher,
+            IElevatedGpuSessionManager gpuSessionManager = null,
             ILogger<WindowsPrivilegeService> logger = null,
             Func<DateTime> utcNow = null,
             TimeSpan? elevationPromptSuppressionDuration = null)
@@ -42,6 +50,7 @@ namespace NVConso
             _privilegeDetector = privilegeDetector ?? throw new ArgumentNullException(nameof(privilegeDetector));
             _elevationPrompt = elevationPrompt ?? throw new ArgumentNullException(nameof(elevationPrompt));
             _processLauncher = processLauncher ?? throw new ArgumentNullException(nameof(processLauncher));
+            _gpuSessionManager = gpuSessionManager;
             _utcNow = utcNow ?? (() => DateTime.UtcNow);
             _elevationPromptSuppressionDuration = elevationPromptSuppressionDuration
                 ?? DefaultElevationPromptSuppressionDuration;
@@ -63,6 +72,8 @@ namespace NVConso
         public bool CanWritePowerLimit => IsElevated;
 
         public bool CanManageStartupTask => IsElevated;
+
+        public bool HasActiveGpuSession => _gpuSessionManager?.HasActiveSession == true;
 
         public string CurrentPrivilegeStatusMessage
         {
@@ -87,8 +98,8 @@ namespace NVConso
             uint? customLimitMilliwatt = null,
             CancellationToken cancellationToken = default)
         {
-            return ExecuteElevatedCommandAsync(
-                ElevationReason.GpuPowerLimit,
+            return ExecuteGpuCommandAsync(
+                session => BuildGpuPowerLimitRequest(session, gpuIndex, profileMode, customLimitMilliwatt),
                 resultFilePath => ElevatedCommandLine.BuildSetPowerLimitArguments(
                     gpuIndex,
                     profileMode,
@@ -101,8 +112,8 @@ namespace NVConso
             int gpuIndex,
             CancellationToken cancellationToken = default)
         {
-            return ExecuteElevatedCommandAsync(
-                ElevationReason.GpuPowerLimit,
+            return ExecuteGpuCommandAsync(
+                session => BuildRestoreStockRequest(session, gpuIndex),
                 resultFilePath => ElevatedCommandLine.BuildRestoreStockArguments(gpuIndex, resultFilePath),
                 cancellationToken);
         }
@@ -129,6 +140,119 @@ namespace NVConso
         public void Dispose()
         {
             _elevationRequestGate.Dispose();
+            _gpuSessionManager?.Dispose();
+        }
+
+        public async Task<PrivilegeOperationResult> RestoreStockWithoutPromptAsync(
+            int gpuIndex,
+            CancellationToken cancellationToken = default)
+        {
+            if (_gpuSessionManager?.HasActiveSession != true)
+                return PrivilegeOperationResult.Failed("Helper GPU de session inactif.");
+
+            try
+            {
+                ElevatedGpuSessionResponse response = await _gpuSessionManager
+                    .SendAsync(session => BuildRestoreStockRequest(session, gpuIndex), cancellationToken)
+                    .ConfigureAwait(true);
+
+                return response.Success
+                    ? PrivilegeOperationResult.Succeeded(response.Message, response.PowerLimitMilliwatt)
+                    : PrivilegeOperationResult.Failed(response.Message);
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogDebug(exception, "Restauration Stock via helper de session ignorée.");
+                return PrivilegeOperationResult.Failed("Restauration Stock via helper indisponible.");
+            }
+        }
+
+        public Task StopGpuSessionAsync(CancellationToken cancellationToken = default)
+        {
+            return _gpuSessionManager?.StopSessionAsync(cancellationToken) ?? Task.CompletedTask;
+        }
+
+        private async Task<PrivilegeOperationResult> ExecuteGpuCommandAsync(
+            Func<ElevatedGpuSessionHelperOptions, ElevatedGpuSessionRequest> buildSessionRequest,
+            Func<string, string[]> buildFallbackArguments,
+            CancellationToken cancellationToken)
+        {
+            RefreshElevationState();
+
+            if (IsElevationPromptSuppressed())
+                return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus);
+
+            if (!await _elevationRequestGate.WaitAsync(0, cancellationToken).ConfigureAwait(true))
+                return PrivilegeOperationResult.Failed(PrivilegeMessages.ElevationAlreadyInProgress);
+
+            string resultFilePath = null;
+
+            try
+            {
+                RefreshElevationState();
+                if (State.IsElevated)
+                    return PrivilegeOperationResult.Failed("WattPilot est déjà en mode administrateur.");
+
+                if (IsElevationPromptSuppressed())
+                    return PrivilegeOperationResult.CancelledByUser(PrivilegeMessages.ElevationCancelledStatus);
+
+                MarkElevationRequested();
+
+                ElevationPromptChoice promptChoice = _elevationPrompt.Choose(ElevationReason.GpuPowerLimit);
+                if (promptChoice == ElevationPromptChoice.Cancel)
+                    return MarkElevationDeniedAndCancel();
+
+                if (promptChoice == ElevationPromptChoice.Session && _gpuSessionManager is not null)
+                {
+                    ElevatedGpuSessionResponse helperResult = await _gpuSessionManager
+                        .SendAsync(buildSessionRequest, cancellationToken)
+                        .ConfigureAwait(true);
+
+                    if (helperResult.Success)
+                    {
+                        ClearElevationSuppression();
+                        return PrivilegeOperationResult.Succeeded(helperResult.Message, helperResult.PowerLimitMilliwatt);
+                    }
+
+                    if (helperResult.ErrorCode == ElevatedGpuSessionErrorCode.AuthorizationCancelled)
+                        return MarkElevationDeniedAndCancel();
+
+                    if (_logger is not null)
+                        GpuSessionFallbackLog(_logger, helperResult.ErrorCode, null);
+                }
+
+                resultFilePath = ElevatedCommandResultFile.CreatePendingResultPath();
+                ElevatedCommandResult result = await _processLauncher
+                    .ExecuteAsync(buildFallbackArguments(resultFilePath), resultFilePath, cancellationToken)
+                    .ConfigureAwait(true);
+
+                if (!result.Success)
+                    return PrivilegeOperationResult.Failed(result.Message);
+
+                ClearElevationSuppression();
+                return PrivilegeOperationResult.Succeeded(result.Message, result.PowerLimitMilliwatt);
+            }
+            catch (OperationCanceledException)
+            {
+                return PrivilegeOperationResult.CancelledByUser();
+            }
+            catch (Win32Exception exception) when (IsElevationCancelled(exception))
+            {
+                return MarkElevationDeniedAndCancel();
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogWarning(exception, "Commande GPU privilégiée impossible.");
+                return PrivilegeOperationResult.Failed(
+                    $"Commande privilégiée impossible : {exception.Message}");
+            }
+            finally
+            {
+                if (!string.IsNullOrWhiteSpace(resultFilePath))
+                    ElevatedCommandResultFile.TryDelete(resultFilePath);
+
+                _elevationRequestGate.Release();
+            }
         }
 
         private async Task<PrivilegeOperationResult> ExecuteElevatedCommandAsync(
@@ -230,6 +354,46 @@ namespace NVConso
         {
             return exception.NativeErrorCode == ErrorCancelled;
         }
+
+        private static ElevatedGpuSessionRequest BuildGpuPowerLimitRequest(
+            ElevatedGpuSessionHelperOptions session,
+            int gpuIndex,
+            GpuPowerMode profileMode,
+            uint? customLimitMilliwatt)
+        {
+            if (profileMode == GpuPowerMode.Custom)
+            {
+                return new ElevatedGpuSessionRequest
+                {
+                    SessionToken = session.SessionToken,
+                    Command = ElevatedGpuSessionCommand.ApplyCustomPowerLimit,
+                    GpuIndex = gpuIndex,
+                    CustomPowerLimitMilliwatt = customLimitMilliwatt,
+                    MinimumPowerLimitMilliwatt = 1,
+                    MaximumPowerLimitMilliwatt = uint.MaxValue
+                };
+            }
+
+            return new ElevatedGpuSessionRequest
+            {
+                SessionToken = session.SessionToken,
+                Command = ElevatedGpuSessionCommand.ApplyGpuProfile,
+                GpuIndex = gpuIndex,
+                ProfileMode = profileMode
+            };
+        }
+
+        private static ElevatedGpuSessionRequest BuildRestoreStockRequest(
+            ElevatedGpuSessionHelperOptions session,
+            int gpuIndex)
+        {
+            return new ElevatedGpuSessionRequest
+            {
+                SessionToken = session.SessionToken,
+                Command = ElevatedGpuSessionCommand.RestoreStock,
+                GpuIndex = gpuIndex
+            };
+        }
     }
 
     internal interface IPrivilegeDetector
@@ -253,6 +417,19 @@ namespace NVConso
     internal interface IElevationPrompt
     {
         bool Confirm(ElevationReason reason);
+
+        ElevationPromptChoice Choose(ElevationReason reason);
+    }
+
+    internal interface IGpuSessionPrivilegeService
+    {
+        bool HasActiveGpuSession { get; }
+
+        Task<PrivilegeOperationResult> RestoreStockWithoutPromptAsync(
+            int gpuIndex,
+            CancellationToken cancellationToken = default);
+
+        Task StopGpuSessionAsync(CancellationToken cancellationToken = default);
     }
 
     internal sealed class WindowsElevationPrompt : IElevationPrompt
@@ -263,6 +440,14 @@ namespace NVConso
                 .OfType<Window>()
                 .FirstOrDefault(window => window.IsActive);
             return ElevationPromptDialog.Confirm(reason, owner);
+        }
+
+        public ElevationPromptChoice Choose(ElevationReason reason)
+        {
+            Window owner = System.Windows.Application.Current?.Windows
+                .OfType<Window>()
+                .FirstOrDefault(window => window.IsActive);
+            return ElevationPromptDialog.Choose(reason, owner);
         }
     }
 

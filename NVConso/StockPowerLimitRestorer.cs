@@ -19,6 +19,25 @@ namespace NVConso
 
             if (privilegeService is not null && !privilegeService.CanWritePowerLimit)
             {
+                if (privilegeService is IGpuSessionPrivilegeService { HasActiveGpuSession: true } gpuSessionPrivilegeService)
+                {
+                    try
+                    {
+                        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        PrivilegeOperationResult result = gpuSessionPrivilegeService
+                            .RestoreStockWithoutPromptAsync(nvml.SelectedGpuIndex, cancellation.Token)
+                            .GetAwaiter()
+                            .GetResult();
+
+                        return result.Success;
+                    }
+                    catch (Exception exception)
+                    {
+                        logger?.LogDebug(exception, "[NVML] Restauration Stock via helper de session ignorée.");
+                        return false;
+                    }
+                }
+
                 logger?.LogDebug("[NVML] Restauration Stock ignorée: mode lecture seule.");
                 return false;
             }

@@ -21,8 +21,13 @@ namespace NVConso.Tests
             Assert.Contains("VelopackApp.Build()", program);
             Assert.Contains(".SetAutoApplyOnStartup(false)", program);
             Assert.Contains("EnsureWpfApplication();", program);
+            Assert.Contains("ElevatedGpuSessionHelperCommandLine.IsHelperMode(args)", program);
             Assert.DoesNotContain("Verb = \"runas\"", program, StringComparison.Ordinal);
             Assert.DoesNotContain("IsRunAsAdmin", program, StringComparison.Ordinal);
+
+            Assert.True(
+                program.IndexOf("ElevatedGpuSessionHelperCommandLine.IsHelperMode(args)", StringComparison.Ordinal)
+                < program.IndexOf("EnsureWpfApplication();", StringComparison.Ordinal));
         }
 
         [Fact]
@@ -32,13 +37,18 @@ namespace NVConso.Tests
 
             Assert.Contains("runWithHighestPrivileges: false", startupManager);
             Assert.DoesNotContain("runWithHighestPrivileges: true", startupManager, StringComparison.Ordinal);
+            Assert.DoesNotContain("--elevated-session-helper", startupManager, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
         public void Runas_ShouldOnlyBeUsedByExplicitPrivilegeService()
         {
             string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
-            string expectedFile = Path.Combine(sourceRoot, "WindowsPrivilegeService.cs");
+            string[] expectedFiles =
+            [
+                Path.Combine(sourceRoot, "WindowsPrivilegeService.cs"),
+                Path.Combine(sourceRoot, "ElevatedGpuSessionManager.cs")
+            ];
 
             string[] filesUsingRunas = Directory
                 .EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
@@ -52,8 +62,7 @@ namespace NVConso.Tests
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            string runasFile = Assert.Single(filesUsingRunas);
-            Assert.Equal(expectedFile, runasFile);
+            Assert.Equal(expectedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase), filesUsingRunas);
         }
 
         [Fact]
@@ -100,9 +109,17 @@ namespace NVConso.Tests
         [Fact]
         public void ElevationPrompt_ShouldUseRequiredGpuMessageAndActions()
         {
+            Assert.Equal("Autoriser WattPilot pour cette session ?", PrivilegeMessages.GpuSessionAuthorizationTitle);
+            Assert.Equal("Windows demandera une autorisation. Ensuite, les changements de mode pourront être appliqués sans nouvelle demande pendant cette session.", PrivilegeMessages.GpuSessionAuthorizationMessage);
+            Assert.Equal("Autoriser pour cette session", PrivilegeMessages.AuthorizeForSessionButton);
+            Assert.Equal("Une seule fois", PrivilegeMessages.OneTimeAuthorizationButton);
+            Assert.Equal("Annuler", PrivilegeMessages.CancelButton);
+        }
+
+        [Fact]
+        public void StartupTaskElevationPrompt_ShouldKeepOneShotMessageAndActions()
+        {
             Assert.Equal("Autorisation requise", PrivilegeMessages.AuthorizationTitle);
-            Assert.Equal("Windows va demander une autorisation pour appliquer ce mode GPU.", PrivilegeMessages.GpuPowerLimitRequiresElevation);
-            Assert.Equal("WattPilot restera ouvert normalement.", PrivilegeMessages.GpuPowerLimitElevationDetail);
             Assert.Equal("Windows va demander une autorisation pour réparer le démarrage automatique.", PrivilegeMessages.StartupTaskRequiresElevation);
             Assert.Equal("Cela ne relance pas WattPilot en mode administrateur.", PrivilegeMessages.StartupTaskElevationDetail);
             Assert.Equal("Autoriser", PrivilegeMessages.AuthorizeButton);
@@ -134,6 +151,26 @@ namespace NVConso.Tests
                 foreach (string forbiddenFragment in forbiddenFragments)
                     Assert.DoesNotContain(forbiddenFragment, content, StringComparison.OrdinalIgnoreCase);
             }
+        }
+
+        [Fact]
+        public void ElevatedGpuSessionHelper_ShouldNotInstallPermanentServiceOrTask()
+        {
+            string sourceRoot = Path.Combine(FindRepositoryRoot(), "NVConso");
+            string combinedSource = string.Join(
+                Environment.NewLine,
+                Directory.EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+                    .Where(path =>
+                        !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                        && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                    .Select(File.ReadAllText));
+
+            Assert.DoesNotContain("ServiceBase", combinedSource, StringComparison.Ordinal);
+            Assert.DoesNotContain("CreateService", combinedSource, StringComparison.Ordinal);
+            Assert.DoesNotContain("WindowsServiceLifetime", combinedSource, StringComparison.Ordinal);
+
+            string startupManager = File.ReadAllText(Path.Combine(sourceRoot, "WindowsTaskSchedulerStartupManager.cs"));
+            Assert.DoesNotContain(ElevatedGpuSessionHelperCommandLine.HelperSwitch, startupManager, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

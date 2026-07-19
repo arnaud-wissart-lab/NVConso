@@ -11,7 +11,10 @@ $startupManagerPath = Join-Path $repositoryRoot "NVConso/WindowsTaskSchedulerSta
 $sourceRoot = Join-Path $repositoryRoot "NVConso"
 $viewsRoot = Join-Path $sourceRoot "Views"
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
-$allowedRunasFile = Join-Path $sourceRoot "WindowsPrivilegeService.cs"
+$allowedRunasFiles = @(
+    (Join-Path $sourceRoot "WindowsPrivilegeService.cs"),
+    (Join-Path $sourceRoot "ElevatedGpuSessionManager.cs")
+)
 $allowedMainWindow = "NVConso.Views.WattPilotWindow"
 
 Push-Location $repositoryRoot
@@ -79,13 +82,16 @@ try {
     $unauthorizedMatches = @(
         $runasMatches |
             Where-Object {
-                -not [string]::Equals($_.Path, $allowedRunasFile, [System.StringComparison]::OrdinalIgnoreCase)
+                $path = $_.Path
+                -not ($allowedRunasFiles | Where-Object {
+                    [string]::Equals($path, $_, [System.StringComparison]::OrdinalIgnoreCase)
+                })
             }
     )
 
     if ($unauthorizedMatches.Count -gt 0) {
         $unauthorizedMatches | ForEach-Object { Write-Host $_ }
-        throw 'Verb = "runas" est autorisé uniquement dans WindowsPrivilegeService.'
+        throw 'Verb = "runas" est autorisé uniquement dans les lanceurs explicitement autorisés.'
     }
 
     if ($runasMatches.Count -eq 0) {
@@ -93,6 +99,31 @@ try {
     } else {
         $runasMatches | ForEach-Object { Write-Host $_ }
     }
+
+    Write-Host "Recherche d'une tâche planifiée permanente pour le helper GPU"
+    $helperStartupTaskMatches = @(Select-String -Path $startupManagerPath -Pattern '--elevated-session-helper')
+    if ($helperStartupTaskMatches.Count -gt 0) {
+        $helperStartupTaskMatches | ForEach-Object { Write-Host $_ }
+        throw "Le helper GPU de session ne doit pas être installé via une tâche planifiée permanente."
+    }
+
+    Write-Host "Aucun résultat."
+
+    Write-Host "Recherche d'API de service Windows permanent"
+    $serviceMatches = @(
+        Get-ChildItem -Path $sourceRoot -Filter "*.cs" -Recurse |
+            Where-Object {
+                $_.FullName -notmatch "\\bin\\" -and
+                $_.FullName -notmatch "\\obj\\"
+            } |
+            Select-String -Pattern 'ServiceBase|CreateService|WindowsServiceLifetime'
+    )
+    if ($serviceMatches.Count -gt 0) {
+        $serviceMatches | ForEach-Object { Write-Host $_ }
+        throw "Le helper GPU de session ne doit pas installer de service Windows permanent."
+    }
+
+    Write-Host "Aucun résultat."
 
     Write-Host "Recherche des fenêtres WPF principales"
     $windowDeclarations = @(

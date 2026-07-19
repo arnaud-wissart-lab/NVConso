@@ -10,6 +10,10 @@ namespace NVConso
         public const string AuthorizationTitle = "Autorisation requise";
         public const string AuthorizeButton = "Autoriser";
         public const string CancelButton = "Annuler";
+        public const string GpuSessionAuthorizationTitle = "Autoriser WattPilot pour cette session ?";
+        public const string GpuSessionAuthorizationMessage = "Windows demandera une autorisation. Ensuite, les changements de mode pourront être appliqués sans nouvelle demande pendant cette session.";
+        public const string AuthorizeForSessionButton = "Autoriser pour cette session";
+        public const string OneTimeAuthorizationButton = "Une seule fois";
         public const string GpuPowerLimitRequiresElevation = "Windows va demander une autorisation pour appliquer ce mode GPU.";
         public const string GpuPowerLimitElevationDetail = "WattPilot restera ouvert normalement.";
         public const string StartupTaskRequiresElevation = "Windows va demander une autorisation pour réparer le démarrage automatique.";

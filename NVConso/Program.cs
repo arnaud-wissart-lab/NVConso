@@ -22,6 +22,12 @@ namespace NVConso
                 return;
             }
 
+            if (ElevatedGpuSessionHelperCommandLine.IsHelperMode(args))
+            {
+                Environment.Exit(ElevatedGpuSessionHelperProgram.Run(args));
+                return;
+            }
+
             StartupLaunchOptions launchOptions = StartupLaunchOptions.Parse(args);
 
             ApplicationConfiguration.Initialize();
