@@ -6,6 +6,22 @@ Le format suit l'esprit de Keep a Changelog et les versions suivent SemVer.
 
 ## [Unreleased]
 
+## 2.1.12 - 2026-07-19
+
+### Ajouté
+
+- Propose `Autoriser pour cette session` afin d'appliquer plusieurs modes GPU après une seule validation UAC.
+- Conserve l'option `Une seule fois` pour limiter l'autorisation à l'action GPU en cours.
+
+### Corrigé
+
+- Ferme le menu de la zone de notification dès que l'utilisateur clique en dehors.
+- Réutilise l'autorisation de session pour restaurer le mode `Stock` à la fermeture lorsque cette option est activée.
+
+### Sécurité
+
+- Limite le helper élevé au compte Windows et au processus WattPilot attendus, aux seules commandes GPU prévues et à une durée d'inactivité bornée.
+
 ## 2.1.11 - 2026-07-09
 
 - Compacte les actions secondaires avec icônes, info-bulles et noms accessibles.

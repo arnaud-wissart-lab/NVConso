@@ -10,7 +10,7 @@ Ce document décrit le processus de publication actuel de WattPilot.
 - GitHub Actions activé.
 - Tag au format strict `vX.Y.Z`.
 
-Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.6`.
+Le workflow actuel ne publie pas de préversion depuis un tag `vX.Y.Z-alpha.1`. Le tag attendu est par exemple `v2.1.12`.
 
 ## Version de la prochaine release
 
@@ -18,7 +18,7 @@ Le projet est actuellement en version `2.0.1` dans le `.csproj`. La release publ
 
 Ne pas modifier le `.csproj` uniquement pour publier une release si le tag reste la source de vérité. Éviter toute combinaison où le tag, le titre GitHub Release et les propriétés MSBuild indiqueraient des versions différentes.
 
-Choix recommandé pour cette passe : `v2.1.6`, car `v2.1.5` a déjà été tagué et les changements en cours ajoutent des garde-fous de validation UI avant release.
+Choix retenu pour cette passe : `v2.1.12`, car `v2.1.11` est la dernière release publiée et les changements restent rétrocompatibles.
 
 ## Commandes locales avant tag
 
@@ -47,8 +47,8 @@ Avant de pousser le tag final, vérifier la candidate installée depuis l'artefa
 ## Déclencher une release
 
 ```powershell
-git tag v2.1.6
-git push origin v2.1.6
+git tag v2.1.12
+git push origin v2.1.12
 ```
 
 Le workflow [../.github/workflows/release.yml](../.github/workflows/release.yml) dérive la version depuis le tag. Il échoue si le tag ne respecte pas `vX.Y.Z`.
@@ -220,11 +220,11 @@ Le ZIP portable permet de vérifier le lancement sans installation, mais sa mise
 Pour publier une version standard après merge, créer puis pousser le tag cible :
 
 ```powershell
-git tag v2.1.6
-git push origin v2.1.6
+git tag v2.1.12
+git push origin v2.1.12
 ```
 
-Remplacer `v2.1.6` par la version décidée pour la release si un tag plus récent existe déjà au moment de publier.
+Remplacer `v2.1.12` par la version décidée pour la release si un tag plus récent existe déjà au moment de publier.
 
 Après le push :
 
