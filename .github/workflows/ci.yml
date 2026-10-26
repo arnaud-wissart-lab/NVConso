@@ -31,7 +31,7 @@ jobs:
         if: ${{ hashFiles('global.json') == '' }}
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 10.x
+          dotnet-version: 10.0.403
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
